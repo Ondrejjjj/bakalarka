@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'settings.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,6 +19,10 @@ class MyApp extends StatelessWidget {
           seedColor: Colors.deepPurple,
         ),
       ),
+      initialRoute: '/',
+      routes: {
+        '/settings': (context) => const SettingsPage(),
+      },
       home: const MyHomePage(),
     );
   }
@@ -119,6 +124,7 @@ class SettingsDrawer extends StatelessWidget {
             title: const Text('Nastavenia'),
             onTap: () {
               Navigator.pop(context);
+              Navigator.pushNamed(context, '/settings');
             },
           ),
           ListTile(
