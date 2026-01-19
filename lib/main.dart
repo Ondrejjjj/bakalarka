@@ -1,8 +1,19 @@
+import 'package:bakalarka/theme.dart';
 import 'package:flutter/material.dart';
 import 'settings.dart';
+import 'theme.dart' hide ThemeProvider, AppTheme;
+import 'package:provider/provider.dart';
+
+
+
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -10,20 +21,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Flutter App',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-        ),
-      ),
-      initialRoute: '/',
-      routes: {
-        '/settings': (context) => const SettingsPage(),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Flutter App',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          initialRoute: '/',
+          routes: {
+            '/settings': (context) => const SettingsPage(),
+          },
+          home: const MyHomePage(),
+        );
       },
-      home: const MyHomePage(),
     );
   }
 }
