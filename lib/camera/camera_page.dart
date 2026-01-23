@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // <-- pridané pre vibráciu
 import 'package:path_provider/path_provider.dart';
 
 class CameraPage extends StatefulWidget {
@@ -15,6 +16,14 @@ class _CameraPageState extends State<CameraPage> {
   late List<CameraDescription> _cameras;
   bool _isFlashOn = false;
   bool _isReady = false;
+
+  // Zoom
+  double _minZoom = 1.0;
+  double _maxZoom = 1.0;
+  double _currentZoom = 1.0;
+
+  // Pre flash animáciu
+  bool _showFlash = false;
 
   @override
   void initState() {
@@ -33,6 +42,10 @@ class _CameraPageState extends State<CameraPage> {
 
     await _controller!.initialize();
 
+    _minZoom = await _controller!.getMinZoomLevel();
+    _maxZoom = await _controller!.getMaxZoomLevel();
+    _currentZoom = _minZoom;
+
     setState(() {
       _isReady = true;
     });
@@ -40,6 +53,14 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> _takePhoto() async {
     if (!_controller!.value.isInitialized) return;
+
+    // Vibrácia pri fotení
+    HapticFeedback.mediumImpact();
+
+    // Flash animácia
+    setState(() => _showFlash = true);
+    await Future.delayed(const Duration(milliseconds: 100));
+    setState(() => _showFlash = false);
 
     final directory = await getTemporaryDirectory();
     final path =
@@ -84,6 +105,14 @@ class _CameraPageState extends State<CameraPage> {
         children: [
           CameraPreview(_controller!),
 
+          /// FLASH ANIMÁCIA
+          if (_showFlash)
+            Positioned.fill(
+              child: Container(
+                color: Colors.white.withOpacity(0.4),
+              ),
+            ),
+
           /// TOP BAR
           Positioned(
             top: 40,
@@ -106,9 +135,41 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
 
-          /// BOTTOM CAPTURE
+          /// ZOOM SLIDER
           Positioned(
-            bottom: 40,
+            left: 20,
+            right: 20,
+            bottom: 100,
+            child: Material(
+              color: Colors.transparent,
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 6,
+                  thumbShape:
+                  const RoundSliderThumbShape(enabledThumbRadius: 10),
+                  overlayShape:
+                  const RoundSliderOverlayShape(overlayRadius: 18),
+                  activeTrackColor: Colors.white,
+                  inactiveTrackColor: Colors.white38,
+                  thumbColor: Colors.white,
+                ),
+                child: Slider(
+                  min: _minZoom,
+                  max: _maxZoom,
+                  value: _currentZoom.clamp(_minZoom, _maxZoom),
+                  onChanged: (val) async {
+                    _currentZoom = val;
+                    await _controller!.setZoomLevel(val);
+                    setState(() {}); // refresh slider a kamera
+                  },
+                ),
+              ),
+            ),
+          ),
+
+          /// BOTTOM CAPTURE BUTTON
+          Positioned(
+            bottom: 10,
             left: 0,
             right: 0,
             child: Center(
