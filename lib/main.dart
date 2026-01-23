@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'settings.dart';
 import 'theme.dart' hide ThemeProvider, AppTheme;
 import 'package:provider/provider.dart';
+import 'camera/camera_page.dart';
 
 
 
@@ -103,12 +104,23 @@ class MyHomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(
-        child: Text(
-          'Domovská obrazovka',
-          style: TextStyle(fontSize: 18),
-        ),
+      body: Column(
+        children: [
+          /// HLAVNÝ OBSAH
+          const Expanded(
+            child: Center(
+              child: Text(
+                'Domovská obrazovka',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ),
+
+          /// TOOLBAR DOLE
+          _BottomToolbar(),
+        ],
       ),
+
     );
   }
 }
@@ -151,3 +163,113 @@ class SettingsDrawer extends StatelessWidget {
     );
   }
 }
+
+class _BottomToolbar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 24, // výška od spodku
+      ),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 28,
+            vertical: 14,
+          ),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(40), // PILLOVÝ TVAR
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ToolbarItem(
+                icon: Icons.photo_camera,
+                label: 'Kamera',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CameraPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 32),
+              _ToolbarItem(
+                icon: Icons.mic,
+                label: 'Mikrofón',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('🎤 Mikrofón – zatiaľ nepripravené'),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 32),
+              _ToolbarItem(
+                icon: Icons.photo_library,
+                label: 'Galéria',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('🖼 Galéria – zatiaľ nepripravené'),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolbarItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ToolbarItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 28,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
