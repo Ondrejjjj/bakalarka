@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // <-- pridané pre vibráciu
 import 'package:path_provider/path_provider.dart';
 
 class CameraPage extends StatefulWidget {
@@ -22,8 +22,11 @@ class _CameraPageState extends State<CameraPage> {
   double _maxZoom = 1.0;
   double _currentZoom = 1.0;
 
-  // Pre flash animáciu
-  bool _showFlash = false;
+  // Video
+  bool _isVideoMode = false;
+  bool _isRecording = false;
+  Duration _videoDuration = Duration.zero;
+  Timer? _videoTimer;
 
   @override
   void initState() {
@@ -37,7 +40,7 @@ class _CameraPageState extends State<CameraPage> {
     _controller = CameraController(
       _cameras.first,
       ResolutionPreset.high,
-      enableAudio: false,
+      enableAudio: true,
     );
 
     await _controller!.initialize();
@@ -52,15 +55,7 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _takePhoto() async {
-    if (!_controller!.value.isInitialized) return;
-
-    // Vibrácia pri fotení
-    HapticFeedback.mediumImpact();
-
-    // Flash animácia
-    setState(() => _showFlash = true);
-    await Future.delayed(const Duration(milliseconds: 100));
-    setState(() => _showFlash = false);
+    if (!_controller!.value.isInitialized || _isRecording) return;
 
     final directory = await getTemporaryDirectory();
     final path =
@@ -72,6 +67,36 @@ class _CameraPageState extends State<CameraPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Fotka uložená: $path')),
     );
+  }
+
+  Future<void> _startVideo() async {
+    if (!_controller!.value.isInitialized || _isRecording) return;
+
+    await _controller!.startVideoRecording();
+    _isRecording = true;
+    _videoDuration = Duration.zero;
+
+    _videoTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _videoDuration += const Duration(seconds: 1);
+      });
+    });
+
+    setState(() {});
+  }
+
+  Future<void> _stopVideo() async {
+    if (!_isRecording) return;
+
+    final XFile video = await _controller!.stopVideoRecording();
+    _isRecording = false;
+    _videoTimer?.cancel();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Video uložené: ${video.path}')),
+    );
+
+    setState(() {});
   }
 
   void _toggleFlash() async {
@@ -86,8 +111,15 @@ class _CameraPageState extends State<CameraPage> {
 
   @override
   void dispose() {
+    _videoTimer?.cancel();
     _controller?.dispose();
     super.dispose();
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   @override
@@ -104,14 +136,6 @@ class _CameraPageState extends State<CameraPage> {
       body: Stack(
         children: [
           CameraPreview(_controller!),
-
-          /// FLASH ANIMÁCIA
-          if (_showFlash)
-            Positioned.fill(
-              child: Container(
-                color: Colors.white.withOpacity(0.4),
-              ),
-            ),
 
           /// TOP BAR
           Positioned(
@@ -135,11 +159,36 @@ class _CameraPageState extends State<CameraPage> {
             ),
           ),
 
+          /// VIDEO DURATION
+          if (_isRecording)
+            Positioned(
+              top: 40,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _formatDuration(_videoDuration),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+
           /// ZOOM SLIDER
           Positioned(
             left: 20,
             right: 20,
-            bottom: 100,
+            bottom: 160,
             child: Material(
               color: Colors.transparent,
               child: SliderTheme(
@@ -147,8 +196,7 @@ class _CameraPageState extends State<CameraPage> {
                   trackHeight: 6,
                   thumbShape:
                   const RoundSliderThumbShape(enabledThumbRadius: 10),
-                  overlayShape:
-                  const RoundSliderOverlayShape(overlayRadius: 18),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
                   activeTrackColor: Colors.white,
                   inactiveTrackColor: Colors.white38,
                   thumbColor: Colors.white,
@@ -160,10 +208,41 @@ class _CameraPageState extends State<CameraPage> {
                   onChanged: (val) async {
                     _currentZoom = val;
                     await _controller!.setZoomLevel(val);
-                    setState(() {}); // refresh slider a kamera
+                    setState(() {});
                   },
                 ),
               ),
+            ),
+          ),
+
+          /// MODE TOOLBAR (Foto/Video)
+          Positioned(
+            bottom: 90,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _ModeButton(
+                  label: 'Foto',
+                  isActive: !_isVideoMode,
+                  onTap: () {
+                    setState(() {
+                      _isVideoMode = false;
+                    });
+                  },
+                ),
+                const SizedBox(width: 20),
+                _ModeButton(
+                  label: 'Video',
+                  isActive: _isVideoMode,
+                  onTap: () {
+                    setState(() {
+                      _isVideoMode = true;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
 
@@ -174,7 +253,17 @@ class _CameraPageState extends State<CameraPage> {
             right: 0,
             child: Center(
               child: GestureDetector(
-                onTap: _takePhoto,
+                onTap: () async {
+                  if (_isVideoMode) {
+                    if (_isRecording) {
+                      await _stopVideo();
+                    } else {
+                      await _startVideo();
+                    }
+                  } else {
+                    await _takePhoto();
+                  }
+                },
                 child: Container(
                   width: 70,
                   height: 70,
@@ -182,11 +271,39 @@ class _CameraPageState extends State<CameraPage> {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 4),
                   ),
+                  child: _isRecording
+                      ? const Icon(Icons.stop, color: Colors.red, size: 30)
+                      : null,
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ModeButton extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ModeButton(
+      {required this.label, required this.isActive, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.white24,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(label,
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
       ),
     );
   }
