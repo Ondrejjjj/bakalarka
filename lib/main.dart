@@ -7,6 +7,7 @@ import 'theme.dart' hide ThemeProvider, AppTheme;
 import 'package:provider/provider.dart';
 import 'camera/camera_page.dart';
 import 'microphone.dart';
+import 'pages/gallery_page.dart';
 
 
 
@@ -240,10 +241,9 @@ class _BottomToolbar extends StatelessWidget {
                 icon: Icons.photo_library,
                 label: 'Galéria',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('🖼 Galéria – zatiaľ nepripravené'),
-                    ),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const GalleryPage()),
                   );
                 },
               ),

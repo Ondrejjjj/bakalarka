@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:bakalarka/storage/image_storage.dart';
+import 'package:bakalarka/security/crypto_service.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -72,17 +74,23 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> _takePhoto() async {
     if (!_controller!.value.isInitialized || _isRecording) return;
 
-    final directory = await getTemporaryDirectory();
-    final path =
-        '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
-
     final XFile photo = await _controller!.takePicture();
-    await photo.saveTo(path);
+    final bytes = await File(photo.path).readAsBytes();
+
+    final encryptedBytes =
+    await CryptoService.encryptBytes(bytes);
+
+    final imageId = DateTime.now().millisecondsSinceEpoch.toString();
+    final file = await ImageStorage.createEncryptedFile(imageId);
+
+    await file.writeAsBytes(encryptedBytes, flush: true);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Fotka uložená: $path')),
+      const SnackBar(content: Text('🔐 Fotka šifrovane uložená')),
     );
   }
+
+
 
   Future<void> _startVideo() async {
     if (!_controller!.value.isInitialized || _isRecording) return;
@@ -100,6 +108,8 @@ class _CameraPageState extends State<CameraPage> {
     setState(() {});
   }
 
+
+
   Future<void> _stopVideo() async {
     if (!_isRecording) return;
 
@@ -107,12 +117,26 @@ class _CameraPageState extends State<CameraPage> {
     _isRecording = false;
     _videoTimer?.cancel();
 
+    final bytes = await File(video.path).readAsBytes();
+    final videoId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    final dir = await getApplicationDocumentsDirectory();
+    final secureVideoDir = Directory('${dir.path}/secure_videos');
+
+    if (!await secureVideoDir.exists()) {
+      await secureVideoDir.create(recursive: true);
+    }
+
+    final secureFile = File('${secureVideoDir.path}/$videoId.enc');
+    await secureFile.writeAsBytes(bytes, flush: true);
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Video uložené: ${video.path}')),
+      const SnackBar(content: Text('Video bezpečne uložené')),
     );
 
     setState(() {});
   }
+
 
   void _toggleFlash() async {
     _isFlashOn = !_isFlashOn;

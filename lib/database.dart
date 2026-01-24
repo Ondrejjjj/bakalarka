@@ -11,6 +11,7 @@ part 'database.g.dart';
 // --------------- Secure Storage ----------------
 final secureStorage = FlutterSecureStorage();
 
+
 /// Funkcia, ktorá vráti heslo pre databázu
 /// Ak ešte neexistuje, vygeneruje náhodné a uloží
 Future<String> getDbPassword() async {
@@ -50,14 +51,14 @@ class Users extends Table {
 }
 
 // --------------- Drift Database ----------------
-@DriftDatabase(tables: [Users])
+@DriftDatabase(tables: [Users, Photos])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
   int get schemaVersion => 1;
 
-  // --------------- Príklad CRUD ----------------
+  // ---------------- USERS CRUD ----------------
   Future<int> createUser(String username, String password, String email) {
     return into(users).insert(
       UsersCompanion(
@@ -73,6 +74,67 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<User?> getUserByUsername(String username) {
-    return (select(users)..where((u) => u.username.equals(username))).getSingleOrNull();
+    return (select(users)..where((u) => u.username.equals(username)))
+        .getSingleOrNull();
+  }
+
+  // ---------------- PHOTOS CRUD ----------------
+
+  Future<int> insertPhoto({
+    required String filePath,
+    required String deviceId,
+    String? ownerName,
+    bool uploaded = false,
+  }) {
+    return into(photos).insert(
+      PhotosCompanion(
+        filePath: Value(filePath),
+        deviceId: Value(deviceId),
+        ownerName: Value(ownerName),
+        uploaded: Value(uploaded),
+      ),
+    );
+  }
+
+  Future<List<Photo>> getAllPhotos() {
+    return select(photos).get();
+  }
+
+  Future<Photo?> getPhotoByPath(String filePath) {
+    return (select(photos)..where((p) => p.filePath.equals(filePath)))
+        .getSingleOrNull();
+  }
+
+  Future<bool> isPhotoUploaded(String filePath) async {
+    final photo = await getPhotoByPath(filePath);
+    return photo?.uploaded ?? false;
+  }
+
+  Future<void> markPhotoAsUploaded(String filePath) async {
+    await (update(photos)..where((p) => p.filePath.equals(filePath))).write(
+      PhotosCompanion(uploaded: const Value(true)),
+    );
+  }
+
+  Future<void> deletePhoto(String filePath) async {
+    await (delete(photos)..where((p) => p.filePath.equals(filePath))).go();
   }
 }
+
+
+class Photos extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get filePath => text()(); // cesta k šifrovanému súboru
+
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+
+  TextColumn get deviceId => text()();
+
+  TextColumn get ownerName => text().nullable()();
+
+  BoolColumn get uploaded =>
+      boolean().withDefault(const Constant(false))();
+}
+
