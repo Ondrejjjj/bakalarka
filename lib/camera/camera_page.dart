@@ -35,24 +35,39 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _initCamera() async {
-    _cameras = await availableCameras();
+    try {
+      _cameras = await availableCameras();
 
-    _controller = CameraController(
-      _cameras.first,
-      ResolutionPreset.high,
-      enableAudio: true,
-    );
+      if (_cameras.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Žiadna kamera dostupná')),
+        );
+        return;
+      }
 
-    await _controller!.initialize();
+      _controller = CameraController(
+        _cameras.first,
+        ResolutionPreset.high,
+        enableAudio: true,
+      );
 
-    _minZoom = await _controller!.getMinZoomLevel();
-    _maxZoom = await _controller!.getMaxZoomLevel();
-    _currentZoom = _minZoom;
+      await _controller!.initialize();
 
-    setState(() {
-      _isReady = true;
-    });
+      _minZoom = await _controller!.getMinZoomLevel();
+      _maxZoom = await _controller!.getMaxZoomLevel();
+      _currentZoom = _minZoom;
+
+      setState(() {
+        _isReady = true;
+      });
+    } catch (e) {
+      // ak sa kamera nespustí, zobrazí chybu namiesto zaseknutia
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Chyba pri inicializácii kamery: $e')),
+      );
+    }
   }
+
 
   Future<void> _takePhoto() async {
     if (!_controller!.value.isInitialized || _isRecording) return;

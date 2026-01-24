@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- POVOLENIE KAMERY -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- INFO PRE SYSTÉM, ŽE APPKA POUŽÍVA KAMERU -->
     <uses-feature android:name="android.hardware.camera" />
@@ -8,6 +10,7 @@
         android:label="bakalarka"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

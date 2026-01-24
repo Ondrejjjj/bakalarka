@@ -1,14 +1,20 @@
 import 'package:bakalarka/theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'generated/l10n.dart';
 import 'settings.dart';
 import 'theme.dart' hide ThemeProvider, AppTheme;
 import 'package:provider/provider.dart';
 import 'camera/camera_page.dart';
+import 'microphone.dart';
 
 
 
 
-void main() {
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider(),
@@ -30,6 +36,19 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+
+          // 🔹 PODPORA LOKALIZÁCIE
+          localizationsDelegates: const [
+            S.delegate, // vlastné texty
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('sk'), // Slovenčina
+            Locale('en'), // Angličtina
+          ],
+
           initialRoute: '/',
           routes: {
             '/settings': (context) => const SettingsPage(),
@@ -145,7 +164,7 @@ class SettingsDrawer extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.settings),
-            title: const Text('Nastavenia'),
+            title: Text(S.of(context).settingsTitle),
             onTap: () {
               Navigator.pop(context);
               Navigator.pushNamed(context, '/settings');
@@ -208,9 +227,10 @@ class _BottomToolbar extends StatelessWidget {
                 icon: Icons.mic,
                 label: 'Mikrofón',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('🎤 Mikrofón – zatiaľ nepripravené'),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MicrophonePage(),
                     ),
                   );
                 },
