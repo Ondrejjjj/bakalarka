@@ -119,6 +119,28 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deletePhoto(String filePath) async {
     await (delete(photos)..where((p) => p.filePath.equals(filePath))).go();
   }
+
+  // prepnutie obľúbeného stavu
+  Future<void> toggleFavorite(String filePath, bool value) {
+    return (update(photos)..where((p) => p.filePath.equals(filePath))).write(
+      PhotosCompanion(favorite: Value(value)),
+    );
+  }
+
+// zistenie či je fotka obľúbená
+  Future<bool> isFavorite(String filePath) async {
+    final photo =
+    await (select(photos)..where((p) => p.filePath.equals(filePath)))
+        .getSingleOrNull();
+
+    return photo?.favorite ?? false;
+  }
+
+// všetky obľúbené fotky
+  Future<List<Photo>> getFavoritePhotos() {
+    return (select(photos)..where((p) => p.favorite.equals(true))).get();
+  }
+
 }
 
 
@@ -135,6 +157,9 @@ class Photos extends Table {
   TextColumn get ownerName => text().nullable()();
 
   BoolColumn get uploaded =>
+      boolean().withDefault(const Constant(false))();
+
+  BoolColumn get favorite =>
       boolean().withDefault(const Constant(false))();
 }
 

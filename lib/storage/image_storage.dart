@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:bakalarka/database.dart';
 
 class ImageStorage {
   static Future<Directory> _baseDir() async {
@@ -13,7 +14,7 @@ class ImageStorage {
 
     return secureDir;
   }
-
+  final AppDatabase db = AppDatabase();
   static Future<File> createEncryptedFile(String id) async {
     final dir = await _baseDir();
     return File(p.join(dir.path, '$id.enc'));
@@ -27,4 +28,14 @@ class ImageStorage {
         .where((f) => f.path.endsWith('.enc'))
         .toList();
   }
+
+   Future<List<File>> getFavoriteEncryptedFiles() async {
+    final favoritePhotos = await db.getFavoritePhotos();
+
+    return favoritePhotos
+        .map((p) => File(p.filePath))
+        .where((f) => f.existsSync())
+        .toList();
+  }
+
 }

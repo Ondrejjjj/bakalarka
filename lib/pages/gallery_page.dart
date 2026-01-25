@@ -17,6 +17,8 @@ class _GalleryPageState extends State<GalleryPage> {
   late Future<List<File>> _imagesFuture;
   final Set<File> _selectedFiles = {}; // vybrané fotky na mazanie
   bool _selectionMode = false;
+  bool _showOnlyFavorites = false;
+
 
   final AppDatabase db = AppDatabase();
 
@@ -46,20 +48,22 @@ class _GalleryPageState extends State<GalleryPage> {
   void _deleteSelected() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Vymazať fotky?'),
-        content: Text('Naozaj chcete vymazať ${_selectedFiles.length} fotky?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Zrušiť'),
+      builder: (_) =>
+          AlertDialog(
+            title: const Text('Vymazať fotky?'),
+            content: Text(
+                'Naozaj chcete vymazať ${_selectedFiles.length} fotky?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Zrušiť'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Vymazať'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Vymazať'),
-          ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -77,12 +81,15 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectionMode
-            ? '${_selectedFiles.length} vybrané'
-            : 'Galéria'),
+        title: Text(
+          _selectionMode
+              ? '${_selectedFiles.length} vybrané'
+              : 'Galéria',
+        ),
         actions: [
           if (_selectionMode)
             IconButton(
@@ -103,85 +110,159 @@ class _GalleryPageState extends State<GalleryPage> {
             return const Center(child: Text('Zatiaľ žiadne fotky'));
           }
 
-          return GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-            ),
-            itemCount: files.length,
-            itemBuilder: (context, index) {
-              final file = files[index];
-              final isSelected = _selectedFiles.contains(file);
+          // Tu filtrujeme podľa obľúbených
+          return FutureBuilder<List<File>>(
+            future: () async {
+              if (!_showOnlyFavorites) return files;
 
-              return FutureBuilder<bool>(
-                future: db.isPhotoUploaded(file.path), // tu kontrolujeme stav uploadu
-                builder: (context, uploadedSnapshot) {
-                  final isUploaded = uploadedSnapshot.data ?? false;
+              // filtrovanie obľúbených
+              List<File> favoriteFiles = [];
+              for (var file in files) {
+                if (await db.isFavorite(file.path)) {
+                  favoriteFiles.add(file);
+                }
+              }
+              return favoriteFiles;
+            }(),
+            builder: (context, favSnapshot) {
+              final filteredFiles = favSnapshot.data ?? [];
 
-                  return GestureDetector(
-                    onLongPress: () => _toggleSelection(file),
-                    onTap: () async {
-                      if (_selectionMode) {
-                        _toggleSelection(file);
-                      } else {
-                        final bytes = await _decryptFile(file);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FullscreenImagePage(imageBytes: bytes),
-                          ),
-                        );
-                      }
-                    },
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        FutureBuilder<Uint8List>(
-                          future: _decryptFile(file),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) {
-                              return Container(
-                                color: Colors.grey[300],
-                                child: const Center(
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+              if (filteredFiles.isEmpty) {
+                return const Center(child: Text('Žiadne fotky'));
+              }
+
+              return GridView.builder(
+                padding: const EdgeInsets.all(12),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
+                itemCount: filteredFiles.length,
+                itemBuilder: (context, index) {
+                  final file = filteredFiles[index];
+                  final isSelected = _selectedFiles.contains(file);
+
+                  return FutureBuilder<bool>(
+                    future: db.isPhotoUploaded(file.path),
+                    builder: (context, uploadSnapshot) {
+                      final isUploaded = uploadSnapshot.data ?? false;
+
+                      return FutureBuilder<bool>(
+                        future: db.isFavorite(file.path),
+                        builder: (context, favSnapshot) {
+                          final isFavorite = favSnapshot.data ?? false;
+
+                          return GestureDetector(
+                            onLongPress: () => _toggleSelection(file),
+                            onTap: () async {
+                              if (_selectionMode) {
+                                _toggleSelection(file);
+                              } else {
+                                final bytes = await _decryptFile(file);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FullscreenImagePage(
+                                        imageBytes: bytes),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                // Obrázok
+                                FutureBuilder<Uint8List>(
+                                  future: _decryptFile(file),
+                                  builder: (context, snapshot) {
+                                    if (!snapshot.hasData) {
+                                      return Container(
+                                        color: Colors.grey[300],
+                                        child: const Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.memory(
+                                        snapshot.data!,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                            }
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.memory(
-                                snapshot.data!,
-                                fit: BoxFit.cover,
-                              ),
-                            );
-                          },
-                        ),
-                        // overlay pre výber
-                        if (isSelected)
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black45,
-                              borderRadius: BorderRadius.circular(12),
+
+                                // Overlay výberu
+                                if (isSelected)
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black45,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.check_circle,
+                                        color: Colors.white,
+                                        size: 32,
+                                      ),
+                                    ),
+                                  ),
+
+                                // Upload stav
+                                Positioned(
+                                  top: 6,
+                                  right: 6,
+                                  child: Icon(
+                                    isUploaded
+                                        ? Icons.cloud_done
+                                        : Icons.cloud_upload,
+                                    color: isUploaded
+                                        ? Colors.green
+                                        : Colors.white70,
+                                    size: 20,
+                                  ),
+                                ),
+
+                                // Obľúbené srdce
+                                Positioned(
+                                  bottom: 6,
+                                  right: 6,
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () async {
+                                        await db.toggleFavorite(
+                                          file.path,
+                                          !isFavorite,
+                                        );
+                                        setState(() {}); // refresh galérie
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          isFavorite
+                                              ? Icons.favorite
+                                              : Icons.favorite_border,
+                                          color: isFavorite
+                                              ? Colors.red
+                                              : Colors.white70,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: const Center(
-                              child: Icon(Icons.check_circle,
-                                  color: Colors.white, size: 32),
-                            ),
-                          ),
-                        // malá ikona pre upload stav
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Icon(
-                            isUploaded ? Icons.cloud_done : Icons.cloud_upload,
-                            color: isUploaded ? Colors.green : Colors.white70,
-                            size: 20,
-                          ),
-                        ),
-                      ],
-                    ),
+                          );
+                        },
+                      );
+                    },
                   );
                 },
               );
@@ -189,12 +270,46 @@ class _GalleryPageState extends State<GalleryPage> {
           );
         },
       ),
+      bottomNavigationBar: _buildBottomFilterBar(),
     );
   }
+
+  Widget _buildBottomFilterBar() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(
+              value: false,
+              icon: Icon(Icons.photo_library),
+              label: Text('Všetky'),
+            ),
+            ButtonSegment(
+              value: true,
+              icon: Icon(Icons.favorite),
+              label: Text('Obľúbené'),
+            ),
+          ],
+          selected: {_showOnlyFavorites},
+          onSelectionChanged: (value) {
+            setState(() {
+              _showOnlyFavorites = value.first;
+            });
+          },
+          style: ButtonStyle(
+            visualDensity: VisualDensity.comfortable,
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
 
-class _EncryptedImageTile extends StatelessWidget {
+
+  class _EncryptedImageTile extends StatelessWidget {
   final File file;
   final VoidCallback? onDeleted; // voliteľný callback na refresh galérie
 

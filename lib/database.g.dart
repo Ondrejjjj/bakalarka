@@ -374,6 +374,21 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _favoriteMeta = const VerificationMeta(
+    'favorite',
+  );
+  @override
+  late final GeneratedColumn<bool> favorite = GeneratedColumn<bool>(
+    'favorite',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("favorite" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -382,6 +397,7 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
     deviceId,
     ownerName,
     uploaded,
+    favorite,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -432,6 +448,12 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
         uploaded.isAcceptableOrUnknown(data['uploaded']!, _uploadedMeta),
       );
     }
+    if (data.containsKey('favorite')) {
+      context.handle(
+        _favoriteMeta,
+        favorite.isAcceptableOrUnknown(data['favorite']!, _favoriteMeta),
+      );
+    }
     return context;
   }
 
@@ -465,6 +487,10 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
         DriftSqlType.bool,
         data['${effectivePrefix}uploaded'],
       )!,
+      favorite: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}favorite'],
+      )!,
     );
   }
 
@@ -481,6 +507,7 @@ class Photo extends DataClass implements Insertable<Photo> {
   final String deviceId;
   final String? ownerName;
   final bool uploaded;
+  final bool favorite;
   const Photo({
     required this.id,
     required this.filePath,
@@ -488,6 +515,7 @@ class Photo extends DataClass implements Insertable<Photo> {
     required this.deviceId,
     this.ownerName,
     required this.uploaded,
+    required this.favorite,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -500,6 +528,7 @@ class Photo extends DataClass implements Insertable<Photo> {
       map['owner_name'] = Variable<String>(ownerName);
     }
     map['uploaded'] = Variable<bool>(uploaded);
+    map['favorite'] = Variable<bool>(favorite);
     return map;
   }
 
@@ -513,6 +542,7 @@ class Photo extends DataClass implements Insertable<Photo> {
           ? const Value.absent()
           : Value(ownerName),
       uploaded: Value(uploaded),
+      favorite: Value(favorite),
     );
   }
 
@@ -528,6 +558,7 @@ class Photo extends DataClass implements Insertable<Photo> {
       deviceId: serializer.fromJson<String>(json['deviceId']),
       ownerName: serializer.fromJson<String?>(json['ownerName']),
       uploaded: serializer.fromJson<bool>(json['uploaded']),
+      favorite: serializer.fromJson<bool>(json['favorite']),
     );
   }
   @override
@@ -540,6 +571,7 @@ class Photo extends DataClass implements Insertable<Photo> {
       'deviceId': serializer.toJson<String>(deviceId),
       'ownerName': serializer.toJson<String?>(ownerName),
       'uploaded': serializer.toJson<bool>(uploaded),
+      'favorite': serializer.toJson<bool>(favorite),
     };
   }
 
@@ -550,6 +582,7 @@ class Photo extends DataClass implements Insertable<Photo> {
     String? deviceId,
     Value<String?> ownerName = const Value.absent(),
     bool? uploaded,
+    bool? favorite,
   }) => Photo(
     id: id ?? this.id,
     filePath: filePath ?? this.filePath,
@@ -557,6 +590,7 @@ class Photo extends DataClass implements Insertable<Photo> {
     deviceId: deviceId ?? this.deviceId,
     ownerName: ownerName.present ? ownerName.value : this.ownerName,
     uploaded: uploaded ?? this.uploaded,
+    favorite: favorite ?? this.favorite,
   );
   Photo copyWithCompanion(PhotosCompanion data) {
     return Photo(
@@ -566,6 +600,7 @@ class Photo extends DataClass implements Insertable<Photo> {
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       ownerName: data.ownerName.present ? data.ownerName.value : this.ownerName,
       uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
+      favorite: data.favorite.present ? data.favorite.value : this.favorite,
     );
   }
 
@@ -577,14 +612,22 @@ class Photo extends DataClass implements Insertable<Photo> {
           ..write('createdAt: $createdAt, ')
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
-          ..write('uploaded: $uploaded')
+          ..write('uploaded: $uploaded, ')
+          ..write('favorite: $favorite')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, filePath, createdAt, deviceId, ownerName, uploaded);
+  int get hashCode => Object.hash(
+    id,
+    filePath,
+    createdAt,
+    deviceId,
+    ownerName,
+    uploaded,
+    favorite,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -594,7 +637,8 @@ class Photo extends DataClass implements Insertable<Photo> {
           other.createdAt == this.createdAt &&
           other.deviceId == this.deviceId &&
           other.ownerName == this.ownerName &&
-          other.uploaded == this.uploaded);
+          other.uploaded == this.uploaded &&
+          other.favorite == this.favorite);
 }
 
 class PhotosCompanion extends UpdateCompanion<Photo> {
@@ -604,6 +648,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
   final Value<String> deviceId;
   final Value<String?> ownerName;
   final Value<bool> uploaded;
+  final Value<bool> favorite;
   const PhotosCompanion({
     this.id = const Value.absent(),
     this.filePath = const Value.absent(),
@@ -611,6 +656,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     this.deviceId = const Value.absent(),
     this.ownerName = const Value.absent(),
     this.uploaded = const Value.absent(),
+    this.favorite = const Value.absent(),
   });
   PhotosCompanion.insert({
     this.id = const Value.absent(),
@@ -619,6 +665,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     required String deviceId,
     this.ownerName = const Value.absent(),
     this.uploaded = const Value.absent(),
+    this.favorite = const Value.absent(),
   }) : filePath = Value(filePath),
        deviceId = Value(deviceId);
   static Insertable<Photo> custom({
@@ -628,6 +675,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     Expression<String>? deviceId,
     Expression<String>? ownerName,
     Expression<bool>? uploaded,
+    Expression<bool>? favorite,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -636,6 +684,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
       if (deviceId != null) 'device_id': deviceId,
       if (ownerName != null) 'owner_name': ownerName,
       if (uploaded != null) 'uploaded': uploaded,
+      if (favorite != null) 'favorite': favorite,
     });
   }
 
@@ -646,6 +695,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     Value<String>? deviceId,
     Value<String?>? ownerName,
     Value<bool>? uploaded,
+    Value<bool>? favorite,
   }) {
     return PhotosCompanion(
       id: id ?? this.id,
@@ -654,6 +704,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
       deviceId: deviceId ?? this.deviceId,
       ownerName: ownerName ?? this.ownerName,
       uploaded: uploaded ?? this.uploaded,
+      favorite: favorite ?? this.favorite,
     );
   }
 
@@ -678,6 +729,9 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     if (uploaded.present) {
       map['uploaded'] = Variable<bool>(uploaded.value);
     }
+    if (favorite.present) {
+      map['favorite'] = Variable<bool>(favorite.value);
+    }
     return map;
   }
 
@@ -689,7 +743,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
           ..write('createdAt: $createdAt, ')
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
-          ..write('uploaded: $uploaded')
+          ..write('uploaded: $uploaded, ')
+          ..write('favorite: $favorite')
           ..write(')'))
         .toString();
   }
@@ -883,6 +938,7 @@ typedef $$PhotosTableCreateCompanionBuilder =
       required String deviceId,
       Value<String?> ownerName,
       Value<bool> uploaded,
+      Value<bool> favorite,
     });
 typedef $$PhotosTableUpdateCompanionBuilder =
     PhotosCompanion Function({
@@ -892,6 +948,7 @@ typedef $$PhotosTableUpdateCompanionBuilder =
       Value<String> deviceId,
       Value<String?> ownerName,
       Value<bool> uploaded,
+      Value<bool> favorite,
     });
 
 class $$PhotosTableFilterComposer
@@ -930,6 +987,11 @@ class $$PhotosTableFilterComposer
 
   ColumnFilters<bool> get uploaded => $composableBuilder(
     column: $table.uploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get favorite => $composableBuilder(
+    column: $table.favorite,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -972,6 +1034,11 @@ class $$PhotosTableOrderingComposer
     column: $table.uploaded,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get favorite => $composableBuilder(
+    column: $table.favorite,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PhotosTableAnnotationComposer
@@ -1000,6 +1067,9 @@ class $$PhotosTableAnnotationComposer
 
   GeneratedColumn<bool> get uploaded =>
       $composableBuilder(column: $table.uploaded, builder: (column) => column);
+
+  GeneratedColumn<bool> get favorite =>
+      $composableBuilder(column: $table.favorite, builder: (column) => column);
 }
 
 class $$PhotosTableTableManager
@@ -1036,6 +1106,7 @@ class $$PhotosTableTableManager
                 Value<String> deviceId = const Value.absent(),
                 Value<String?> ownerName = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
+                Value<bool> favorite = const Value.absent(),
               }) => PhotosCompanion(
                 id: id,
                 filePath: filePath,
@@ -1043,6 +1114,7 @@ class $$PhotosTableTableManager
                 deviceId: deviceId,
                 ownerName: ownerName,
                 uploaded: uploaded,
+                favorite: favorite,
               ),
           createCompanionCallback:
               ({
@@ -1052,6 +1124,7 @@ class $$PhotosTableTableManager
                 required String deviceId,
                 Value<String?> ownerName = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
+                Value<bool> favorite = const Value.absent(),
               }) => PhotosCompanion.insert(
                 id: id,
                 filePath: filePath,
@@ -1059,6 +1132,7 @@ class $$PhotosTableTableManager
                 deviceId: deviceId,
                 ownerName: ownerName,
                 uploaded: uploaded,
+                favorite: favorite,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
