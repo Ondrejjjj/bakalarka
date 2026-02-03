@@ -9,10 +9,6 @@ import 'camera/camera_page.dart';
 import 'microphone.dart';
 import 'pages/gallery_page.dart';
 
-
-
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -36,18 +32,18 @@ class MyApp extends StatelessWidget {
           title: 'Flutter App',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
-          themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          themeMode:
+          themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
 
-          // 🔹 PODPORA LOKALIZÁCIE
           localizationsDelegates: const [
-            S.delegate, // vlastné texty
+            S.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: const [
-            Locale('sk'), // Slovenčina
-            Locale('en'), // Angličtina
+            Locale('sk'),
+            Locale('en'),
           ],
 
           initialRoute: '/',
@@ -67,7 +63,7 @@ class MyHomePage extends StatelessWidget {
   void _showUserBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      showDragHandle: true, // Material 3
+      showDragHandle: true,
       builder: (context) {
         return Padding(
           padding: const EdgeInsets.all(16),
@@ -103,6 +99,43 @@ class MyHomePage extends StatelessWidget {
     );
   }
 
+  void _showActionMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ActionItem(
+                icon: Icons.fact_check,
+                title: "Revízia pred",
+                page: const RevisionBeforePage(),
+              ),
+              _ActionItem(
+                icon: Icons.fact_check_outlined,
+                title: "Revízia po",
+                page: const RevisionAfterPage(),
+              ),
+              _ActionItem(
+                icon: Icons.build,
+                title: "Oprava pred",
+                page: const RepairBeforePage(),
+              ),
+              _ActionItem(
+                icon: Icons.build_circle,
+                title: "Oprava po",
+                page: const RepairAfterPage(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,23 +157,70 @@ class MyHomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          /// HLAVNÝ OBSAH
-          const Expanded(
+          Column(
+            children: [
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    'Domovská obrazovka',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ),
+              _BottomToolbar(
+                onActionPressed: () {},
+              ),
+            ],
+          ),
+
+          /// ⭐ VEĽKÉ AKČNÉ TLAČIDLO (RESPONSÍVNE)
+          Positioned(
+            bottom: MediaQuery.of(context).size.height * 0.18, // vyššie
+            left: 0,
+            right: 0,
             child: Center(
-              child: Text(
-                'Domovská obrazovka',
-                style: TextStyle(fontSize: 18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(40),
+                onTap: () => _showActionMenu(context),
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.7, // šírka
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(40),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.dashboard_customize,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: MediaQuery.of(context).size.width * 0.07,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        "Akcie",
+                        style: TextStyle(
+                          fontSize: MediaQuery.of(context).size.width * 0.045,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-
-          /// TOOLBAR DOLE
-          _BottomToolbar(),
         ],
       ),
-
     );
   }
 }
@@ -158,10 +238,7 @@ class SettingsDrawer extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primaryContainer,
             ),
-            child: const Text(
-              'Settings',
-              style: TextStyle(fontSize: 20),
-            ),
+            child: const Text('Settings', style: TextStyle(fontSize: 20)),
           ),
           ListTile(
             leading: const Icon(Icons.settings),
@@ -171,13 +248,6 @@ class SettingsDrawer extends StatelessWidget {
               Navigator.pushNamed(context, '/settings');
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.info),
-            title: const Text('O aplikácii'),
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
         ],
       ),
     );
@@ -185,21 +255,20 @@ class SettingsDrawer extends StatelessWidget {
 }
 
 class _BottomToolbar extends StatelessWidget {
+  final VoidCallback onActionPressed;
+
+  const _BottomToolbar({required this.onActionPressed});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 24, // výška od spodku
-      ),
+      padding: const EdgeInsets.only(bottom: 24),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 28,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(40), // PILLOVÝ TVAR
+            borderRadius: BorderRadius.circular(40),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.15),
@@ -217,9 +286,7 @@ class _BottomToolbar extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const CameraPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CameraPage()),
                   );
                 },
               ),
@@ -230,9 +297,7 @@ class _BottomToolbar extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const MicrophonePage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const MicrophonePage()),
                   );
                 },
               ),
@@ -276,16 +341,9 @@ class _ToolbarItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 28,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(label, style: const TextStyle(fontSize: 12)),
           ],
         ),
       ),
@@ -293,3 +351,77 @@ class _ToolbarItem extends StatelessWidget {
   }
 }
 
+class _ActionItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Widget page;
+
+  const _ActionItem({
+    required this.icon,
+    required this.title,
+    required this.page,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => page),
+        );
+      },
+    );
+  }
+}
+
+class RevisionBeforePage extends StatelessWidget {
+  const RevisionBeforePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Revízia pred")),
+      body: const Center(child: Text("Revízia pred obsah")),
+    );
+  }
+}
+
+class RevisionAfterPage extends StatelessWidget {
+  const RevisionAfterPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Revízia po")),
+      body: const Center(child: Text("Revízia po obsah")),
+    );
+  }
+}
+
+class RepairBeforePage extends StatelessWidget {
+  const RepairBeforePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Oprava pred")),
+      body: const Center(child: Text("Oprava pred obsah")),
+    );
+  }
+}
+
+class RepairAfterPage extends StatelessWidget {
+  const RepairAfterPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Oprava po")),
+      body: const Center(child: Text("Oprava po obsah")),
+    );
+  }
+}
