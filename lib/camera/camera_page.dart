@@ -8,6 +8,9 @@ import 'package:bakalarka/storage/image_storage.dart';
 import 'package:bakalarka/security/crypto_service.dart';
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
+import 'package:native_exif/native_exif.dart';
+
+
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -78,6 +81,9 @@ class _CameraPageState extends State<CameraPage> {
     if (!_controller!.value.isInitialized || _isRecording) return;
 
     final XFile photo = await _controller!.takePicture();
+
+    await _stripExif(photo.path);
+
     final bytes = await File(photo.path).readAsBytes();
 
     final encryptedBytes =
@@ -389,5 +395,17 @@ class _ModeButton extends StatelessWidget {
             style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
       ),
     );
+  }
+}
+
+Future<void> _stripExif(String path) async {
+  try {
+    final exif = await Exif.fromPath(path);
+    // Prepísaním na prázdnu mapu vymažeme GPS, model zariadenia, čas odfotenia atď.
+    await exif.writeAttributes({});
+    await exif.close();
+    print("🧹 Metadáta zo súboru boli odstránené.");
+  } catch (e) {
+    print("❌ Chyba pri čistení EXIF: $e");
   }
 }

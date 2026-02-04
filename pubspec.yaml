@@ -57,6 +57,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   latlong2: ^0.9.1
   google_fonts: ^6.2.1
+  native_exif: ^0.7.0  #cistenie udajov z fotky(gps, zariadenie a tak)
 
 dev_dependencies:
   flutter_test:
