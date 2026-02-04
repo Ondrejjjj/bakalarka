@@ -389,6 +389,28 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _latitudeMeta = const VerificationMeta(
+    'latitude',
+  );
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+    'latitude',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _longitudeMeta = const VerificationMeta(
+    'longitude',
+  );
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+    'longitude',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -398,6 +420,8 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
     ownerName,
     uploaded,
     favorite,
+    latitude,
+    longitude,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -454,6 +478,18 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
         favorite.isAcceptableOrUnknown(data['favorite']!, _favoriteMeta),
       );
     }
+    if (data.containsKey('latitude')) {
+      context.handle(
+        _latitudeMeta,
+        latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta),
+      );
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(
+        _longitudeMeta,
+        longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
+      );
+    }
     return context;
   }
 
@@ -491,6 +527,14 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
         DriftSqlType.bool,
         data['${effectivePrefix}favorite'],
       )!,
+      latitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}latitude'],
+      ),
+      longitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}longitude'],
+      ),
     );
   }
 
@@ -508,6 +552,8 @@ class Photo extends DataClass implements Insertable<Photo> {
   final String? ownerName;
   final bool uploaded;
   final bool favorite;
+  final double? latitude;
+  final double? longitude;
   const Photo({
     required this.id,
     required this.filePath,
@@ -516,6 +562,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     this.ownerName,
     required this.uploaded,
     required this.favorite,
+    this.latitude,
+    this.longitude,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -529,6 +577,12 @@ class Photo extends DataClass implements Insertable<Photo> {
     }
     map['uploaded'] = Variable<bool>(uploaded);
     map['favorite'] = Variable<bool>(favorite);
+    if (!nullToAbsent || latitude != null) {
+      map['latitude'] = Variable<double>(latitude);
+    }
+    if (!nullToAbsent || longitude != null) {
+      map['longitude'] = Variable<double>(longitude);
+    }
     return map;
   }
 
@@ -543,6 +597,12 @@ class Photo extends DataClass implements Insertable<Photo> {
           : Value(ownerName),
       uploaded: Value(uploaded),
       favorite: Value(favorite),
+      latitude: latitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(latitude),
+      longitude: longitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(longitude),
     );
   }
 
@@ -559,6 +619,8 @@ class Photo extends DataClass implements Insertable<Photo> {
       ownerName: serializer.fromJson<String?>(json['ownerName']),
       uploaded: serializer.fromJson<bool>(json['uploaded']),
       favorite: serializer.fromJson<bool>(json['favorite']),
+      latitude: serializer.fromJson<double?>(json['latitude']),
+      longitude: serializer.fromJson<double?>(json['longitude']),
     );
   }
   @override
@@ -572,6 +634,8 @@ class Photo extends DataClass implements Insertable<Photo> {
       'ownerName': serializer.toJson<String?>(ownerName),
       'uploaded': serializer.toJson<bool>(uploaded),
       'favorite': serializer.toJson<bool>(favorite),
+      'latitude': serializer.toJson<double?>(latitude),
+      'longitude': serializer.toJson<double?>(longitude),
     };
   }
 
@@ -583,6 +647,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     Value<String?> ownerName = const Value.absent(),
     bool? uploaded,
     bool? favorite,
+    Value<double?> latitude = const Value.absent(),
+    Value<double?> longitude = const Value.absent(),
   }) => Photo(
     id: id ?? this.id,
     filePath: filePath ?? this.filePath,
@@ -591,6 +657,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     ownerName: ownerName.present ? ownerName.value : this.ownerName,
     uploaded: uploaded ?? this.uploaded,
     favorite: favorite ?? this.favorite,
+    latitude: latitude.present ? latitude.value : this.latitude,
+    longitude: longitude.present ? longitude.value : this.longitude,
   );
   Photo copyWithCompanion(PhotosCompanion data) {
     return Photo(
@@ -601,6 +669,8 @@ class Photo extends DataClass implements Insertable<Photo> {
       ownerName: data.ownerName.present ? data.ownerName.value : this.ownerName,
       uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
       favorite: data.favorite.present ? data.favorite.value : this.favorite,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
     );
   }
 
@@ -613,7 +683,9 @@ class Photo extends DataClass implements Insertable<Photo> {
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
           ..write('uploaded: $uploaded, ')
-          ..write('favorite: $favorite')
+          ..write('favorite: $favorite, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude')
           ..write(')'))
         .toString();
   }
@@ -627,6 +699,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     ownerName,
     uploaded,
     favorite,
+    latitude,
+    longitude,
   );
   @override
   bool operator ==(Object other) =>
@@ -638,7 +712,9 @@ class Photo extends DataClass implements Insertable<Photo> {
           other.deviceId == this.deviceId &&
           other.ownerName == this.ownerName &&
           other.uploaded == this.uploaded &&
-          other.favorite == this.favorite);
+          other.favorite == this.favorite &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude);
 }
 
 class PhotosCompanion extends UpdateCompanion<Photo> {
@@ -649,6 +725,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
   final Value<String?> ownerName;
   final Value<bool> uploaded;
   final Value<bool> favorite;
+  final Value<double?> latitude;
+  final Value<double?> longitude;
   const PhotosCompanion({
     this.id = const Value.absent(),
     this.filePath = const Value.absent(),
@@ -657,6 +735,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     this.ownerName = const Value.absent(),
     this.uploaded = const Value.absent(),
     this.favorite = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
   });
   PhotosCompanion.insert({
     this.id = const Value.absent(),
@@ -666,6 +746,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     this.ownerName = const Value.absent(),
     this.uploaded = const Value.absent(),
     this.favorite = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
   }) : filePath = Value(filePath),
        deviceId = Value(deviceId);
   static Insertable<Photo> custom({
@@ -676,6 +758,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     Expression<String>? ownerName,
     Expression<bool>? uploaded,
     Expression<bool>? favorite,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -685,6 +769,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
       if (ownerName != null) 'owner_name': ownerName,
       if (uploaded != null) 'uploaded': uploaded,
       if (favorite != null) 'favorite': favorite,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
     });
   }
 
@@ -696,6 +782,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     Value<String?>? ownerName,
     Value<bool>? uploaded,
     Value<bool>? favorite,
+    Value<double?>? latitude,
+    Value<double?>? longitude,
   }) {
     return PhotosCompanion(
       id: id ?? this.id,
@@ -705,6 +793,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
       ownerName: ownerName ?? this.ownerName,
       uploaded: uploaded ?? this.uploaded,
       favorite: favorite ?? this.favorite,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
     );
   }
 
@@ -732,6 +822,12 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     if (favorite.present) {
       map['favorite'] = Variable<bool>(favorite.value);
     }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
     return map;
   }
 
@@ -744,7 +840,9 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
           ..write('uploaded: $uploaded, ')
-          ..write('favorite: $favorite')
+          ..write('favorite: $favorite, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude')
           ..write(')'))
         .toString();
   }
@@ -939,6 +1037,8 @@ typedef $$PhotosTableCreateCompanionBuilder =
       Value<String?> ownerName,
       Value<bool> uploaded,
       Value<bool> favorite,
+      Value<double?> latitude,
+      Value<double?> longitude,
     });
 typedef $$PhotosTableUpdateCompanionBuilder =
     PhotosCompanion Function({
@@ -949,6 +1049,8 @@ typedef $$PhotosTableUpdateCompanionBuilder =
       Value<String?> ownerName,
       Value<bool> uploaded,
       Value<bool> favorite,
+      Value<double?> latitude,
+      Value<double?> longitude,
     });
 
 class $$PhotosTableFilterComposer
@@ -992,6 +1094,16 @@ class $$PhotosTableFilterComposer
 
   ColumnFilters<bool> get favorite => $composableBuilder(
     column: $table.favorite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1039,6 +1151,16 @@ class $$PhotosTableOrderingComposer
     column: $table.favorite,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PhotosTableAnnotationComposer
@@ -1070,6 +1192,12 @@ class $$PhotosTableAnnotationComposer
 
   GeneratedColumn<bool> get favorite =>
       $composableBuilder(column: $table.favorite, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
 }
 
 class $$PhotosTableTableManager
@@ -1107,6 +1235,8 @@ class $$PhotosTableTableManager
                 Value<String?> ownerName = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
+                Value<double?> latitude = const Value.absent(),
+                Value<double?> longitude = const Value.absent(),
               }) => PhotosCompanion(
                 id: id,
                 filePath: filePath,
@@ -1115,6 +1245,8 @@ class $$PhotosTableTableManager
                 ownerName: ownerName,
                 uploaded: uploaded,
                 favorite: favorite,
+                latitude: latitude,
+                longitude: longitude,
               ),
           createCompanionCallback:
               ({
@@ -1125,6 +1257,8 @@ class $$PhotosTableTableManager
                 Value<String?> ownerName = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
+                Value<double?> latitude = const Value.absent(),
+                Value<double?> longitude = const Value.absent(),
               }) => PhotosCompanion.insert(
                 id: id,
                 filePath: filePath,
@@ -1133,6 +1267,8 @@ class $$PhotosTableTableManager
                 ownerName: ownerName,
                 uploaded: uploaded,
                 favorite: favorite,
+                latitude: latitude,
+                longitude: longitude,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

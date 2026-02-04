@@ -1,4 +1,3 @@
-import 'package:bakalarka/theme.dart' hide ThemeProvider;
 import 'package:flutter/material.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:provider/provider.dart';
@@ -76,13 +75,37 @@ class SettingsPage extends StatelessWidget {
           ),
 
           const SizedBox(height: 24),
-          _sectionTitle(context, 'Vzhľad'),
-          SwitchListTile(
-            title: const Text('Dark Mode'),
-            value: context.watch<ThemeProvider>().isDarkMode,
-            onChanged: (val) {
-            context.read<ThemeProvider>().setDarkMode(val);
-        },
+      _sectionTitle(context, 'Vzhľad'),
+      _card(
+        child: Column(
+          children: [
+            const Text('Téma aplikácie'),
+            const SizedBox(height: 12),
+            SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text('Systém'),
+                  icon: Icon(Icons.settings_suggest),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text('Svetlá'),
+                  icon: Icon(Icons.light_mode),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text('Tmavá'),
+                  icon: Icon(Icons.dark_mode),
+                ),
+              ],
+              selected: {context.watch<ThemeProvider>().themeMode},
+              onSelectionChanged: (Set<ThemeMode> newSelection) {
+                context.read<ThemeProvider>().setThemeMode(newSelection.first);
+              },
+            ),
+          ],
+        ),
       ),
         ],
       ),

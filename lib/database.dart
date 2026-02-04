@@ -5,43 +5,40 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
+import 'package:sqlite3/open.dart';
+
 
 part 'database.g.dart';
 
-// --------------- Secure Storage ----------------
+/// --------------- Secure Storage ----------------
 final secureStorage = FlutterSecureStorage();
 
-
-/// Funkcia, ktorá vráti heslo pre databázu
-/// Ak ešte neexistuje, vygeneruje náhodné a uloží
 Future<String> getDbPassword() async {
   var pwd = await secureStorage.read(key: 'db_password');
   if (pwd == null) {
-    // Jednoduchá generácia hesla
     pwd = 'db_' + DateTime.now().millisecondsSinceEpoch.toString();
     await secureStorage.write(key: 'db_password', value: pwd);
   }
   return pwd;
 }
 
-// --------------- Otváranie šifrovanej databázy ----------------
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'app_db.sqlite'));
 
-    // Načítame heslo zo secure storage
     final password = await getDbPassword();
 
-    // Šifrovaná databáza cez SQLCipher
-    final executor = NativeDatabase(file, setup: (db) {
-      db.execute("PRAGMA key = '$password';");
-    });
-
-    return executor;
+    // TU JE TA ZMENA:
+    // Namiesto createInBackground použijeme priamu definíciu
+    return NativeDatabase(
+      file,
+      setup: (rawDb) {
+        rawDb.execute("PRAGMA key = '$password';");
+      },
+    );
   });
 }
-
 // --------------- Prvá tabuľka: Users ----------------
 class Users extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -56,7 +53,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   // ---------------- USERS CRUD ----------------
   Future<int> createUser(String username, String password, String email) {
@@ -85,16 +82,46 @@ class AppDatabase extends _$AppDatabase {
     required String deviceId,
     String? ownerName,
     bool uploaded = false,
-  }) {
-    return into(photos).insert(
+    double? latitude,
+    double? longitude,
+  }) async {
+    final id = await into(photos).insert(
       PhotosCompanion(
         filePath: Value(filePath),
         deviceId: Value(deviceId),
         ownerName: Value(ownerName),
         uploaded: Value(uploaded),
+        latitude: Value(latitude),
+        longitude: Value(longitude),
       ),
     );
+
+    // Debug výpis do konzoly
+    final savedPhoto = await getPhotoByPath(filePath);
+    print('📸 Fotka uložená do DB: '
+        'id=${savedPhoto?.id}, '
+        'path=${savedPhoto?.filePath}, '
+        'owner=${savedPhoto?.ownerName}, '
+        'uploaded=${savedPhoto?.uploaded}, '
+        'lat=${savedPhoto?.latitude}, '
+        'lng=${savedPhoto?.longitude}');
+
+    return id;
   }
+
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from == 1) {
+        await m.addColumn(photos, photos.latitude);
+        await m.addColumn(photos, photos.longitude);
+      }
+    },
+  );
+
+
+
 
   Future<List<Photo>> getAllPhotos() {
     return select(photos).get();
@@ -161,5 +188,8 @@ class Photos extends Table {
 
   BoolColumn get favorite =>
       boolean().withDefault(const Constant(false))();
+
+  RealColumn get latitude => real().nullable()();   // latitude (šírka)
+  RealColumn get longitude => real().nullable()();  // longitude (dĺžka)
 }
 

@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:bakalarka/database.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:bakalarka/storage/image_storage.dart';
 import 'package:bakalarka/security/crypto_service.dart';
+import 'package:location/location.dart';
+import 'package:provider/provider.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -85,9 +88,46 @@ class _CameraPageState extends State<CameraPage> {
 
     await file.writeAsBytes(encryptedBytes, flush: true);
 
+    // ----------------- tu pridáme polohu -----------------
+    double? latitude;
+    double? longitude;
+
+    try {
+      Location location = Location();
+
+      bool serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await location.requestService();
+      }
+
+      PermissionStatus permissionGranted = await location.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await location.requestPermission();
+      }
+
+      if (serviceEnabled && permissionGranted == PermissionStatus.granted) {
+        final locData = await location.getLocation();
+        latitude = locData.latitude;
+        longitude = locData.longitude;
+      }
+    } catch (e) {
+      print('Nepodarilo sa získať polohu: $e');
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('🔐 Fotka šifrovane uložená')),
     );
+
+    final db = context.read<AppDatabase>();
+
+    await db.insertPhoto(
+      ownerName: "user",
+      filePath: file.path,
+      latitude: latitude,
+      longitude: longitude,
+      uploaded: false, deviceId: '90',
+    );
+
   }
 
 
@@ -118,25 +158,29 @@ class _CameraPageState extends State<CameraPage> {
     _videoTimer?.cancel();
 
     final bytes = await File(video.path).readAsBytes();
+
+    // PRIDANÉ ŠIFROVANIE
+    final encryptedBytes = await CryptoService.encryptBytes(bytes);
+
     final videoId = DateTime.now().millisecondsSinceEpoch.toString();
-
     final dir = await getApplicationDocumentsDirectory();
-    final secureVideoDir = Directory('${dir.path}/secure_videos');
 
-    if (!await secureVideoDir.exists()) {
-      await secureVideoDir.create(recursive: true);
-    }
+    // Odporúčam používať rovnaký priečinok ako pri fotkách kvôli konzistencii
+    final file = await ImageStorage.createEncryptedFile(videoId);
 
-    final secureFile = File('${secureVideoDir.path}/$videoId.enc');
-    await secureFile.writeAsBytes(bytes, flush: true);
+    await file.writeAsBytes(encryptedBytes, flush: true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Video bezpečne uložené')),
+    // Zápis do DB (aby ste video videli v galérii)
+    final db = context.read<AppDatabase>();
+    await db.insertPhoto(
+      filePath: file.path,
+      deviceId: '90',
+      ownerName: "user",
+      uploaded: false,
     );
 
     setState(() {});
   }
-
 
   void _toggleFlash() async {
     _isFlashOn = !_isFlashOn;
