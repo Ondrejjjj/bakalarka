@@ -23,11 +23,9 @@ class _GalleryPageState extends State<GalleryPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Získame inštanciu DB z Providera
     db = Provider.of<AppDatabase>(context);
   }
 
-  /// Stream, ktorý sleduje databázu a automaticky reaguje na zmeny
   Stream<List<_PhotoItem>> _watchPhotos() {
     return db.select(db.photos).watch().asyncMap((rows) async {
       final List<_PhotoItem> items = [];
@@ -39,9 +37,9 @@ class _GalleryPageState extends State<GalleryPage> {
             file: file,
             isFavorite: row.favorite,
             isUploaded: row.uploaded,
-            ownerName: row.ownerName, // pridané
-            latitude: row.latitude,   // pridané
-            longitude: row.longitude, // pridané
+            ownerName: row.ownerName,
+            latitude: row.latitude,
+            longitude: row.longitude,
           ));
         }
       }
@@ -107,135 +105,153 @@ class _GalleryPageState extends State<GalleryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_selectionMode ? '${_selectedFiles.length} vybrané' : 'Súkromná Galéria'),
-        actions: [
-          if (_selectionMode)
-            IconButton(icon: const Icon(Icons.delete), onPressed: _deleteSelected),
-        ],
-      ),
-      body: StreamBuilder<List<_PhotoItem>>(
-        stream: _watchPhotos(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Chyba načítania: ${snapshot.error}'));
-          }
-
-          final items = snapshot.data ?? [];
-
-          if (items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text('Trezor je prázdny'),
-                  TextButton(
-                    onPressed: () => setState(() {}),
-                    child: const Text('Obnoviť'),
-                  )
-                ],
-              ),
-            );
-          }
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(4),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
-            ),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final isSelected = _selectedFiles.contains(item.file);
-
-              return GestureDetector(
-                onLongPress: () => _toggleSelection(item.file),
-                onTap: () async {
-                  if (_selectionMode) {
-                    _toggleSelection(item.file);
-                  } else {
-                    final bytes = await _decryptForDisplay(item.file);
-                    if (!mounted) return;
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FullscreenImagePage(
-                          imageBytes: bytes,
-                          photoName: item.ownerName, // posielame meno
-                          latitude: item.latitude,   // posielame lat
-                          longitude: item.longitude, // posielame lng
-                        ),
-                      ),
-                    );
-                  }
-                },
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    FutureBuilder<Uint8List>(
-                      future: _decryptForDisplay(item.file),
-                      builder: (context, thumbSnapshot) {
-                        if (thumbSnapshot.connectionState == ConnectionState.waiting) {
-                          return Container(color: Colors.black12);
-                        }
-                        if (thumbSnapshot.hasError || !thumbSnapshot.hasData) {
-                          return Container(color: Colors.grey, child: const Icon(Icons.error));
-                        }
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.memory(thumbSnapshot.data!, fit: BoxFit.cover),
-                        );
-                      },
-                    ),
-
-                    if (isSelected)
-                      Container(
-                        color: Colors.black54,
-                        child: const Icon(Icons.check_circle, color: Colors.blue, size: 32),
-                      ),
-
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Icon(
-                        item.isUploaded ? Icons.cloud_done : Icons.cloud_off,
-                        color: item.isUploaded ? Colors.greenAccent : Colors.white70,
-                        size: 14,
-                      ),
-                    ),
-
-                    Positioned(
-                      bottom: -4,
-                      right: -4,
-                      child: IconButton(
-                        icon: Icon(
-                          item.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: item.isFavorite ? Colors.red : Colors.white,
-                          size: 20,
-                        ),
-                        onPressed: () async {
-                          await db.toggleFavorite(item.file.path, !item.isFavorite);
-                        },
-                      ),
-                    ),
-                  ],
+    // TU JE ZMENA: Namiesto Scaffold vraciame Column,
+    // pretože Scaffold je už v MediaVaultPage
+    return Column(
+      children: [
+        // Ak sme v režime výberu, ukážeme malú lištu s akcia pod prepínačom
+        if (_selectionMode)
+          Container(
+            color: Theme.of(context).colorScheme.errorContainer,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Text('${_selectedFiles.length} vybrané',
+                    style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: _deleteSelected,
                 ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() {
+                    _selectedFiles.clear();
+                    _selectionMode = false;
+                  }),
+                ),
+              ],
+            ),
+          ),
+
+        Expanded(
+          child: StreamBuilder<List<_PhotoItem>>(
+            stream: _watchPhotos(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Chyba načítania: ${snapshot.error}'));
+              }
+
+              final items = snapshot.data ?? [];
+
+              if (items.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      const Text('Trezor fotiek je prázdny'),
+                    ],
+                  ),
+                );
+              }
+
+              return GridView.builder(
+                padding: const EdgeInsets.all(4),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                ),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final isSelected = _selectedFiles.contains(item.file);
+
+                  return GestureDetector(
+                    onLongPress: () => _toggleSelection(item.file),
+                    onTap: () async {
+                      if (_selectionMode) {
+                        _toggleSelection(item.file);
+                      } else {
+                        final bytes = await _decryptForDisplay(item.file);
+                        if (!mounted) return;
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FullscreenImagePage(
+                              imageBytes: bytes,
+                              photoName: item.ownerName,
+                              latitude: item.latitude,
+                              longitude: item.longitude,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        FutureBuilder<Uint8List>(
+                          future: _decryptForDisplay(item.file),
+                          builder: (context, thumbSnapshot) {
+                            if (thumbSnapshot.connectionState == ConnectionState.waiting) {
+                              return Container(color: Colors.black12);
+                            }
+                            if (thumbSnapshot.hasError || !thumbSnapshot.hasData) {
+                              return Container(color: Colors.grey, child: const Icon(Icons.error));
+                            }
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.memory(thumbSnapshot.data!, fit: BoxFit.cover),
+                            );
+                          },
+                        ),
+                        if (isSelected)
+                          Container(
+                            color: Colors.black54,
+                            child: const Icon(Icons.check_circle, color: Colors.blue, size: 32),
+                          ),
+                        Positioned(
+                          top: 4,
+                          left: 4,
+                          child: Icon(
+                            item.isUploaded ? Icons.cloud_done : Icons.cloud_off,
+                            color: item.isUploaded ? Colors.greenAccent : Colors.white70,
+                            size: 14,
+                          ),
+                        ),
+                        Positioned(
+                          bottom: -4,
+                          right: -4,
+                          child: IconButton(
+                            icon: Icon(
+                              item.isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: item.isFavorite ? Colors.red : Colors.white,
+                              size: 20,
+                            ),
+                            onPressed: () async {
+                              await db.toggleFavorite(item.file.path, !item.isFavorite);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
-      bottomNavigationBar: _buildBottomFilterBar(),
+          ),
+        ),
+        // Filter zostáva na spodku tejto pod-stránky
+        _buildBottomFilterBar(),
+      ],
     );
   }
 
@@ -264,9 +280,9 @@ class _PhotoItem {
   final File file;
   final bool isFavorite;
   final bool isUploaded;
-  final String? ownerName; // pridané
-  final double? latitude;  // pridané
-  final double? longitude; // pridané
+  final String? ownerName;
+  final double? latitude;
+  final double? longitude;
 
   _PhotoItem({
     required this.file,

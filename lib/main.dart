@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui'; // Potrebné pre ImageFilter
 import 'package:bakalarka/database.dart';
+import 'package:bakalarka/pages/media_vault_page.dart';
 import 'package:bakalarka/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -402,7 +403,7 @@ class _BottomToolbar extends StatelessWidget {
                   _ToolbarItem(
                     icon: Icons.photo_library_rounded,
                     label: 'Galéria',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GalleryPage())),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MediaVaultPage())),
                   ),
                 ],
               ),

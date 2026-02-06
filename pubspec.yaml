@@ -58,6 +58,7 @@ dependencies:
   latlong2: ^0.9.1
   google_fonts: ^6.2.1
   native_exif: ^0.7.0  #cistenie udajov z fotky(gps, zariadenie a tak)
+  audioplayers: ^6.5.1
 
 dev_dependencies:
   flutter_test:

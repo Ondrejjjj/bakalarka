@@ -3,6 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_sound/flutter_sound.dart';
+import 'package:provider/provider.dart';
+
+// Importy tvojich vlastných služieb
+import 'package:bakalarka/database.dart';
+import 'package:bakalarka/security/crypto_service.dart';
+import 'package:bakalarka/storage/image_storage.dart';
 import 'generated/l10n.dart';
 
 class MicrophonePage extends StatefulWidget {
@@ -15,7 +21,7 @@ class MicrophonePage extends StatefulWidget {
 class _MicrophonePageState extends State<MicrophonePage> {
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   bool _isRecording = false;
-  String _filePath = '';
+  String _tempPath = '';
   Duration _recordDuration = Duration.zero;
   Timer? _timer;
 
@@ -26,25 +32,73 @@ class _MicrophonePageState extends State<MicrophonePage> {
   }
 
   Future<void> _initRecorder() async {
+    // Otvorenie rekordéra a inicializácia audio session
     await _recorder.openRecorder();
   }
 
   Future<void> _toggleRecording() async {
     if (_isRecording) {
+      // --- ZASTAVENIE NAHRÁVANIA ---
       await _recorder.stopRecorder();
       _timer?.cancel();
       _isRecording = false;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Audio uložené: $_filePath'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      try {
+        // 1. Načítanie dočasného súboru
+        final File tempFile = File(_tempPath);
+        if (!await tempFile.exists()) return;
+
+        final bytes = await tempFile.readAsBytes();
+
+        // 2. Šifrovanie bajtov (AES-256)
+        final encryptedBytes = await CryptoService.encryptBytes(bytes);
+
+        // 3. Vytvorenie bezpečného názvu a súboru v aplikácii
+        final audioId = 'REC_${DateTime.now().millisecondsSinceEpoch}';
+        final secureFile = await ImageStorage.createEncryptedFile(audioId);
+
+        // 4. Zápis šifrovaných dát
+        await secureFile.writeAsBytes(encryptedBytes, flush: true);
+
+        // 5. Zápis do SQLCipher databázy
+        final db = context.read<AppDatabase>();
+        await db.insertAudio(
+          filePath: secureFile.path,
+          deviceId: '90',
+          ownerName: "user",
+          duration: _recordDuration.inSeconds,
+        );
+
+        // 6. Vymazanie nezašifrovaného súboru z cache
+        await tempFile.delete();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🔐 Nahrávka zašifrovaná a uložená do databázy'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Chyba pri zabezpečení audia: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Chyba pri ukladaní nahrávky')),
+          );
+        }
+      }
     } else {
+      // --- ŠTART NAHRÁVANIA ---
       final dir = await getTemporaryDirectory();
-      _filePath = '${dir.path}/${DateTime.now().millisecondsSinceEpoch}.aac';
-      await _recorder.startRecorder(toFile: _filePath, codec: Codec.aacADTS);
+      _tempPath = '${dir.path}/temp_rec_${DateTime.now().millisecondsSinceEpoch}.aac';
+
+      await _recorder.startRecorder(
+        toFile: _tempPath,
+        codec: Codec.aacADTS,
+      );
+
       _isRecording = true;
       _recordDuration = Duration.zero;
 
@@ -75,7 +129,7 @@ class _MicrophonePageState extends State<MicrophonePage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: Text(S.of(context).recordAudio),
         surfaceTintColor: theme.colorScheme.surfaceTint,
@@ -87,8 +141,7 @@ class _MicrophonePageState extends State<MicrophonePage> {
             /// Časovač
             if (_isRecording)
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(24),
@@ -118,14 +171,14 @@ class _MicrophonePageState extends State<MicrophonePage> {
                   boxShadow: _isRecording
                       ? [
                     BoxShadow(
-                      color: theme.colorScheme.error.withOpacity(0.6),
+                      color: theme.colorScheme.error.withOpacity(0.4),
                       blurRadius: 20,
                       spreadRadius: 4,
                     )
                   ]
                       : [
                     BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.5),
+                      color: theme.colorScheme.primary.withOpacity(0.3),
                       blurRadius: 10,
                       spreadRadius: 2,
                     )
