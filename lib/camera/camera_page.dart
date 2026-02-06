@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui'; // Pre BackdropFilter ak by sme chceli, ale gradient je performantnejsi
+import 'dart:ui';
 import 'package:bakalarka/database.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -31,13 +31,13 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   double _currentZoom = 1.0;
 
   // Video & Modes
-  bool _isVideoMode = false; // false = Foto, true = Video
+  bool _isVideoMode = false;
   bool _isRecording = false;
   Duration _videoDuration = Duration.zero;
   Timer? _videoTimer;
 
   // UI Animation
-  bool _isCapturing = false; // Pre efekt "bliknutia" obrazovky pri fotení
+  bool _isCapturing = false;
 
   @override
   void initState() {
@@ -54,14 +54,10 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // Rieši situáciu, keď aplikáciu minimalizuješ a vrátiš sa späť
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final CameraController? cameraController = _controller;
-
-    if (cameraController == null || !cameraController.value.isInitialized) {
-      return;
-    }
+    if (cameraController == null || !cameraController.value.isInitialized) return;
 
     if (state == AppLifecycleState.inactive) {
       cameraController.dispose();
@@ -75,7 +71,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) return;
 
-      // Vyberieme zadnú kameru ako default
       final camera = _cameras.firstWhere(
             (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => _cameras.first,
@@ -89,17 +84,13 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       );
 
       await _controller!.initialize();
-
-      // Zámok orientácie na portrét pre jednoduchosť UI
       await _controller!.lockCaptureOrientation(DeviceOrientation.portraitUp);
 
       _minZoom = await _controller!.getMinZoomLevel();
       _maxZoom = await _controller!.getMaxZoomLevel();
       _currentZoom = _minZoom;
 
-      if (mounted) {
-        setState(() => _isReady = true);
-      }
+      if (mounted) setState(() => _isReady = true);
     } catch (e) {
       debugPrint("Camera init error: $e");
     }
@@ -108,7 +99,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   Future<void> _takePhoto() async {
     if (_controller == null || !_controller!.value.isInitialized || _isRecording) return;
 
-    // Vizuálny efekt odfotenia (bliknutie)
     setState(() => _isCapturing = true);
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) setState(() => _isCapturing = false);
@@ -116,8 +106,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
     try {
       final XFile photo = await _controller!.takePicture();
-
-      // Odstránenie EXIF (zachované z tvojho kódu)
       await _stripExif(photo.path);
 
       final bytes = await File(photo.path).readAsBytes();
@@ -125,10 +113,8 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
       final imageId = DateTime.now().millisecondsSinceEpoch.toString();
       final file = await ImageStorage.createEncryptedFile(imageId);
-
       await file.writeAsBytes(encryptedBytes, flush: true);
 
-      // Získanie polohy
       double? latitude;
       double? longitude;
       try {
@@ -147,7 +133,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
       if (!mounted) return;
 
-      // Zápis do DB
       final db = context.read<AppDatabase>();
       await db.insertPhoto(
         ownerName: "user",
@@ -158,7 +143,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
         deviceId: '90',
       );
 
-      // Vymazanie dočasného súboru
       final tempFile = File(photo.path);
       if (await tempFile.exists()) await tempFile.delete();
 
@@ -189,32 +173,38 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
     try {
       final XFile video = await _controller!.stopVideoRecording();
       _videoTimer?.cancel();
+
+      // Odložíme si dĺžku pred resetom stavu
+      final int finalDuration = _videoDuration.inSeconds;
+
       setState(() => _isRecording = false);
 
       final bytes = await File(video.path).readAsBytes();
       final encryptedBytes = await CryptoService.encryptBytes(bytes);
 
-      final videoId = DateTime.now().millisecondsSinceEpoch.toString();
-      final file = await ImageStorage.createEncryptedFile(videoId); // Ukladá ako .enc
+      final videoId = "video_${DateTime.now().millisecondsSinceEpoch}";
+      final file = await ImageStorage.createEncryptedFile(videoId);
 
       await file.writeAsBytes(encryptedBytes, flush: true);
 
       if (!mounted) return;
 
       final db = context.read<AppDatabase>();
-      await db.insertPhoto( // Pozor: Tu ukladáš video do tabuľky pre fotky, ak nemáš Video tabuľku
+
+      // ✅ OPRAVENÉ: Teraz používame správnu metódu insertVideo
+      await db.insertVideo(
         filePath: file.path,
         deviceId: '90',
         ownerName: "user",
         uploaded: false,
+        duration: finalDuration, // Ukladáme aj dĺžku
       );
 
-      // Vymazanie dočasného súboru
       final tempFile = File(video.path);
       if (await tempFile.exists()) await tempFile.delete();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🎥 Video zašifrované a uložené')),
+        const SnackBar(content: Text('🎥 Video zašifrované a uložené do trezoru')),
       );
     } catch (e) {
       debugPrint("Video stop error: $e");
@@ -258,24 +248,16 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       );
     }
 
-    // Získame rozmery pre správne zobrazenie kamery
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          /// 1. CAMERA PREVIEW
-          Center(
-            child: CameraPreview(_controller!),
-          ),
+          Center(child: CameraPreview(_controller!)),
 
-          /// 2. Flash Overlay Effect (pri odfotení)
-          if (_isCapturing)
-            Container(color: Colors.black.withOpacity(0.5)),
+          if (_isCapturing) Container(color: Colors.black.withOpacity(0.5)),
 
-          /// 3. HORNÁ LIŠTA (Ovládanie blesku a návrat)
+          // Horná lišta
           Positioned(
             top: 0,
             left: 0,
@@ -292,13 +274,10 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Tlačidlo späť
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white, size: 28),
                     onPressed: () => Navigator.pop(context),
                   ),
-
-                  // Indikátor nahrávania
                   if (_isRecording)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -308,12 +287,9 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
                       ),
                       child: Text(
                         _formatDuration(_videoDuration),
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ),
-
-                  // Blesk
                   IconButton(
                     icon: Icon(
                       _isFlashOn ? Icons.flash_on : Icons.flash_off,
@@ -327,7 +303,7 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
             ),
           ),
 
-          /// 4. SPODNÝ OVLÁDACÍ PANEL
+          // Spodný panel
           Positioned(
             bottom: 0,
             left: 0,
@@ -345,8 +321,7 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-
-                  // --- ZOOM SLIDER ---
+                  // Zoom Slider
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Row(
@@ -358,8 +333,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
                               activeTrackColor: Colors.white,
                               inactiveTrackColor: Colors.white24,
                               thumbColor: Colors.white,
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
                               trackHeight: 2,
                             ),
                             child: Slider(
@@ -380,7 +353,7 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
                   const SizedBox(height: 10),
 
-                  // --- PREPÍNAČ REŽIMOV (TEXTOVÝ) ---
+                  // Prepínač režimov
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -392,45 +365,31 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
                   const SizedBox(height: 20),
 
-                  // --- SPÚŠŤ ---
+                  // Spúšť
                   GestureDetector(
                     onTap: () {
                       if (_isVideoMode) {
-                        if (_isRecording) {
-                          _stopVideo();
-                        } else {
-                          _startVideo();
-                        }
+                        _isRecording ? _stopVideo() : _startVideo();
                       } else {
                         _takePhoto();
                       }
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
                       height: 80,
                       width: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 4,
-                        ),
+                        border: Border.all(color: Colors.white, width: 4),
                       ),
                       child: Center(
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
-                          height: _isVideoMode
-                              ? (_isRecording ? 30 : 60) // Video: Červené
-                              : 68,                      // Foto: Biele
-                          width: _isVideoMode
-                              ? (_isRecording ? 30 : 60)
-                              : 68,
+                          height: _isVideoMode ? (_isRecording ? 30 : 60) : 68,
+                          width: _isVideoMode ? (_isRecording ? 30 : 60) : 68,
                           decoration: BoxDecoration(
                             color: _isVideoMode ? Colors.red : Colors.white,
-                            borderRadius: BorderRadius.circular(
-                              _isVideoMode && _isRecording ? 4 : 50,
-                            ),
+                            borderRadius: BorderRadius.circular(_isVideoMode && _isRecording ? 4 : 50),
                           ),
                         ),
                       ),
@@ -448,10 +407,8 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   Widget _buildModeText(String text, bool isActive) {
     return GestureDetector(
       onTap: () {
-        if (_isRecording) return; // Nemeniť počas nahrávania
-        setState(() {
-          _isVideoMode = (text == 'VIDEO');
-        });
+        if (_isRecording) return;
+        setState(() => _isVideoMode = (text == 'VIDEO'));
       },
       child: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 200),
@@ -460,9 +417,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
           fontSize: 16,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
-          shadows: isActive
-              ? [const BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))]
-              : null,
         ),
         child: Text(text),
       ),

@@ -1309,17 +1309,484 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
   }
 }
 
+class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VideosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerNameMeta = const VerificationMeta(
+    'ownerName',
+  );
+  @override
+  late final GeneratedColumn<String> ownerName = GeneratedColumn<String>(
+    'owner_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _uploadedMeta = const VerificationMeta(
+    'uploaded',
+  );
+  @override
+  late final GeneratedColumn<bool> uploaded = GeneratedColumn<bool>(
+    'uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _durationSecondsMeta = const VerificationMeta(
+    'durationSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> durationSeconds = GeneratedColumn<int>(
+    'duration_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    filePath,
+    createdAt,
+    deviceId,
+    ownerName,
+    uploaded,
+    durationSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'videos';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Video> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_filePathMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('owner_name')) {
+      context.handle(
+        _ownerNameMeta,
+        ownerName.isAcceptableOrUnknown(data['owner_name']!, _ownerNameMeta),
+      );
+    }
+    if (data.containsKey('uploaded')) {
+      context.handle(
+        _uploadedMeta,
+        uploaded.isAcceptableOrUnknown(data['uploaded']!, _uploadedMeta),
+      );
+    }
+    if (data.containsKey('duration_seconds')) {
+      context.handle(
+        _durationSecondsMeta,
+        durationSeconds.isAcceptableOrUnknown(
+          data['duration_seconds']!,
+          _durationSecondsMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Video map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Video(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      ownerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_name'],
+      ),
+      uploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}uploaded'],
+      )!,
+      durationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_seconds'],
+      ),
+    );
+  }
+
+  @override
+  $VideosTable createAlias(String alias) {
+    return $VideosTable(attachedDatabase, alias);
+  }
+}
+
+class Video extends DataClass implements Insertable<Video> {
+  final int id;
+  final String filePath;
+  final DateTime createdAt;
+  final String deviceId;
+  final String? ownerName;
+  final bool uploaded;
+  final int? durationSeconds;
+  const Video({
+    required this.id,
+    required this.filePath,
+    required this.createdAt,
+    required this.deviceId,
+    this.ownerName,
+    required this.uploaded,
+    this.durationSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['file_path'] = Variable<String>(filePath);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || ownerName != null) {
+      map['owner_name'] = Variable<String>(ownerName);
+    }
+    map['uploaded'] = Variable<bool>(uploaded);
+    if (!nullToAbsent || durationSeconds != null) {
+      map['duration_seconds'] = Variable<int>(durationSeconds);
+    }
+    return map;
+  }
+
+  VideosCompanion toCompanion(bool nullToAbsent) {
+    return VideosCompanion(
+      id: Value(id),
+      filePath: Value(filePath),
+      createdAt: Value(createdAt),
+      deviceId: Value(deviceId),
+      ownerName: ownerName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerName),
+      uploaded: Value(uploaded),
+      durationSeconds: durationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationSeconds),
+    );
+  }
+
+  factory Video.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Video(
+      id: serializer.fromJson<int>(json['id']),
+      filePath: serializer.fromJson<String>(json['filePath']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      ownerName: serializer.fromJson<String?>(json['ownerName']),
+      uploaded: serializer.fromJson<bool>(json['uploaded']),
+      durationSeconds: serializer.fromJson<int?>(json['durationSeconds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'filePath': serializer.toJson<String>(filePath),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'ownerName': serializer.toJson<String?>(ownerName),
+      'uploaded': serializer.toJson<bool>(uploaded),
+      'durationSeconds': serializer.toJson<int?>(durationSeconds),
+    };
+  }
+
+  Video copyWith({
+    int? id,
+    String? filePath,
+    DateTime? createdAt,
+    String? deviceId,
+    Value<String?> ownerName = const Value.absent(),
+    bool? uploaded,
+    Value<int?> durationSeconds = const Value.absent(),
+  }) => Video(
+    id: id ?? this.id,
+    filePath: filePath ?? this.filePath,
+    createdAt: createdAt ?? this.createdAt,
+    deviceId: deviceId ?? this.deviceId,
+    ownerName: ownerName.present ? ownerName.value : this.ownerName,
+    uploaded: uploaded ?? this.uploaded,
+    durationSeconds: durationSeconds.present
+        ? durationSeconds.value
+        : this.durationSeconds,
+  );
+  Video copyWithCompanion(VideosCompanion data) {
+    return Video(
+      id: data.id.present ? data.id.value : this.id,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      ownerName: data.ownerName.present ? data.ownerName.value : this.ownerName,
+      uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
+      durationSeconds: data.durationSeconds.present
+          ? data.durationSeconds.value
+          : this.durationSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Video(')
+          ..write('id: $id, ')
+          ..write('filePath: $filePath, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('ownerName: $ownerName, ')
+          ..write('uploaded: $uploaded, ')
+          ..write('durationSeconds: $durationSeconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    filePath,
+    createdAt,
+    deviceId,
+    ownerName,
+    uploaded,
+    durationSeconds,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Video &&
+          other.id == this.id &&
+          other.filePath == this.filePath &&
+          other.createdAt == this.createdAt &&
+          other.deviceId == this.deviceId &&
+          other.ownerName == this.ownerName &&
+          other.uploaded == this.uploaded &&
+          other.durationSeconds == this.durationSeconds);
+}
+
+class VideosCompanion extends UpdateCompanion<Video> {
+  final Value<int> id;
+  final Value<String> filePath;
+  final Value<DateTime> createdAt;
+  final Value<String> deviceId;
+  final Value<String?> ownerName;
+  final Value<bool> uploaded;
+  final Value<int?> durationSeconds;
+  const VideosCompanion({
+    this.id = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.ownerName = const Value.absent(),
+    this.uploaded = const Value.absent(),
+    this.durationSeconds = const Value.absent(),
+  });
+  VideosCompanion.insert({
+    this.id = const Value.absent(),
+    required String filePath,
+    this.createdAt = const Value.absent(),
+    required String deviceId,
+    this.ownerName = const Value.absent(),
+    this.uploaded = const Value.absent(),
+    this.durationSeconds = const Value.absent(),
+  }) : filePath = Value(filePath),
+       deviceId = Value(deviceId);
+  static Insertable<Video> custom({
+    Expression<int>? id,
+    Expression<String>? filePath,
+    Expression<DateTime>? createdAt,
+    Expression<String>? deviceId,
+    Expression<String>? ownerName,
+    Expression<bool>? uploaded,
+    Expression<int>? durationSeconds,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (filePath != null) 'file_path': filePath,
+      if (createdAt != null) 'created_at': createdAt,
+      if (deviceId != null) 'device_id': deviceId,
+      if (ownerName != null) 'owner_name': ownerName,
+      if (uploaded != null) 'uploaded': uploaded,
+      if (durationSeconds != null) 'duration_seconds': durationSeconds,
+    });
+  }
+
+  VideosCompanion copyWith({
+    Value<int>? id,
+    Value<String>? filePath,
+    Value<DateTime>? createdAt,
+    Value<String>? deviceId,
+    Value<String?>? ownerName,
+    Value<bool>? uploaded,
+    Value<int?>? durationSeconds,
+  }) {
+    return VideosCompanion(
+      id: id ?? this.id,
+      filePath: filePath ?? this.filePath,
+      createdAt: createdAt ?? this.createdAt,
+      deviceId: deviceId ?? this.deviceId,
+      ownerName: ownerName ?? this.ownerName,
+      uploaded: uploaded ?? this.uploaded,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (ownerName.present) {
+      map['owner_name'] = Variable<String>(ownerName.value);
+    }
+    if (uploaded.present) {
+      map['uploaded'] = Variable<bool>(uploaded.value);
+    }
+    if (durationSeconds.present) {
+      map['duration_seconds'] = Variable<int>(durationSeconds.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VideosCompanion(')
+          ..write('id: $id, ')
+          ..write('filePath: $filePath, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('ownerName: $ownerName, ')
+          ..write('uploaded: $uploaded, ')
+          ..write('durationSeconds: $durationSeconds')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $UsersTable users = $UsersTable(this);
   late final $PhotosTable photos = $PhotosTable(this);
   late final $AudiosTable audios = $AudiosTable(this);
+  late final $VideosTable videos = $VideosTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [users, photos, audios];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    users,
+    photos,
+    audios,
+    videos,
+  ];
 }
 
 typedef $$UsersTableCreateCompanionBuilder =
@@ -1982,6 +2449,234 @@ typedef $$AudiosTableProcessedTableManager =
       Audio,
       PrefetchHooks Function()
     >;
+typedef $$VideosTableCreateCompanionBuilder =
+    VideosCompanion Function({
+      Value<int> id,
+      required String filePath,
+      Value<DateTime> createdAt,
+      required String deviceId,
+      Value<String?> ownerName,
+      Value<bool> uploaded,
+      Value<int?> durationSeconds,
+    });
+typedef $$VideosTableUpdateCompanionBuilder =
+    VideosCompanion Function({
+      Value<int> id,
+      Value<String> filePath,
+      Value<DateTime> createdAt,
+      Value<String> deviceId,
+      Value<String?> ownerName,
+      Value<bool> uploaded,
+      Value<int?> durationSeconds,
+    });
+
+class $$VideosTableFilterComposer
+    extends Composer<_$AppDatabase, $VideosTable> {
+  $$VideosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerName => $composableBuilder(
+    column: $table.ownerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VideosTableOrderingComposer
+    extends Composer<_$AppDatabase, $VideosTable> {
+  $$VideosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerName => $composableBuilder(
+    column: $table.ownerName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VideosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $VideosTable> {
+  $$VideosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerName =>
+      $composableBuilder(column: $table.ownerName, builder: (column) => column);
+
+  GeneratedColumn<bool> get uploaded =>
+      $composableBuilder(column: $table.uploaded, builder: (column) => column);
+
+  GeneratedColumn<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => column,
+  );
+}
+
+class $$VideosTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $VideosTable,
+          Video,
+          $$VideosTableFilterComposer,
+          $$VideosTableOrderingComposer,
+          $$VideosTableAnnotationComposer,
+          $$VideosTableCreateCompanionBuilder,
+          $$VideosTableUpdateCompanionBuilder,
+          (Video, BaseReferences<_$AppDatabase, $VideosTable, Video>),
+          Video,
+          PrefetchHooks Function()
+        > {
+  $$VideosTableTableManager(_$AppDatabase db, $VideosTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VideosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VideosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VideosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> filePath = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> ownerName = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
+                Value<int?> durationSeconds = const Value.absent(),
+              }) => VideosCompanion(
+                id: id,
+                filePath: filePath,
+                createdAt: createdAt,
+                deviceId: deviceId,
+                ownerName: ownerName,
+                uploaded: uploaded,
+                durationSeconds: durationSeconds,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String filePath,
+                Value<DateTime> createdAt = const Value.absent(),
+                required String deviceId,
+                Value<String?> ownerName = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
+                Value<int?> durationSeconds = const Value.absent(),
+              }) => VideosCompanion.insert(
+                id: id,
+                filePath: filePath,
+                createdAt: createdAt,
+                deviceId: deviceId,
+                ownerName: ownerName,
+                uploaded: uploaded,
+                durationSeconds: durationSeconds,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VideosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $VideosTable,
+      Video,
+      $$VideosTableFilterComposer,
+      $$VideosTableOrderingComposer,
+      $$VideosTableAnnotationComposer,
+      $$VideosTableCreateCompanionBuilder,
+      $$VideosTableUpdateCompanionBuilder,
+      (Video, BaseReferences<_$AppDatabase, $VideosTable, Video>),
+      Video,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1992,4 +2687,6 @@ class $AppDatabaseManager {
       $$PhotosTableTableManager(_db, _db.photos);
   $$AudiosTableTableManager get audios =>
       $$AudiosTableTableManager(_db, _db.audios);
+  $$VideosTableTableManager get videos =>
+      $$VideosTableTableManager(_db, _db.videos);
 }

@@ -58,7 +58,7 @@ class Photos extends Table {
   RealColumn get longitude => real().nullable()();
 }
 
-// --------------- Tretia tabuľka: Audios (NOVÁ) ----------------
+// --------------- Tretia tabuľka: Audios ----------------
 class Audios extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get filePath => text()(); // cesta k šifrovanému .enc súboru
@@ -69,13 +69,25 @@ class Audios extends Table {
   BoolColumn get favorite => boolean().withDefault(const Constant(false))();
 }
 
+// --------------- Štvrtá tabuľka: Videos (NOVÁ) ----------------
+class Videos extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get filePath => text()(); // cesta k šifrovanému .enc súboru
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  TextColumn get deviceId => text()();
+  TextColumn get ownerName => text().nullable()();
+  BoolColumn get uploaded => boolean().withDefault(const Constant(false))();
+  // Pri videu sa môže hodiť aj dĺžka, ak ju vieš zistiť
+  IntColumn get durationSeconds => integer().nullable()();
+}
+
 // --------------- Drift Database ----------------
-@DriftDatabase(tables: [Users, Photos, Audios])
+@DriftDatabase(tables: [Users, Photos, Audios, Videos]) // Pridané Videos
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3; // Zvýšené na 3
+  int get schemaVersion => 4; // Zvýšené na 4
 
   // ---------------- USERS CRUD ----------------
   Future<int> createUser(String username, String password, String email) {
@@ -138,7 +150,7 @@ class AppDatabase extends _$AppDatabase {
     return (select(photos)..where((p) => p.favorite.equals(true))).get();
   }
 
-  // ---------------- AUDIOS CRUD (NOVÉ) ----------------
+  // ---------------- AUDIOS CRUD ----------------
   Future<int> insertAudio({
     required String filePath,
     required String deviceId,
@@ -169,6 +181,33 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  // ---------------- VIDEOS CRUD (NOVÉ) ----------------
+  Future<int> insertVideo({
+    required String filePath,
+    required String deviceId,
+    String? ownerName,
+    bool uploaded = false,
+    int? duration,
+  }) {
+    return into(videos).insert(
+      VideosCompanion(
+        filePath: Value(filePath),
+        deviceId: Value(deviceId),
+        ownerName: Value(ownerName),
+        uploaded: Value(uploaded),
+        durationSeconds: Value(duration),
+      ),
+    );
+  }
+
+  Stream<List<Video>> watchAllVideos() {
+    return select(videos).watch();
+  }
+
+  Future<void> deleteVideo(String filePath) async {
+    await (delete(videos)..where((v) => v.filePath.equals(filePath))).go();
+  }
+
   // ---------------- MIGRATION STRATEGY ----------------
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -178,8 +217,11 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(photos, photos.longitude);
       }
       if (from < 3) {
-        // Vytvorí tabuľku audios pri prechode na verziu 3
         await m.createTable(audios);
+      }
+      if (from < 4) {
+        // Vytvorí tabuľku videos pri prechode na verziu 4
+        await m.createTable(videos);
       }
     },
   );

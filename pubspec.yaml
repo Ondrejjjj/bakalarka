@@ -59,6 +59,7 @@ dependencies:
   google_fonts: ^6.2.1
   native_exif: ^0.7.0  #cistenie udajov z fotky(gps, zariadenie a tak)
   audioplayers: ^6.5.1
+  video_player: ^2.10.1
 
 dev_dependencies:
   flutter_test:

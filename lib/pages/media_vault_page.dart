@@ -1,3 +1,4 @@
+import 'package:bakalarka/pages/video_gallery_page.dart';
 import 'package:flutter/material.dart';
 import 'gallery_page.dart';
 import 'audio_gallery_page.dart';
@@ -105,7 +106,8 @@ class _MediaVaultPageState extends State<MediaVaultPage> {
       // Tu sa vráti tvoja upravená GalleryPage (bez Scaffold-u)
         return const GalleryPage(key: ValueKey(0));
       case 1:
-        return _buildPlaceholder('Galéria videí sa pripravuje', Icons.videocam);
+      // ✅ TERAZ UŽ VRACIA REÁLNU GALÉRIU
+        return const VideoGalleryPage(key: ValueKey(1));
       case 2:
         return const AudioGalleryPage(key: ValueKey(2));
       default:
