@@ -131,6 +131,8 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<Photo>> getAllPhotos() => select(photos).get();
 
+  Stream<List<Photo>> watchAllPhotos() => select(photos).watch();
+
   Future<Photo?> getPhotoByPath(String filePath) {
     return (select(photos)..where((p) => p.filePath.equals(filePath)))
         .getSingleOrNull();

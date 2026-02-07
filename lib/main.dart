@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import 'camera/camera_page.dart';
 import 'microphone.dart';
 import 'pages/gallery_page.dart';
+import 'pages/actions/action_report_pages.dart';
 
 
 void main() async {
@@ -494,50 +495,3 @@ class _ActionItem extends StatelessWidget {
   }
 }
 
-class RevisionBeforePage extends StatelessWidget {
-  const RevisionBeforePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Revízia pred")),
-      body: const Center(child: Text("Revízia pred obsah")),
-    );
-  }
-}
-
-class RevisionAfterPage extends StatelessWidget {
-  const RevisionAfterPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Revízia po")),
-      body: const Center(child: Text("Revízia po obsah")),
-    );
-  }
-}
-
-class RepairBeforePage extends StatelessWidget {
-  const RepairBeforePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Oprava pred")),
-      body: const Center(child: Text("Oprava pred obsah")),
-    );
-  }
-}
-
-class RepairAfterPage extends StatelessWidget {
-  const RepairAfterPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Oprava po")),
-      body: const Center(child: Text("Oprava po obsah")),
-    );
-  }
-}
