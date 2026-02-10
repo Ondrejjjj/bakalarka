@@ -4,7 +4,10 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
+  cloud_firestore
   connectivity_plus
+  firebase_auth
+  firebase_core
   flutter_secure_storage_windows
   flutter_sound
   sqlcipher_flutter_libs

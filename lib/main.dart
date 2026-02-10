@@ -1,26 +1,39 @@
 import 'dart:io';
-import 'dart:ui'; // Potrebné pre ImageFilter
-import 'package:bakalarka/database.dart';
-import 'package:bakalarka/pages/media_vault_page.dart';
-import 'package:bakalarka/theme.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'as fb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
 import 'package:sqlite3/open.dart';
-import 'generated/l10n.dart';
-import 'settings.dart';
-import 'theme.dart' hide ThemeProvider, AppTheme;
-import 'package:provider/provider.dart';
-import 'camera/camera_page.dart';
-import 'microphone.dart';
-import 'pages/gallery_page.dart';
-import 'pages/actions/action_report_pages.dart';
 
+// Importy tvojich súborov (Skontroluj, či názvy priečinkov sedia)
+import 'package:bakalarka/database.dart';
+import 'package:bakalarka/pages/media_vault_page.dart';
+import 'package:bakalarka/theme.dart';
+import 'package:bakalarka/settings.dart';
+import 'package:bakalarka/camera/camera_page.dart';
+import 'package:bakalarka/microphone.dart';
+import 'package:bakalarka/pages/actions/action_report_pages.dart';
+import 'package:bakalarka/pages/login_page.dart'; // Tvoja nová prihlasovacia stránka
+import 'generated/l10n.dart';
+
+// Ignorujeme varovania pre schovanie ThemeProvider, ak ho máš v theme.dart
+import 'theme.dart' hide ThemeProvider, AppTheme;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 1. Inicializácia Firebase
+  try {
+    await Firebase.initializeApp();
+    print("✅ Firebase inicializovaný");
+  } catch (e) {
+    print("❌ Chyba Firebase: $e");
+  }
 
+  // 2. SQLCipher inicializácia
   print("🔧 Inicializujem SQLCipher override...");
   try {
     if (Platform.isAndroid) {
@@ -30,17 +43,14 @@ void main() async {
   } catch (e) {
     print("❌ Chyba pri override: $e");
   }
+
   final database = AppDatabase();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => ThemeProvider(),
-        ),
-
-        Provider<AppDatabase>.value(
-          value: database,
-        ),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        Provider<AppDatabase>.value(value: database),
       ],
       child: const MyApp(),
     ),
@@ -54,46 +64,50 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
-        // Tip: Ak by si pridal balík dynamic_color, tu by si obalil MaterialApp widgetom DynamicColorBuilder
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Bakalárska Práca', // Skús dať konkrétny názov
-
-          // TÉMY
+          title: 'Bakalárska Práca',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
 
-          // LOKALIZÁCIA
           localizationsDelegates: const [
             S.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          supportedLocales: S.delegate.supportedLocales, // Čistejší prístup cez generovaný kód
+          supportedLocales: S.delegate.supportedLocales,
 
-          // NAVIGÁCIA
           initialRoute: '/',
-          // Odporúčam definovať cesty centrálne, aby sa ti kód lepšie udržiaval
           onGenerateRoute: (settings) {
-            // Tu môžeš pridať vlastné animácie prechodov (napr. FadeTransition)
             if (settings.name == '/settings') {
               return MaterialPageRoute(builder: (_) => const SettingsPage());
             }
             return null;
           },
 
-          // Builder na globálne nastavenia UI (napr. vypnutie škálovania písma)
           builder: (context, child) {
             return MediaQuery(
-              // Zabezpečí, že UI sa nerozbije, ak má používateľ v systéme obrovské písmo
               data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.0)),
               child: child!,
             );
           },
 
-          home: const MyHomePage(),
+          // ⭐ DYNAMICKÉ SMEROVANIE (Vrátnik)
+          home: StreamBuilder<fb.User?>(
+            stream: fb.FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              // Ak je prihlásený, ide na domov, inak na login
+              if (snapshot.hasData) {
+                return const MyHomePage();
+              }
+              return const LoginPage();
+            },
+          ),
         );
       },
     );
@@ -106,11 +120,11 @@ class MyHomePage extends StatelessWidget {
   void _showUserBottomSheet(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final currentUser = fb.FirebaseAuth.instance.currentUser;
 
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
-      // M3 odporúča, aby BottomSheet nebol úplne na celú šírku na veľkých displejoch
       isScrollControlled: true,
       builder: (context) {
         return Container(
@@ -118,7 +132,6 @@ class MyHomePage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // --- PROFILOVÁ ČASŤ ---
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -138,14 +151,14 @@ class MyHomePage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Ondrej Smolarik',
+                            'Prihlásený používateľ',
                             style: textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: colorScheme.onSurface,
                             ),
                           ),
                           Text(
-                            'ondrej@email.com',
+                            currentUser?.email ?? 'Neznámy email',
                             style: textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -157,8 +170,6 @@ class MyHomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // --- AKCIE ---
               _buildSheetAction(
                 context,
                 icon: Icons.badge_outlined,
@@ -172,12 +183,17 @@ class MyHomePage extends StatelessWidget {
                 onTap: () => Navigator.pop(context),
               ),
               const Divider(height: 32, thickness: 0.5),
+
+              // ⭐ REÁLNE ODHLÁSENIE
               _buildSheetAction(
                 context,
                 icon: Icons.logout_rounded,
                 label: 'Odhlásiť sa',
                 isDestructive: true,
-                onTap: () => Navigator.pop(context),
+                onTap: () async {
+                  await fb.FirebaseAuth.instance.signOut();
+                  if (context.mounted) Navigator.pop(context);
+                },
               ),
             ],
           ),
@@ -186,7 +202,6 @@ class MyHomePage extends StatelessWidget {
     );
   }
 
-// Pomocný widget pre krajšie tlačidlá v menu
   Widget _buildSheetAction(BuildContext context, {
     required IconData icon,
     required String label,
@@ -206,6 +221,7 @@ class MyHomePage extends StatelessWidget {
       onTap: onTap,
     );
   }
+
   void _showActionMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -216,26 +232,10 @@ class MyHomePage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _ActionItem(
-                icon: Icons.fact_check,
-                title: "Revízia pred",
-                page: const RevisionBeforePage(),
-              ),
-              _ActionItem(
-                icon: Icons.fact_check_outlined,
-                title: "Revízia po",
-                page: const RevisionAfterPage(),
-              ),
-              _ActionItem(
-                icon: Icons.build,
-                title: "Oprava pred",
-                page: const RepairBeforePage(),
-              ),
-              _ActionItem(
-                icon: Icons.build_circle,
-                title: "Oprava po",
-                page: const RepairAfterPage(),
-              ),
+              _ActionItem(icon: Icons.fact_check, title: "Revízia pred", page: const RevisionBeforePage()),
+              _ActionItem(icon: Icons.fact_check_outlined, title: "Revízia po", page: const RevisionAfterPage()),
+              _ActionItem(icon: Icons.build, title: "Oprava pred", page: const RepairBeforePage()),
+              _ActionItem(icon: Icons.build_circle, title: "Oprava po", page: const RepairAfterPage()),
             ],
           ),
         );
@@ -248,13 +248,11 @@ class MyHomePage extends StatelessWidget {
     return Scaffold(
       drawer: const SettingsDrawer(),
       appBar: AppBar(
-        title: const Text('Flutter App'),
+        title: const Text('Trezor Bakalárka'),
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
         actions: [
@@ -270,49 +268,29 @@ class MyHomePage extends StatelessWidget {
             children: [
               const Expanded(
                 child: Center(
-                  child: Text(
-                    'Domovská obrazovka',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                  child: Text('Domovská obrazovka', style: TextStyle(fontSize: 18)),
                 ),
               ),
-              _BottomToolbar(
-                onActionPressed: () {},
-              ),
+              _BottomToolbar(onActionPressed: () {}),
             ],
           ),
-          /// ⭐ VEĽKÉ AKČNÉ TLAČIDLO (M3 ŠTÝL)
           Positioned(
             bottom: MediaQuery.of(context).size.height * 0.18,
             left: 0,
             right: 0,
             child: Center(
               child: SizedBox(
-                // Responzívna šírka, ale s rozumným maximom pre tablety
-                width: MediaQuery.of(context).size.width * 0.7 > 400
-                    ? 400
-                    : MediaQuery.of(context).size.width * 0.7,
-                height: 64, // Fixnejšia výška pôsobí stabilnejšie
+                width: MediaQuery.of(context).size.width * 0.7 > 400 ? 400 : MediaQuery.of(context).size.width * 0.7,
+                height: 64,
                 child: FloatingActionButton.extended(
-                  heroTag: 'mainAction', // Dobré mať pre plynulé prechody
+                  heroTag: 'mainAction',
                   onPressed: () => _showActionMenu(context),
-
-                  // M3 farby - toto tlacidlo bude vizualne dominovat
                   backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                   foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-
-                  elevation: 2, // M3 preferuje nižší tieň (tonal elevation)
-
+                  elevation: 2,
                   icon: const Icon(Icons.dashboard_customize, size: 28),
-                  label: const Text(
-                    "Akcie",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-
-                  // Zaoblenie rohov podľa M3 (viac hranaté ako kruh, ale stále oblé)
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                  label: const Text("Akcie", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),
             ),

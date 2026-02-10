@@ -50,6 +50,9 @@ dependencies:
   encrypt: ^5.0.3
   location: ^8.0.0
   flutter_map: ^8.2.2
+  firebase_core: ^2.24.2  # <--- TOTO TU MUSÍ BYŤ
+  firebase_auth: ^4.15.3  # <--- TOTO TIEŽ
+  cloud_firestore: ^4.13.6 # <--- A TOTO
 
 
   # The following adds the Cupertino Icons font to your application.
