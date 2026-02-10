@@ -50,9 +50,9 @@ dependencies:
   encrypt: ^5.0.3
   location: ^8.0.0
   flutter_map: ^8.2.2
-  firebase_core: ^2.24.2  # <--- TOTO TU MUSÍ BYŤ
-  firebase_auth: ^4.15.3  # <--- TOTO TIEŽ
-  cloud_firestore: ^4.13.6 # <--- A TOTO
+  firebase_core: ^3.9.0
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.6.0
 
 
 
@@ -65,8 +65,8 @@ dependencies:
   native_exif: ^0.7.0  #cistenie udajov z fotky(gps, zariadenie a tak)
   audioplayers: ^6.5.1
   video_player: ^2.10.1
-  local_auth: ^3.0.0
-  local_auth_android: ^2.0.4
+  local_auth: ^2.1.6
+
 
 dev_dependencies:
   flutter_test:

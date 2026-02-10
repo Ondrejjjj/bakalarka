@@ -191,8 +191,20 @@ class MyHomePage extends StatelessWidget {
                 label: 'Odhlásiť sa',
                 isDestructive: true,
                 onTap: () async {
+                  // 1. Zatvoríme BottomSheet
+                  Navigator.pop(context);
+
+                  // 2. Samotné odhlásenie z Firebase
                   await fb.FirebaseAuth.instance.signOut();
-                  if (context.mounted) Navigator.pop(context);
+
+                  // 3. Poistka: Ak by StreamBuilder v MyApp nezareagoval hneď,
+                  // vnútime navigáciu na Login.
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginPage()),
+                          (route) => false,
+                    );
+                  }
                 },
               ),
             ],
