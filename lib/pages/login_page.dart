@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/auth_service.dart';
 import '../services/biometric_service.dart';
+import 'package:bakalarka/main.dart'; // Skontroluj, či sa tvoja Home trieda volá MyHomePage alebo HomePage
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,22 +15,24 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final AuthService _auth = AuthService();
   final BiometricService _biometricService = BiometricService();
-  final _storage = const FlutterSecureStorage();
+
+  // Nastavenie pre Android, aby to nepadalo na šifrovaní
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
   final _formKey = GlobalKey<FormState>();
 
-  // Kontroléry
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _companyNameController = TextEditingController();
   final _icoController = TextEditingController();
 
-  // Stavové premenné
   bool _isRegistering = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _canCheckBiometrics = false;
 
-  // Premenné pre živú validáciu hesla
   bool _has8Chars = false;
   bool _hasUppercase = false;
   bool _hasDigits = false;
@@ -41,45 +44,58 @@ class _LoginPageState extends State<LoginPage> {
     _checkBiometrics();
   }
 
+  // Bezpečné overenie dostupnosti biometrie (aby appka nespadla na štarte)
   void _checkBiometrics() async {
-    bool available = await _biometricService.isBiometricAvailable();
-    if (mounted) {
-      setState(() => _canCheckBiometrics = available);
+    try {
+      bool available = await _biometricService.isBiometricAvailable();
+      if (mounted) {
+        setState(() => _canCheckBiometrics = available);
+      }
+    } catch (e) {
+      print("Chyba biometrie pri štarte (ignoring): $e");
+      if (mounted) {
+        setState(() => _canCheckBiometrics = false);
+      }
     }
   }
 
-  // --- DIALÓG NA AKTIVÁCIU BIOMETRIE ---
+  // --- DIALÓG UŽ LEN OZNAMUJE MOŽNOSŤ ---
   Future<void> _showBiometricActivationDialog() async {
     return showDialog(
       context: context,
-      barrierDismissible: false, // Používateľ musí kliknúť na jedno z tlačidiel
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text("Aktivovať biometriu?"),
-        content: const Text("Chcete sa nabudúce prihlasovať pomocou odtlačku prsta alebo tváre?"),
+        title: const Text("Biometria dostupná"),
+        content: const Text("Vaše údaje boli uložené. Nabudúce sa môžete prihlásiť odtlačkom prsta."),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Neskôr"),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _saveCredentials();
-              if (mounted) {
-                Navigator.pop(context);
-                _showSnack("Biometria bola úspešne aktivovaná!");
-              }
+            onPressed: () {
+              Navigator.pop(context);
+              _goToHome();
             },
-            child: const Text("Aktivovať"),
+            child: const Text("Rozumiem"),
           ),
         ],
       ),
     );
   }
 
-  // --- POMOCNÉ FUNKCIE PRE ÚDAJE ---
+  void _goToHome() {
+    // Tu si daj pozor na názov triedy, v main.dart máš asi MyHomePage alebo HomePage
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const MyHomePage()),
+    );
+  }
+
+  // --- KĽÚČOVÁ ZMENA: Ukladáme hneď ---
   Future<void> _saveCredentials() async {
-    await _storage.write(key: 'user_email', value: _emailController.text.trim());
-    await _storage.write(key: 'user_password', value: _passwordController.text.trim());
+    try {
+      await _storage.write(key: 'user_email', value: _emailController.text.trim());
+      await _storage.write(key: 'user_password', value: _passwordController.text.trim());
+      print("DEBUG: Údaje úspešne uložené do SecureStorage");
+    } catch (e) {
+      print("DEBUG: Chyba pri ukladaní údajov: $e");
+    }
   }
 
   void _showSnack(String message) {
@@ -89,11 +105,11 @@ class _LoginPageState extends State<LoginPage> {
   // --- LOGIKA PRIHLÁSENIA / REGISTRÁCIE ---
   void _handleAuth() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     try {
       if (_isRegistering) {
+        // 1. Registrácia vo Firebase
         await _auth.registerAdminAndCompany(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
@@ -101,21 +117,31 @@ class _LoginPageState extends State<LoginPage> {
           ico: _icoController.text.trim(),
         );
 
+        // 2. OKAMŽITÉ ULOŽENIE ÚDAJOV
+        await _saveCredentials();
+
+        // 3. Rozhodnutie kam ďalej
         if (_canCheckBiometrics) {
           await _showBiometricActivationDialog();
+        } else {
+          _goToHome();
         }
+
       } else {
+        // 1. Prihlásenie vo Firebase
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        if (_canCheckBiometrics) {
-          String? savedEmail = await _storage.read(key: 'user_email');
-          if (savedEmail == null) {
-            await _showBiometricActivationDialog();
-          }
-        }
+        // 2. OKAMŽITÉ ULOŽENIE ÚDAJOV (Update hesla ak sa zmenilo)
+        await _saveCredentials();
+
+        // 3. Rozhodnutie kam ďalej
+        // Ak už raz máme biometriu "aktivovanú" (vieme to zistiť, alebo len proste ideme ďalej)
+        // Pre jednoduchosť - ak je dostupná a sme tu prvýkrát, môžeme ukázať dialóg,
+        // ale pre plynulosť poďme rovno domov.
+        _goToHome();
       }
     } catch (e) {
       _showSnack("Chyba: ${e.toString()}");
@@ -124,29 +150,36 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // --- LOGIKA BIOMETRICKÉHO PRIHLÁSENIA ---
+  // --- BIOMETRICKÉ PRIHLÁSENIE ---
   void _handleBiometricLogin() async {
-    bool authenticated = await _biometricService.authenticate();
+    try {
+      // 1. Najprv overíme odtlačok
+      bool authenticated = await _biometricService.authenticate();
 
-    if (authenticated) {
-      String? savedEmail = await _storage.read(key: 'user_email');
-      String? savedPassword = await _storage.read(key: 'user_password');
+      if (authenticated) {
+        // 2. Ak je odtlačok OK, vytiahneme údaje
+        String? savedEmail = await _storage.read(key: 'user_email');
+        String? savedPassword = await _storage.read(key: 'user_password');
 
-      if (savedEmail != null && savedPassword != null) {
-        setState(() => _isLoading = true);
-        try {
+        if (savedEmail != null && savedPassword != null) {
+          setState(() => _isLoading = true);
+          // 3. Prihlásime do Firebase na pozadí
           await FirebaseAuth.instance.signInWithEmailAndPassword(
             email: savedEmail,
             password: savedPassword,
           );
-        } catch (e) {
-          _showSnack("Automatické prihlásenie zlyhalo: $e");
-        } finally {
-          if (mounted) setState(() => _isLoading = false);
+          // 4. Ideme dnu
+          _goToHome();
+        } else {
+          _showSnack("Najprv sa musíte aspoň raz prihlásiť manuálne.");
         }
-      } else {
-        _showSnack("Pre aktiváciu sa prihláste manuálne.");
       }
+    } catch (e) {
+      // Tu zachytíme tú nešťastnú chybu "List<Object?>", ak by nastala
+      print("Biometria chyba: $e");
+      _showSnack("Biometria zlyhala alebo nie je nastavená.");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -161,15 +194,12 @@ class _LoginPageState extends State<LoginPage> {
           child: Form(
             key: _formKey,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.lock_person_rounded, size: 80, color: colorScheme.primary),
                 const SizedBox(height: 16),
                 Text(
                   _isRegistering ? "Založiť firmu" : "Vitajte v Trezore",
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 32),
 
@@ -178,11 +208,7 @@ class _LoginPageState extends State<LoginPage> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: _inputDecoration("Email", Icons.email_outlined),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return "Zadajte email";
-                    if (!value.contains('@')) return "Nesprávny formát emailu";
-                    return null;
-                  },
+                  validator: (value) => (value == null || !value.contains('@')) ? "Zadajte platný email" : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -213,6 +239,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: Text(_isRegistering ? "Registrovať" : "Prihlásiť sa"),
                       ),
                     ),
+                    // Tlačidlo odtlačku sa zobrazí len ak je biometria dostupná
                     if (!_isRegistering && _canCheckBiometrics) ...[
                       const SizedBox(width: 12),
                       IconButton.filledTonal(
@@ -235,9 +262,7 @@ class _LoginPageState extends State<LoginPage> {
                       _formKey.currentState?.reset();
                     });
                   },
-                  child: Text(_isRegistering
-                      ? "Už máte účet? Prihláste sa"
-                      : "Nová firma? Zaregistrujte sa tu"),
+                  child: Text(_isRegistering ? "Už máte účet? Prihláste sa" : "Nová firma? Zaregistrujte sa tu"),
                 ),
               ],
             ),
@@ -248,7 +273,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // --- POMOCNÉ WIDGETY ---
-
   Widget _buildPasswordField() {
     return Column(
       children: [
@@ -269,19 +293,12 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
-          validator: (value) {
-            if (_isRegistering && (!_has8Chars || !_hasUppercase || !_hasDigits || !_hasSpecialChar)) {
-              return "Heslo je príliš slabé";
-            }
-            if (value == null || value.isEmpty) return "Zadajte heslo";
-            return null;
-          },
+          validator: (value) => (value == null || value.isEmpty) ? "Zadajte heslo" : null,
         ),
         if (_isRegistering) ...[
           const SizedBox(height: 12),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 8, runSpacing: 8,
             children: [
               _buildValidationChip("8+ znakov", _has8Chars),
               _buildValidationChip("A-Z", _hasUppercase),

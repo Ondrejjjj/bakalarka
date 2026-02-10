@@ -4,30 +4,36 @@ import 'package:flutter/services.dart';
 class BiometricService {
   final LocalAuthentication _auth = LocalAuthentication();
 
-  // 1. Skontroluje, či zariadenie podporuje biometriu (Android aj iOS)
   Future<bool> isBiometricAvailable() async {
     try {
-      final bool canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
+      // Skúsime zistiť dostupnosť
+      final bool canCheck = await _auth.canCheckBiometrics;
       final bool isSupported = await _auth.isDeviceSupported();
-
-      return canAuthenticateWithBiometrics || isSupported;
+      return canCheck || isSupported;
     } catch (e) {
-      print("Chyba pri zisťovaní biometrie: $e");
+      // Ak to padne na Pigeon chybe, tvárime sa, že biometria nie je
+      print("Chyba dostupnosti (ignorujem): $e");
       return false;
     }
   }
 
-  // 2. Samotné overenie (Univerzálne pre odtlačok aj FaceID)
   Future<bool> authenticate() async {
     try {
+      print("Spúšťam biometriu...");
       return await _auth.authenticate(
-        localizedReason: 'Overte sa pre prístup k Trezoru', // Na iOS sa toto zobrazí pri FaceID
+        localizedReason: 'Priložte prst pre overenie',
       );
     } on PlatformException catch (e) {
-      print("Chyba platformy: ${e.code} - ${e.message}");
+      print("Chyba platformy: $e");
       return false;
     } catch (e) {
-      print("Všeobecná chyba: $e");
+      // TOTO JE TO KĽÚČOVÉ MIESTO!
+      // Tu zachytíme tú chybu "List<Object?> is not subtype..."
+      print("Kritická chyba knižnice (Pigeon mismatch): $e");
+
+      // Vrátime true, ak chceš, aby to pri tejto chybe pustilo ďalej (riskantné),
+      // alebo false, aby to jednoducho zlyhalo bez pádu appky.
+      // Odporúčam vrátiť false a nechať používateľa zadať heslo.
       return false;
     }
   }
