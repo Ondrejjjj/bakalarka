@@ -55,6 +55,8 @@ dependencies:
   cloud_firestore: ^4.13.6 # <--- A TOTO
 
 
+
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -63,6 +65,8 @@ dependencies:
   native_exif: ^0.7.0  #cistenie udajov z fotky(gps, zariadenie a tak)
   audioplayers: ^6.5.1
   video_player: ^2.10.1
+  local_auth: ^3.0.0
+  local_auth_android: ^2.0.4
 
 dev_dependencies:
   flutter_test:
