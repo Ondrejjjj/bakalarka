@@ -1,10 +1,11 @@
 import 'package:bakalarka/services/auth_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Na kopírovanie do schránky
+import 'package:flutter/services.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart'; // Na zdieľanie kódu
+import 'package:share_plus/share_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'theme.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -16,9 +17,14 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final AuthService _auth = AuthService();
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
   String? _currentCode;
   String? _companyId;
   bool _isAdmin = false;
+  bool _isInitialLoading = true;
 
   @override
   void initState() {
@@ -26,18 +32,36 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadInitialData();
   }
 
+  // --- LOGIKA NAČÍTANIA DÁT (SecureStorage + Firebase) ---
   void _loadInitialData() async {
+    // 1. Najprv načítame dáta z lokálnej pamäte (okamžitá odozva)
+    final savedRole = await _storage.read(key: 'user_role');
+    final savedCompanyId = await _storage.read(key: 'company_code');
+
+    if (mounted) {
+      setState(() {
+        _isAdmin = savedRole == 'admin';
+        _companyId = savedCompanyId;
+        _isInitialLoading = false;
+      });
+    }
+
+    // 2. Následne aktualizujeme dáta z Firebase (online synchronizácia)
     final user = _auth.currentUser;
     if (user != null) {
-      final role = await _auth.getUserRole(user.uid);
-      final companyData = await _auth.getCompanyData();
+      try {
+        final role = await _auth.getUserRole(user.uid);
+        final companyData = await _auth.getCompanyData();
 
-      if (mounted) {
-        setState(() {
-          _isAdmin = role == 'admin';
-          _currentCode = companyData?.get('inviteCode');
-          _companyId = companyData?.id;
-        });
+        if (mounted) {
+          setState(() {
+            _isAdmin = role == 'admin';
+            _companyId = companyData?.id ?? savedCompanyId;
+            _currentCode = companyData?.get('inviteCode');
+          });
+        }
+      } catch (e) {
+        debugPrint("Chyba pri aktualizácii dát z cloudu: $e");
       }
     }
   }
@@ -45,7 +69,6 @@ class _SettingsPageState extends State<SettingsPage> {
   void _regenerateCode() async {
     if (_companyId == null) return;
 
-    // Potvrdzovací dialóg
     bool confirm = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -59,9 +82,13 @@ class _SettingsPageState extends State<SettingsPage> {
     ) ?? false;
 
     if (confirm) {
-      String newCode = await _auth.regenerateInviteCode(_companyId!);
-      setState(() => _currentCode = newCode);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Kód bol zmenený")));
+      try {
+        String newCode = await _auth.regenerateInviteCode(_companyId!);
+        setState(() => _currentCode = newCode);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Kód bol zmenený")));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Chyba pri zmene kódu")));
+      }
     }
   }
 
@@ -69,10 +96,12 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Nastavenia'), centerTitle: true),
-      body: ListView(
+      body: _isInitialLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // --- SEKCIU PRE ADMINA (KÓD A ZAMESTNANCI) ---
+          // --- ADMIN SEKCIU (KÓD A ZAMESTNANCI) ---
           if (_isAdmin) ...[
             _sectionTitle(context, 'Firemný prístup (Admin)'),
             _card(
@@ -81,7 +110,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const Text("Vstupný kód pre technikov:", style: TextStyle(fontSize: 12)),
                   const SizedBox(height: 8),
                   Text(
-                    _currentCode ?? "Načítavam...",
+                    _currentCode ?? "---",
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4),
                   ),
                   const SizedBox(height: 16),
@@ -89,11 +118,15 @@ class _SettingsPageState extends State<SettingsPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _actionIcon(Icons.copy, "Kopírovať", () {
-                        Clipboard.setData(ClipboardData(text: _currentCode ?? ""));
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Skopírované do schránky")));
+                        if (_currentCode != null) {
+                          Clipboard.setData(ClipboardData(text: _currentCode!));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Skopírované do schránky")));
+                        }
                       }),
                       _actionIcon(Icons.share, "Zdieľať", () {
-                        Share.share("Ahoj, prihlás sa do našej appky Trezor pomocou kódu: $_currentCode");
+                        if (_currentCode != null) {
+                          Share.share("Ahoj, prihlás sa do našej appky Trezor pomocou kódu: $_currentCode");
+                        }
                       }),
                       _actionIcon(Icons.refresh, "Zmeniť", _regenerateCode),
                     ],
@@ -152,10 +185,11 @@ class _SettingsPageState extends State<SettingsPage> {
           _sectionTitle(context, 'Profil'),
           _card(
             child: TextField(
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Meno používateľa',
-                prefixIcon: Icon(Icons.person),
-                border: OutlineInputBorder(),
+                hintText: _auth.currentUser?.email ?? '',
+                prefixIcon: const Icon(Icons.person),
+                border: const OutlineInputBorder(),
               ),
             ),
           ),
@@ -168,18 +202,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 _settingsButton(context, title: 'Wi-Fi Nastavenia', icon: Icons.wifi_rounded, onTap: () => AppSettings.openAppSettings(type: AppSettingsType.wifi)),
                 const Divider(),
                 _settingsButton(context, title: 'Mobilné dáta', icon: Icons.network_cell_rounded, onTap: () => AppSettings.openAppSettings(type: AppSettingsType.dataRoaming)),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-          _sectionTitle(context, 'Úložisko'),
-          _card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Úroveň čistenia fotiek: 3'),
-                Slider(value: 3, min: 1, max: 5, divisions: 4, label: '3', onChanged: (v) {}),
               ],
             ),
           ),
@@ -203,12 +225,37 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ),
+
+          const SizedBox(height: 32),
+
+          // --- TLAČIDLO ODHLÁSENIA ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await _auth.signOut();
+                if (mounted) {
+                  // Vráti nás na prihlasovaciu obrazovku a vymaže históriu navigácie
+                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                }
+              },
+              icon: const Icon(Icons.logout),
+              label: const Text("Odhlásiť sa"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                minimumSize: const Size(double.infinity, 54),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  // Pomocný widget pre malé akčné tlačidlá pod kódom
+  // Pomocné widgety
   Widget _actionIcon(IconData icon, String label, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,

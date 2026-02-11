@@ -11,6 +11,7 @@ import 'package:bakalarka/security/crypto_service.dart';
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
 import 'package:native_exif/native_exif.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // PRIDANÉ
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -24,6 +25,16 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   List<CameraDescription> _cameras = [];
   bool _isFlashOn = false;
   bool _isReady = false;
+
+  // Secure Storage pre offline prístup k identite
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  // Lokálna cache pre údaje o používateľovi
+  String _cachedEmail = 'unknown_user';
+  String _cachedCompany = 'unknown_company';
+  String _cachedOwnerName = 'Technik';
 
   // Zoom
   double _minZoom = 1.0;
@@ -43,7 +54,26 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadOfflineCredentials(); // Načítame identitu hneď pri štarte
     _initCamera();
+  }
+
+  // Načítanie údajov zo Secure Storage (funguje aj offline)
+  Future<void> _loadOfflineCredentials() async {
+    try {
+      final email = await _storage.read(key: 'user_email');
+      final company = await _storage.read(key: 'company_code');
+      // Meno môžeme držať v storage alebo ho odvodiť z emailu
+
+      if (mounted) {
+        setState(() {
+          _cachedEmail = email ?? 'offline_user';
+          _cachedCompany = company ?? 'offline_company';
+        });
+      }
+    } catch (e) {
+      debugPrint("Chyba načítania offline údajov: $e");
+    }
   }
 
   @override
@@ -111,7 +141,7 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       final bytes = await File(photo.path).readAsBytes();
       final encryptedBytes = await CryptoService.encryptBytes(bytes);
 
-      final imageId = DateTime.now().millisecondsSinceEpoch.toString();
+      final imageId = "img_${DateTime.now().millisecondsSinceEpoch}";
       final file = await ImageStorage.createEncryptedFile(imageId);
       await file.writeAsBytes(encryptedBytes, flush: true);
 
@@ -119,23 +149,23 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       double? longitude;
       try {
         Location location = Location();
-        if (await location.serviceEnabled() || await location.requestService()) {
-          if (await location.hasPermission() == PermissionStatus.granted ||
-              await location.requestPermission() == PermissionStatus.granted) {
-            final locData = await location.getLocation();
-            latitude = locData.latitude;
-            longitude = locData.longitude;
-          }
-        }
+        // Pri polohe používame krátky timeout, aby sme offline nečakali večne
+        final locData = await location.getLocation().timeout(const Duration(seconds: 3));
+        latitude = locData.latitude;
+        longitude = locData.longitude;
       } catch (e) {
-        debugPrint('Location error: $e');
+        debugPrint('Location error (možno offline): $e');
       }
 
       if (!mounted) return;
 
       final db = context.read<AppDatabase>();
+
+      // ✅ ZÁPIS DO DB S OFFLINE ÚDAJMI
       await db.insertPhoto(
-        ownerName: "user",
+        ownerName: _cachedOwnerName,
+        userEmail: _cachedEmail,
+        companyCode: _cachedCompany,
         filePath: file.path,
         latitude: latitude,
         longitude: longitude,
@@ -148,6 +178,51 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
     } catch (e) {
       debugPrint("Photo capture error: $e");
+    }
+  }
+
+  Future<void> _stopVideo() async {
+    if (!_isRecording) return;
+
+    try {
+      final XFile video = await _controller!.stopVideoRecording();
+      _videoTimer?.cancel();
+
+      final int finalDuration = _videoDuration.inSeconds;
+
+      setState(() => _isRecording = false);
+
+      final bytes = await File(video.path).readAsBytes();
+      final encryptedBytes = await CryptoService.encryptBytes(bytes);
+
+      final videoId = "vid_${DateTime.now().millisecondsSinceEpoch}";
+      final file = await ImageStorage.createEncryptedFile(videoId);
+
+      await file.writeAsBytes(encryptedBytes, flush: true);
+
+      if (!mounted) return;
+
+      final db = context.read<AppDatabase>();
+
+      // ✅ ZÁPIS DO DB S OFFLINE ÚDAJMI
+      await db.insertVideo(
+        filePath: file.path,
+        deviceId: '90',
+        ownerName: _cachedOwnerName,
+        userEmail: _cachedEmail,
+        companyCode: _cachedCompany,
+        uploaded: false,
+        duration: finalDuration,
+      );
+
+      final tempFile = File(video.path);
+      if (await tempFile.exists()) await tempFile.delete();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('🎥 Video zašifrované a uložené do trezoru')),
+      );
+    } catch (e) {
+      debugPrint("Video stop error: $e");
     }
   }
 
@@ -165,50 +240,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
         setState(() => _videoDuration += const Duration(seconds: 1));
       }
     });
-  }
-
-  Future<void> _stopVideo() async {
-    if (!_isRecording) return;
-
-    try {
-      final XFile video = await _controller!.stopVideoRecording();
-      _videoTimer?.cancel();
-
-      // Odložíme si dĺžku pred resetom stavu
-      final int finalDuration = _videoDuration.inSeconds;
-
-      setState(() => _isRecording = false);
-
-      final bytes = await File(video.path).readAsBytes();
-      final encryptedBytes = await CryptoService.encryptBytes(bytes);
-
-      final videoId = "video_${DateTime.now().millisecondsSinceEpoch}";
-      final file = await ImageStorage.createEncryptedFile(videoId);
-
-      await file.writeAsBytes(encryptedBytes, flush: true);
-
-      if (!mounted) return;
-
-      final db = context.read<AppDatabase>();
-
-      // ✅ OPRAVENÉ: Teraz používame správnu metódu insertVideo
-      await db.insertVideo(
-        filePath: file.path,
-        deviceId: '90',
-        ownerName: "user",
-        uploaded: false,
-        duration: finalDuration, // Ukladáme aj dĺžku
-      );
-
-      final tempFile = File(video.path);
-      if (await tempFile.exists()) await tempFile.delete();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🎥 Video zašifrované a uložené do trezoru')),
-      );
-    } catch (e) {
-      debugPrint("Video stop error: $e");
-    }
   }
 
   Future<void> _stripExif(String path) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:bakalarka/database.dart'; // Tvoja Drift databáza
+import 'package:bakalarka/database.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
 
 class ActionReportPage extends StatefulWidget {
@@ -14,8 +15,36 @@ class ActionReportPage extends StatefulWidget {
 }
 
 class _ActionReportPageState extends State<ActionReportPage> {
-  // Tu budeme ukladať cesty k vybraným súborom
   final Set<String> _selectedPaths = {};
+
+  // Identita používateľa pre filtrovanie
+  String? _currentUserEmail;
+  String? _currentUserRole;
+  String? _currentCompanyCode;
+
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserIdentity();
+  }
+
+  Future<void> _loadUserIdentity() async {
+    final email = await _storage.read(key: 'user_email');
+    final role = await _storage.read(key: 'user_role');
+    final company = await _storage.read(key: 'company_code');
+
+    if (mounted) {
+      setState(() {
+        _currentUserEmail = email;
+        _currentUserRole = role;
+        _currentCompanyCode = company;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,22 +65,19 @@ class _ActionReportPageState extends State<ActionReportPage> {
           children: [
             _buildHeaderCard(colorScheme, theme),
             const SizedBox(height: 24),
-
             _buildSectionTitle(context, "Základné údaje"),
             const SizedBox(height: 12),
             TextFormField(decoration: _inputDecoration("Názov / Číslo revízie", Icons.edit)),
             const SizedBox(height: 16),
             TextFormField(maxLines: 3, decoration: _inputDecoration("Popis stavu", Icons.description_outlined)),
-
             const SizedBox(height: 24),
 
-            // SEKCIA MÉDIÍ
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _buildSectionTitle(context, "Priložené médiá (${_selectedPaths.length})"),
                 TextButton.icon(
-                  onPressed: () => _showMediaPicker(context),
+                  onPressed: _currentUserEmail == null ? null : () => _showMediaPicker(context),
                   icon: const Icon(Icons.add_link_rounded),
                   label: const Text("Pripojiť z trezoru"),
                 ),
@@ -70,7 +96,133 @@ class _ActionReportPageState extends State<ActionReportPage> {
     );
   }
 
-  // --- POMOCNÉ WIDGETY PRE HLAVNÚ STRÁNKU ---
+  // --- MODAL PICKER S OPRAVENÝMI STREAMAMI ---
+
+  void _showMediaPicker(BuildContext context) {
+    final db = Provider.of<AppDatabase>(context, listen: false);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return DefaultTabController(
+          length: 2,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              children: [
+                const TabBar(
+                  tabs: [
+                    Tab(icon: Icon(Icons.image), text: "Fotky"),
+                    Tab(icon: Icon(Icons.videocam), text: "Videá"),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      // OPRAVENÉ: Dynamický výber streamu pre fotky
+                      _buildPickerList(
+                        _currentUserRole == 'admin'
+                            ? db.watchCompanyPhotos(_currentCompanyCode!)
+                            : db.watchUserPhotos(_currentUserEmail!),
+                      ),
+                      // OPRAVENÉ: Dynamický výber streamu pre videá
+                      _buildPickerList(
+                        _currentUserRole == 'admin'
+                            ? db.watchCompanyVideos(_currentCompanyCode!)
+                            : db.watchUserVideos(_currentUserEmail!),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Hotovo"),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPickerList(Stream<List<dynamic>> stream) {
+    return StreamBuilder<List<dynamic>>(
+      stream: stream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final items = snapshot.data ?? [];
+
+        if (items.isEmpty) return const Center(child: Text("Trezor je prázdny"));
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(8),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final isSelected = _selectedPaths.contains(item.filePath);
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) _selectedPaths.remove(item.filePath);
+                  else _selectedPaths.add(item.filePath);
+                });
+                // Dôležité: Keďže Modal beží v inom kontexte, musíme vyvolať rebuild
+                // cez StatefulBuilder (ak by sme ho mali) alebo jednoducho cez State stránky
+              },
+              child: StatefulBuilder( // Pridané pre okamžitú vizuálnu odozvu v modale
+                  builder: (context, setModalState) {
+                    final currentSelected = _selectedPaths.contains(item.filePath);
+                    return Card(
+                      clipBehavior: Clip.antiAlias,
+                      color: currentSelected ? Theme.of(context).colorScheme.primaryContainer : null,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(item is Photo ? Icons.image : Icons.videocam),
+                              const SizedBox(height: 4),
+                              // Ak je admin, ukážeme meno technika
+                              Text(
+                                _currentUserRole == 'admin' ? (item.ownerName ?? 'Neznámy') : "#${item.id}",
+                                style: const TextStyle(fontSize: 9),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                          if (currentSelected)
+                            const Positioned(
+                              top: 4, right: 4,
+                              child: Icon(Icons.check_circle, size: 18, color: Colors.blue),
+                            ),
+                        ],
+                      ),
+                    );
+                  }
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- OSTATNÉ POMOCNÉ METÓDY (Header, Grid, atď.) ---
 
   Widget _buildHeaderCard(ColorScheme colorScheme, ThemeData theme) {
     return Card(
@@ -100,7 +252,7 @@ class _ActionReportPageState extends State<ActionReportPage> {
       itemCount: _selectedPaths.length,
       itemBuilder: (context, index) {
         final path = _selectedPaths.elementAt(index);
-        final isVideo = path.contains('video'); // Jednoduchá detekcia typu pre prototyp
+        final isVideo = path.toLowerCase().contains('mp4') || path.toLowerCase().contains('video');
 
         return Stack(
           children: [
@@ -129,97 +281,6 @@ class _ActionReportPageState extends State<ActionReportPage> {
     );
   }
 
-  // --- BEZPEČNÝ MEDIA PICKER (MODAL) ---
-
-  void _showMediaPicker(BuildContext context) {
-    final db = Provider.of<AppDatabase>(context, listen: false);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) {
-        return DefaultTabController(
-          length: 2,
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.7,
-            child: Column(
-              children: [
-                const TabBar(
-                  tabs: [
-                    Tab(icon: Icon(Icons.image), text: "Fotky"),
-                    Tab(icon: Icon(Icons.videocam), text: "Videá"),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _buildPickerList(db.watchAllPhotos()),
-                      _buildPickerList(db.watchAllVideos()),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Hotovo"),
-                  ),
-                )
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPickerList(Stream<List<dynamic>> stream) {
-    return StreamBuilder<List<dynamic>>(
-      stream: stream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final items = snapshot.data!;
-
-        if (items.isEmpty) return const Center(child: Text("Trezor je prázdny"));
-
-        return GridView.builder(
-          padding: const EdgeInsets.all(8),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final isSelected = _selectedPaths.contains(item.filePath);
-
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isSelected) _selectedPaths.remove(item.filePath);
-                  else _selectedPaths.add(item.filePath);
-                });
-                (context as Element).markNeedsBuild(); // Vynúti refresh Modalu
-              },
-              child: Card(
-                color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(item is Photo ? Icons.image : Icons.videocam),
-                    const SizedBox(height: 4),
-                    Text("#${item.id}", style: const TextStyle(fontSize: 10)),
-                    if (isSelected) const Icon(Icons.check_circle, size: 16, color: Colors.green),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // --- EXISTUJÚCE POMOCNÉ METÓDY ---
-
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary));
   }
@@ -237,7 +298,7 @@ class _ActionReportPageState extends State<ActionReportPage> {
   }
 }
 
-// Konkrétne implementácie zostávajú rovnaké ako predtým...
+// Konkrétne implementácie stránok
 class RevisionBeforePage extends StatelessWidget {
   const RevisionBeforePage({super.key});
   @override

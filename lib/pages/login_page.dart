@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/auth_service.dart';
 import '../services/biometric_service.dart';
@@ -26,10 +25,10 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   final _companyNameController = TextEditingController();
   final _icoController = TextEditingController();
-  final _inviteCodeController = TextEditingController(); // Kód pre technika
+  final _inviteCodeController = TextEditingController();
 
   bool _isRegistering = false;
-  bool _isTechnician = true; // Defaultne prepnuté na technika pri registrácii
+  bool _isTechnician = true;
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _canCheckBiometrics = false;
@@ -56,6 +55,86 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void _goToHome() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const MyHomePage()),
+    );
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // --- OPRAVENÁ LOGIKA AUTENTIFIKÁCIE ---
+  void _handleAuth() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    try {
+      String email = _emailController.text.trim();
+      String password = _passwordController.text.trim();
+
+      if (_isRegistering) {
+        if (_isTechnician) {
+          // Registrácia technika - AuthService sa postará o sync do SecureStorage
+          await _auth.registerTechnician(
+            email: email,
+            password: password,
+            inviteCode: _inviteCodeController.text.trim(),
+          );
+        } else {
+          // Registrácia admina - AuthService sa postará o sync do SecureStorage
+          await _auth.registerAdminAndCompany(
+            email: email,
+            password: password,
+            companyName: _companyNameController.text.trim(),
+            ico: _icoController.text.trim(),
+          );
+        }
+      } else {
+        // PRIHLÁSENIE - Používame novú metódu signIn, ktorá v sebe volá syncUserToSecureStorage
+        await _auth.signIn(email, password);
+      }
+
+      // Heslo ukladáme manuálne len pre potreby biometrie (AuthService ho nesťahuje z DB)
+      await _storage.write(key: 'user_password', value: password);
+
+      if (_isRegistering && _canCheckBiometrics) {
+        await _showBiometricActivationDialog();
+      } else {
+        _goToHome();
+      }
+
+    } catch (e) {
+      _showSnack(e.toString().replaceAll("Exception: ", ""));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _handleBiometricLogin() async {
+    try {
+      String? savedEmail = await _storage.read(key: 'user_email');
+      String? savedPassword = await _storage.read(key: 'user_password');
+
+      if (savedEmail != null && savedPassword != null) {
+        bool authenticated = await _biometricService.authenticate();
+        if (authenticated) {
+          setState(() => _isLoading = true);
+          // Opäť používame AuthService.signIn, aby sa obnovili dáta v SecureStorage
+          await _auth.signIn(savedEmail, savedPassword);
+          _goToHome();
+        }
+      } else {
+        _showSnack("Najprv sa musíte prihlásiť manuálne.");
+      }
+    } catch (e) {
+      _showSnack("Biometria zlyhala.");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _showBiometricActivationDialog() async {
     return showDialog(
       context: context,
@@ -74,97 +153,6 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
     );
-  }
-
-  void _goToHome() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const MyHomePage()),
-    );
-  }
-
-  Future<void> _saveCredentials() async {
-    try {
-      await _storage.write(key: 'user_email', value: _emailController.text.trim());
-      await _storage.write(key: 'user_password', value: _passwordController.text.trim());
-    } catch (e) {
-      print("Chyba ukladania: $e");
-    }
-  }
-
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  // --- UPRAVENÁ LOGIKA AUTENTIFIKÁCIE ---
-  void _handleAuth() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
-
-    try {
-      if (_isRegistering) {
-        if (_isTechnician) {
-          // A. REGISTRÁCIA TECHNIKA (Cez kód)
-          await _auth.registerTechnician(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-            inviteCode: _inviteCodeController.text.trim(),
-          );
-        } else {
-          // B. REGISTRÁCIA ADMINA (Nová firma)
-          await _auth.registerAdminAndCompany(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-            companyName: _companyNameController.text.trim(),
-            ico: _icoController.text.trim(),
-          );
-        }
-
-        await _saveCredentials();
-        if (_canCheckBiometrics) {
-          await _showBiometricActivationDialog();
-        } else {
-          _goToHome();
-        }
-
-      } else {
-        // C. KLASICKÉ PRIHLÁSENIE
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-        await _saveCredentials();
-        _goToHome();
-      }
-    } catch (e) {
-      _showSnack(e.toString().replaceAll("Exception: ", ""));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _handleBiometricLogin() async {
-    try {
-      bool authenticated = await _biometricService.authenticate();
-      if (authenticated) {
-        String? savedEmail = await _storage.read(key: 'user_email');
-        String? savedPassword = await _storage.read(key: 'user_password');
-
-        if (savedEmail != null && savedPassword != null) {
-          setState(() => _isLoading = true);
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: savedEmail,
-            password: savedPassword,
-          );
-          _goToHome();
-        } else {
-          _showSnack("Najprv sa musíte prihlásiť manuálne.");
-        }
-      }
-    } catch (e) {
-      _showSnack("Biometria zlyhala.");
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   @override
@@ -189,12 +177,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // PREPÍNAČ ADMIN / TECHNIK (zobrazí sa len pri registrácii)
                 if (_isRegistering) _buildRoleToggle(),
 
                 const SizedBox(height: 24),
 
-                // EMAIL
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -203,14 +189,12 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // HESLO
                 _buildPasswordField(),
 
-                // DYNAMICKÉ POLIA PODĽA ROLE
                 if (_isRegistering) ...[
                   const SizedBox(height: 16),
                   if (_isTechnician)
-                    _buildNormalField(_inviteCodeController, "Kód od admina (6 miestny)", Icons.vpn_key_rounded)
+                    _buildNormalField(_inviteCodeController, "Kód od admina", Icons.vpn_key_rounded)
                   else ...[
                     _buildNormalField(_companyNameController, "Názov firmy", Icons.business_rounded),
                     const SizedBox(height: 16),
@@ -220,7 +204,6 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 32),
 
-                // TLAČIDLÁ
                 _isLoading
                     ? const CircularProgressIndicator()
                     : Row(
@@ -267,7 +250,8 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Prepínač medzi technikom a adminom
+  // --- POMOCNÉ METÓDY PRE UI ---
+
   Widget _buildRoleToggle() {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -310,7 +294,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- ZVYŠOK POMOCNÝCH WIDGETOV ---
   Widget _buildPasswordField() {
     return Column(
       children: [

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // PRIDANÉ
 
 // Importy tvojich vlastných služieb
 import 'package:bakalarka/database.dart';
@@ -25,15 +26,41 @@ class _MicrophonePageState extends State<MicrophonePage> {
   Duration _recordDuration = Duration.zero;
   Timer? _timer;
 
+  // Secure Storage pre offline prístup k identite
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  // Lokálna cache pre údaje o používateľovi
+  String _cachedEmail = 'unknown_user';
+  String _cachedCompany = 'unknown_company';
+
   @override
   void initState() {
     super.initState();
     _initRecorder();
+    _loadOfflineCredentials(); // Načítame údaje hneď pri štarte
   }
 
   Future<void> _initRecorder() async {
-    // Otvorenie rekordéra a inicializácia audio session
     await _recorder.openRecorder();
+  }
+
+  // Načítanie údajov zo Secure Storage (funguje aj offline)
+  Future<void> _loadOfflineCredentials() async {
+    try {
+      final email = await _storage.read(key: 'user_email');
+      final company = await _storage.read(key: 'company_code');
+
+      if (mounted) {
+        setState(() {
+          _cachedEmail = email ?? 'offline_user';
+          _cachedCompany = company ?? 'offline_company';
+        });
+      }
+    } catch (e) {
+      debugPrint("Chyba načítania offline údajov pre audio: $e");
+    }
   }
 
   Future<void> _toggleRecording() async {
@@ -44,38 +71,42 @@ class _MicrophonePageState extends State<MicrophonePage> {
       _isRecording = false;
 
       try {
-        // 1. Načítanie dočasného súboru
         final File tempFile = File(_tempPath);
         if (!await tempFile.exists()) return;
 
         final bytes = await tempFile.readAsBytes();
 
-        // 2. Šifrovanie bajtov (AES-256)
+        // 1. Šifrovanie bajtov (AES-256)
         final encryptedBytes = await CryptoService.encryptBytes(bytes);
 
-        // 3. Vytvorenie bezpečného názvu a súboru v aplikácii
+        // 2. Vytvorenie bezpečného názvu
         final audioId = 'REC_${DateTime.now().millisecondsSinceEpoch}';
         final secureFile = await ImageStorage.createEncryptedFile(audioId);
 
-        // 4. Zápis šifrovaných dát
+        // 3. Zápis šifrovaných dát
         await secureFile.writeAsBytes(encryptedBytes, flush: true);
 
-        // 5. Zápis do SQLCipher databázy
+        // 4. Zápis do SQLCipher databázy (s pridanými údajmi o užívateľovi)
         final db = context.read<AppDatabase>();
+
+        // POUŽÍVAME CACHOVANÉ ÚDAJE
         await db.insertAudio(
           filePath: secureFile.path,
           deviceId: '90',
-          ownerName: "user",
+          ownerName: "Technik",     // Alebo si pridaj cachedOwnerName
+          userEmail: _cachedEmail,    // PRIDANÉ
+          companyCode: _cachedCompany, // PRIDANÉ
           duration: _recordDuration.inSeconds,
+          uploaded: false,            // Nezabudni na tento príznak pre Sync
         );
 
-        // 6. Vymazanie nezašifrovaného súboru z cache
+        // 5. Vymazanie nezašifrovaného súboru
         await tempFile.delete();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('🔐 Nahrávka zašifrovaná a uložená do databázy'),
+              content: Text('🔐 Nahrávka zašifrovaná a uložená do trezoru'),
               behavior: SnackBarBehavior.floating,
               backgroundColor: Colors.green,
             ),

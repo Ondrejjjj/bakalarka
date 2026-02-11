@@ -21,27 +21,15 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _usernameMeta = const VerificationMeta(
-    'username',
-  );
+  static const VerificationMeta _uidMeta = const VerificationMeta('uid');
   @override
-  late final GeneratedColumn<String> username = GeneratedColumn<String>(
-    'username',
+  late final GeneratedColumn<String> uid = GeneratedColumn<String>(
+    'uid',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-  );
-  static const VerificationMeta _passwordMeta = const VerificationMeta(
-    'password',
-  );
-  @override
-  late final GeneratedColumn<String> password = GeneratedColumn<String>(
-    'password',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _emailMeta = const VerificationMeta('email');
   @override
@@ -52,8 +40,28 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
   @override
-  List<GeneratedColumn> get $columns => [id, username, password, email];
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyCodeMeta = const VerificationMeta(
+    'companyCode',
+  );
+  @override
+  late final GeneratedColumn<String> companyCode = GeneratedColumn<String>(
+    'company_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, uid, email, role, companyCode];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -69,21 +77,13 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('username')) {
+    if (data.containsKey('uid')) {
       context.handle(
-        _usernameMeta,
-        username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
+        _uidMeta,
+        uid.isAcceptableOrUnknown(data['uid']!, _uidMeta),
       );
     } else if (isInserting) {
-      context.missing(_usernameMeta);
-    }
-    if (data.containsKey('password')) {
-      context.handle(
-        _passwordMeta,
-        password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_passwordMeta);
+      context.missing(_uidMeta);
     }
     if (data.containsKey('email')) {
       context.handle(
@@ -92,6 +92,25 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       );
     } else if (isInserting) {
       context.missing(_emailMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('company_code')) {
+      context.handle(
+        _companyCodeMeta,
+        companyCode.isAcceptableOrUnknown(
+          data['company_code']!,
+          _companyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_companyCodeMeta);
     }
     return context;
   }
@@ -106,17 +125,21 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      username: attachedDatabase.typeMapping.read(
+      uid: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}username'],
-      )!,
-      password: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}password'],
+        data['${effectivePrefix}uid'],
       )!,
       email: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}email'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      )!,
+      companyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_code'],
       )!,
     );
   }
@@ -129,31 +152,35 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
 
 class User extends DataClass implements Insertable<User> {
   final int id;
-  final String username;
-  final String password;
+  final String uid;
   final String email;
+  final String role;
+  final String companyCode;
   const User({
     required this.id,
-    required this.username,
-    required this.password,
+    required this.uid,
     required this.email,
+    required this.role,
+    required this.companyCode,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['username'] = Variable<String>(username);
-    map['password'] = Variable<String>(password);
+    map['uid'] = Variable<String>(uid);
     map['email'] = Variable<String>(email);
+    map['role'] = Variable<String>(role);
+    map['company_code'] = Variable<String>(companyCode);
     return map;
   }
 
   UsersCompanion toCompanion(bool nullToAbsent) {
     return UsersCompanion(
       id: Value(id),
-      username: Value(username),
-      password: Value(password),
+      uid: Value(uid),
       email: Value(email),
+      role: Value(role),
+      companyCode: Value(companyCode),
     );
   }
 
@@ -164,9 +191,10 @@ class User extends DataClass implements Insertable<User> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return User(
       id: serializer.fromJson<int>(json['id']),
-      username: serializer.fromJson<String>(json['username']),
-      password: serializer.fromJson<String>(json['password']),
+      uid: serializer.fromJson<String>(json['uid']),
       email: serializer.fromJson<String>(json['email']),
+      role: serializer.fromJson<String>(json['role']),
+      companyCode: serializer.fromJson<String>(json['companyCode']),
     );
   }
   @override
@@ -174,25 +202,35 @@ class User extends DataClass implements Insertable<User> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'username': serializer.toJson<String>(username),
-      'password': serializer.toJson<String>(password),
+      'uid': serializer.toJson<String>(uid),
       'email': serializer.toJson<String>(email),
+      'role': serializer.toJson<String>(role),
+      'companyCode': serializer.toJson<String>(companyCode),
     };
   }
 
-  User copyWith({int? id, String? username, String? password, String? email}) =>
-      User(
-        id: id ?? this.id,
-        username: username ?? this.username,
-        password: password ?? this.password,
-        email: email ?? this.email,
-      );
+  User copyWith({
+    int? id,
+    String? uid,
+    String? email,
+    String? role,
+    String? companyCode,
+  }) => User(
+    id: id ?? this.id,
+    uid: uid ?? this.uid,
+    email: email ?? this.email,
+    role: role ?? this.role,
+    companyCode: companyCode ?? this.companyCode,
+  );
   User copyWithCompanion(UsersCompanion data) {
     return User(
       id: data.id.present ? data.id.value : this.id,
-      username: data.username.present ? data.username.value : this.username,
-      password: data.password.present ? data.password.value : this.password,
+      uid: data.uid.present ? data.uid.value : this.uid,
       email: data.email.present ? data.email.value : this.email,
+      role: data.role.present ? data.role.value : this.role,
+      companyCode: data.companyCode.present
+          ? data.companyCode.value
+          : this.companyCode,
     );
   }
 
@@ -200,69 +238,79 @@ class User extends DataClass implements Insertable<User> {
   String toString() {
     return (StringBuffer('User(')
           ..write('id: $id, ')
-          ..write('username: $username, ')
-          ..write('password: $password, ')
-          ..write('email: $email')
+          ..write('uid: $uid, ')
+          ..write('email: $email, ')
+          ..write('role: $role, ')
+          ..write('companyCode: $companyCode')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, username, password, email);
+  int get hashCode => Object.hash(id, uid, email, role, companyCode);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is User &&
           other.id == this.id &&
-          other.username == this.username &&
-          other.password == this.password &&
-          other.email == this.email);
+          other.uid == this.uid &&
+          other.email == this.email &&
+          other.role == this.role &&
+          other.companyCode == this.companyCode);
 }
 
 class UsersCompanion extends UpdateCompanion<User> {
   final Value<int> id;
-  final Value<String> username;
-  final Value<String> password;
+  final Value<String> uid;
   final Value<String> email;
+  final Value<String> role;
+  final Value<String> companyCode;
   const UsersCompanion({
     this.id = const Value.absent(),
-    this.username = const Value.absent(),
-    this.password = const Value.absent(),
+    this.uid = const Value.absent(),
     this.email = const Value.absent(),
+    this.role = const Value.absent(),
+    this.companyCode = const Value.absent(),
   });
   UsersCompanion.insert({
     this.id = const Value.absent(),
-    required String username,
-    required String password,
+    required String uid,
     required String email,
-  }) : username = Value(username),
-       password = Value(password),
-       email = Value(email);
+    required String role,
+    required String companyCode,
+  }) : uid = Value(uid),
+       email = Value(email),
+       role = Value(role),
+       companyCode = Value(companyCode);
   static Insertable<User> custom({
     Expression<int>? id,
-    Expression<String>? username,
-    Expression<String>? password,
+    Expression<String>? uid,
     Expression<String>? email,
+    Expression<String>? role,
+    Expression<String>? companyCode,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (username != null) 'username': username,
-      if (password != null) 'password': password,
+      if (uid != null) 'uid': uid,
       if (email != null) 'email': email,
+      if (role != null) 'role': role,
+      if (companyCode != null) 'company_code': companyCode,
     });
   }
 
   UsersCompanion copyWith({
     Value<int>? id,
-    Value<String>? username,
-    Value<String>? password,
+    Value<String>? uid,
     Value<String>? email,
+    Value<String>? role,
+    Value<String>? companyCode,
   }) {
     return UsersCompanion(
       id: id ?? this.id,
-      username: username ?? this.username,
-      password: password ?? this.password,
+      uid: uid ?? this.uid,
       email: email ?? this.email,
+      role: role ?? this.role,
+      companyCode: companyCode ?? this.companyCode,
     );
   }
 
@@ -272,14 +320,17 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (username.present) {
-      map['username'] = Variable<String>(username.value);
-    }
-    if (password.present) {
-      map['password'] = Variable<String>(password.value);
+    if (uid.present) {
+      map['uid'] = Variable<String>(uid.value);
     }
     if (email.present) {
       map['email'] = Variable<String>(email.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (companyCode.present) {
+      map['company_code'] = Variable<String>(companyCode.value);
     }
     return map;
   }
@@ -288,9 +339,10 @@ class UsersCompanion extends UpdateCompanion<User> {
   String toString() {
     return (StringBuffer('UsersCompanion(')
           ..write('id: $id, ')
-          ..write('username: $username, ')
-          ..write('password: $password, ')
-          ..write('email: $email')
+          ..write('uid: $uid, ')
+          ..write('email: $email, ')
+          ..write('role: $role, ')
+          ..write('companyCode: $companyCode')
           ..write(')'))
         .toString();
   }
@@ -359,6 +411,28 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _userEmailMeta = const VerificationMeta(
+    'userEmail',
+  );
+  @override
+  late final GeneratedColumn<String> userEmail = GeneratedColumn<String>(
+    'user_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyCodeMeta = const VerificationMeta(
+    'companyCode',
+  );
+  @override
+  late final GeneratedColumn<String> companyCode = GeneratedColumn<String>(
+    'company_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _uploadedMeta = const VerificationMeta(
     'uploaded',
   );
@@ -418,6 +492,8 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
     createdAt,
     deviceId,
     ownerName,
+    userEmail,
+    companyCode,
     uploaded,
     favorite,
     latitude,
@@ -465,6 +541,25 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
         _ownerNameMeta,
         ownerName.isAcceptableOrUnknown(data['owner_name']!, _ownerNameMeta),
       );
+    }
+    if (data.containsKey('user_email')) {
+      context.handle(
+        _userEmailMeta,
+        userEmail.isAcceptableOrUnknown(data['user_email']!, _userEmailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userEmailMeta);
+    }
+    if (data.containsKey('company_code')) {
+      context.handle(
+        _companyCodeMeta,
+        companyCode.isAcceptableOrUnknown(
+          data['company_code']!,
+          _companyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_companyCodeMeta);
     }
     if (data.containsKey('uploaded')) {
       context.handle(
@@ -519,6 +614,14 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
         DriftSqlType.string,
         data['${effectivePrefix}owner_name'],
       ),
+      userEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_email'],
+      )!,
+      companyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_code'],
+      )!,
       uploaded: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}uploaded'],
@@ -550,6 +653,8 @@ class Photo extends DataClass implements Insertable<Photo> {
   final DateTime createdAt;
   final String deviceId;
   final String? ownerName;
+  final String userEmail;
+  final String companyCode;
   final bool uploaded;
   final bool favorite;
   final double? latitude;
@@ -560,6 +665,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     required this.createdAt,
     required this.deviceId,
     this.ownerName,
+    required this.userEmail,
+    required this.companyCode,
     required this.uploaded,
     required this.favorite,
     this.latitude,
@@ -575,6 +682,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     if (!nullToAbsent || ownerName != null) {
       map['owner_name'] = Variable<String>(ownerName);
     }
+    map['user_email'] = Variable<String>(userEmail);
+    map['company_code'] = Variable<String>(companyCode);
     map['uploaded'] = Variable<bool>(uploaded);
     map['favorite'] = Variable<bool>(favorite);
     if (!nullToAbsent || latitude != null) {
@@ -595,6 +704,8 @@ class Photo extends DataClass implements Insertable<Photo> {
       ownerName: ownerName == null && nullToAbsent
           ? const Value.absent()
           : Value(ownerName),
+      userEmail: Value(userEmail),
+      companyCode: Value(companyCode),
       uploaded: Value(uploaded),
       favorite: Value(favorite),
       latitude: latitude == null && nullToAbsent
@@ -617,6 +728,8 @@ class Photo extends DataClass implements Insertable<Photo> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
       ownerName: serializer.fromJson<String?>(json['ownerName']),
+      userEmail: serializer.fromJson<String>(json['userEmail']),
+      companyCode: serializer.fromJson<String>(json['companyCode']),
       uploaded: serializer.fromJson<bool>(json['uploaded']),
       favorite: serializer.fromJson<bool>(json['favorite']),
       latitude: serializer.fromJson<double?>(json['latitude']),
@@ -632,6 +745,8 @@ class Photo extends DataClass implements Insertable<Photo> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'deviceId': serializer.toJson<String>(deviceId),
       'ownerName': serializer.toJson<String?>(ownerName),
+      'userEmail': serializer.toJson<String>(userEmail),
+      'companyCode': serializer.toJson<String>(companyCode),
       'uploaded': serializer.toJson<bool>(uploaded),
       'favorite': serializer.toJson<bool>(favorite),
       'latitude': serializer.toJson<double?>(latitude),
@@ -645,6 +760,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     DateTime? createdAt,
     String? deviceId,
     Value<String?> ownerName = const Value.absent(),
+    String? userEmail,
+    String? companyCode,
     bool? uploaded,
     bool? favorite,
     Value<double?> latitude = const Value.absent(),
@@ -655,6 +772,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     createdAt: createdAt ?? this.createdAt,
     deviceId: deviceId ?? this.deviceId,
     ownerName: ownerName.present ? ownerName.value : this.ownerName,
+    userEmail: userEmail ?? this.userEmail,
+    companyCode: companyCode ?? this.companyCode,
     uploaded: uploaded ?? this.uploaded,
     favorite: favorite ?? this.favorite,
     latitude: latitude.present ? latitude.value : this.latitude,
@@ -667,6 +786,10 @@ class Photo extends DataClass implements Insertable<Photo> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       ownerName: data.ownerName.present ? data.ownerName.value : this.ownerName,
+      userEmail: data.userEmail.present ? data.userEmail.value : this.userEmail,
+      companyCode: data.companyCode.present
+          ? data.companyCode.value
+          : this.companyCode,
       uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
       favorite: data.favorite.present ? data.favorite.value : this.favorite,
       latitude: data.latitude.present ? data.latitude.value : this.latitude,
@@ -682,6 +805,8 @@ class Photo extends DataClass implements Insertable<Photo> {
           ..write('createdAt: $createdAt, ')
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
           ..write('uploaded: $uploaded, ')
           ..write('favorite: $favorite, ')
           ..write('latitude: $latitude, ')
@@ -697,6 +822,8 @@ class Photo extends DataClass implements Insertable<Photo> {
     createdAt,
     deviceId,
     ownerName,
+    userEmail,
+    companyCode,
     uploaded,
     favorite,
     latitude,
@@ -711,6 +838,8 @@ class Photo extends DataClass implements Insertable<Photo> {
           other.createdAt == this.createdAt &&
           other.deviceId == this.deviceId &&
           other.ownerName == this.ownerName &&
+          other.userEmail == this.userEmail &&
+          other.companyCode == this.companyCode &&
           other.uploaded == this.uploaded &&
           other.favorite == this.favorite &&
           other.latitude == this.latitude &&
@@ -723,6 +852,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
   final Value<DateTime> createdAt;
   final Value<String> deviceId;
   final Value<String?> ownerName;
+  final Value<String> userEmail;
+  final Value<String> companyCode;
   final Value<bool> uploaded;
   final Value<bool> favorite;
   final Value<double?> latitude;
@@ -733,6 +864,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     this.createdAt = const Value.absent(),
     this.deviceId = const Value.absent(),
     this.ownerName = const Value.absent(),
+    this.userEmail = const Value.absent(),
+    this.companyCode = const Value.absent(),
     this.uploaded = const Value.absent(),
     this.favorite = const Value.absent(),
     this.latitude = const Value.absent(),
@@ -744,18 +877,24 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     this.createdAt = const Value.absent(),
     required String deviceId,
     this.ownerName = const Value.absent(),
+    required String userEmail,
+    required String companyCode,
     this.uploaded = const Value.absent(),
     this.favorite = const Value.absent(),
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
   }) : filePath = Value(filePath),
-       deviceId = Value(deviceId);
+       deviceId = Value(deviceId),
+       userEmail = Value(userEmail),
+       companyCode = Value(companyCode);
   static Insertable<Photo> custom({
     Expression<int>? id,
     Expression<String>? filePath,
     Expression<DateTime>? createdAt,
     Expression<String>? deviceId,
     Expression<String>? ownerName,
+    Expression<String>? userEmail,
+    Expression<String>? companyCode,
     Expression<bool>? uploaded,
     Expression<bool>? favorite,
     Expression<double>? latitude,
@@ -767,6 +906,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
       if (createdAt != null) 'created_at': createdAt,
       if (deviceId != null) 'device_id': deviceId,
       if (ownerName != null) 'owner_name': ownerName,
+      if (userEmail != null) 'user_email': userEmail,
+      if (companyCode != null) 'company_code': companyCode,
       if (uploaded != null) 'uploaded': uploaded,
       if (favorite != null) 'favorite': favorite,
       if (latitude != null) 'latitude': latitude,
@@ -780,6 +921,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     Value<DateTime>? createdAt,
     Value<String>? deviceId,
     Value<String?>? ownerName,
+    Value<String>? userEmail,
+    Value<String>? companyCode,
     Value<bool>? uploaded,
     Value<bool>? favorite,
     Value<double?>? latitude,
@@ -791,6 +934,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
       createdAt: createdAt ?? this.createdAt,
       deviceId: deviceId ?? this.deviceId,
       ownerName: ownerName ?? this.ownerName,
+      userEmail: userEmail ?? this.userEmail,
+      companyCode: companyCode ?? this.companyCode,
       uploaded: uploaded ?? this.uploaded,
       favorite: favorite ?? this.favorite,
       latitude: latitude ?? this.latitude,
@@ -816,6 +961,12 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     if (ownerName.present) {
       map['owner_name'] = Variable<String>(ownerName.value);
     }
+    if (userEmail.present) {
+      map['user_email'] = Variable<String>(userEmail.value);
+    }
+    if (companyCode.present) {
+      map['company_code'] = Variable<String>(companyCode.value);
+    }
     if (uploaded.present) {
       map['uploaded'] = Variable<bool>(uploaded.value);
     }
@@ -839,6 +990,8 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
           ..write('createdAt: $createdAt, ')
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
           ..write('uploaded: $uploaded, ')
           ..write('favorite: $favorite, ')
           ..write('latitude: $latitude, ')
@@ -911,6 +1064,28 @@ class $AudiosTable extends Audios with TableInfo<$AudiosTable, Audio> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _userEmailMeta = const VerificationMeta(
+    'userEmail',
+  );
+  @override
+  late final GeneratedColumn<String> userEmail = GeneratedColumn<String>(
+    'user_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyCodeMeta = const VerificationMeta(
+    'companyCode',
+  );
+  @override
+  late final GeneratedColumn<String> companyCode = GeneratedColumn<String>(
+    'company_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _durationSecondsMeta = const VerificationMeta(
     'durationSeconds',
   );
@@ -959,6 +1134,8 @@ class $AudiosTable extends Audios with TableInfo<$AudiosTable, Audio> {
     createdAt,
     deviceId,
     ownerName,
+    userEmail,
+    companyCode,
     durationSeconds,
     favorite,
     uploaded,
@@ -1005,6 +1182,25 @@ class $AudiosTable extends Audios with TableInfo<$AudiosTable, Audio> {
         _ownerNameMeta,
         ownerName.isAcceptableOrUnknown(data['owner_name']!, _ownerNameMeta),
       );
+    }
+    if (data.containsKey('user_email')) {
+      context.handle(
+        _userEmailMeta,
+        userEmail.isAcceptableOrUnknown(data['user_email']!, _userEmailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userEmailMeta);
+    }
+    if (data.containsKey('company_code')) {
+      context.handle(
+        _companyCodeMeta,
+        companyCode.isAcceptableOrUnknown(
+          data['company_code']!,
+          _companyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_companyCodeMeta);
     }
     if (data.containsKey('duration_seconds')) {
       context.handle(
@@ -1056,6 +1252,14 @@ class $AudiosTable extends Audios with TableInfo<$AudiosTable, Audio> {
         DriftSqlType.string,
         data['${effectivePrefix}owner_name'],
       ),
+      userEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_email'],
+      )!,
+      companyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_code'],
+      )!,
       durationSeconds: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}duration_seconds'],
@@ -1083,6 +1287,8 @@ class Audio extends DataClass implements Insertable<Audio> {
   final DateTime createdAt;
   final String deviceId;
   final String? ownerName;
+  final String userEmail;
+  final String companyCode;
   final int? durationSeconds;
   final bool favorite;
   final bool uploaded;
@@ -1092,6 +1298,8 @@ class Audio extends DataClass implements Insertable<Audio> {
     required this.createdAt,
     required this.deviceId,
     this.ownerName,
+    required this.userEmail,
+    required this.companyCode,
     this.durationSeconds,
     required this.favorite,
     required this.uploaded,
@@ -1106,6 +1314,8 @@ class Audio extends DataClass implements Insertable<Audio> {
     if (!nullToAbsent || ownerName != null) {
       map['owner_name'] = Variable<String>(ownerName);
     }
+    map['user_email'] = Variable<String>(userEmail);
+    map['company_code'] = Variable<String>(companyCode);
     if (!nullToAbsent || durationSeconds != null) {
       map['duration_seconds'] = Variable<int>(durationSeconds);
     }
@@ -1123,6 +1333,8 @@ class Audio extends DataClass implements Insertable<Audio> {
       ownerName: ownerName == null && nullToAbsent
           ? const Value.absent()
           : Value(ownerName),
+      userEmail: Value(userEmail),
+      companyCode: Value(companyCode),
       durationSeconds: durationSeconds == null && nullToAbsent
           ? const Value.absent()
           : Value(durationSeconds),
@@ -1142,6 +1354,8 @@ class Audio extends DataClass implements Insertable<Audio> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
       ownerName: serializer.fromJson<String?>(json['ownerName']),
+      userEmail: serializer.fromJson<String>(json['userEmail']),
+      companyCode: serializer.fromJson<String>(json['companyCode']),
       durationSeconds: serializer.fromJson<int?>(json['durationSeconds']),
       favorite: serializer.fromJson<bool>(json['favorite']),
       uploaded: serializer.fromJson<bool>(json['uploaded']),
@@ -1156,6 +1370,8 @@ class Audio extends DataClass implements Insertable<Audio> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'deviceId': serializer.toJson<String>(deviceId),
       'ownerName': serializer.toJson<String?>(ownerName),
+      'userEmail': serializer.toJson<String>(userEmail),
+      'companyCode': serializer.toJson<String>(companyCode),
       'durationSeconds': serializer.toJson<int?>(durationSeconds),
       'favorite': serializer.toJson<bool>(favorite),
       'uploaded': serializer.toJson<bool>(uploaded),
@@ -1168,6 +1384,8 @@ class Audio extends DataClass implements Insertable<Audio> {
     DateTime? createdAt,
     String? deviceId,
     Value<String?> ownerName = const Value.absent(),
+    String? userEmail,
+    String? companyCode,
     Value<int?> durationSeconds = const Value.absent(),
     bool? favorite,
     bool? uploaded,
@@ -1177,6 +1395,8 @@ class Audio extends DataClass implements Insertable<Audio> {
     createdAt: createdAt ?? this.createdAt,
     deviceId: deviceId ?? this.deviceId,
     ownerName: ownerName.present ? ownerName.value : this.ownerName,
+    userEmail: userEmail ?? this.userEmail,
+    companyCode: companyCode ?? this.companyCode,
     durationSeconds: durationSeconds.present
         ? durationSeconds.value
         : this.durationSeconds,
@@ -1190,6 +1410,10 @@ class Audio extends DataClass implements Insertable<Audio> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       ownerName: data.ownerName.present ? data.ownerName.value : this.ownerName,
+      userEmail: data.userEmail.present ? data.userEmail.value : this.userEmail,
+      companyCode: data.companyCode.present
+          ? data.companyCode.value
+          : this.companyCode,
       durationSeconds: data.durationSeconds.present
           ? data.durationSeconds.value
           : this.durationSeconds,
@@ -1206,6 +1430,8 @@ class Audio extends DataClass implements Insertable<Audio> {
           ..write('createdAt: $createdAt, ')
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
           ..write('durationSeconds: $durationSeconds, ')
           ..write('favorite: $favorite, ')
           ..write('uploaded: $uploaded')
@@ -1220,6 +1446,8 @@ class Audio extends DataClass implements Insertable<Audio> {
     createdAt,
     deviceId,
     ownerName,
+    userEmail,
+    companyCode,
     durationSeconds,
     favorite,
     uploaded,
@@ -1233,6 +1461,8 @@ class Audio extends DataClass implements Insertable<Audio> {
           other.createdAt == this.createdAt &&
           other.deviceId == this.deviceId &&
           other.ownerName == this.ownerName &&
+          other.userEmail == this.userEmail &&
+          other.companyCode == this.companyCode &&
           other.durationSeconds == this.durationSeconds &&
           other.favorite == this.favorite &&
           other.uploaded == this.uploaded);
@@ -1244,6 +1474,8 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
   final Value<DateTime> createdAt;
   final Value<String> deviceId;
   final Value<String?> ownerName;
+  final Value<String> userEmail;
+  final Value<String> companyCode;
   final Value<int?> durationSeconds;
   final Value<bool> favorite;
   final Value<bool> uploaded;
@@ -1253,6 +1485,8 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     this.createdAt = const Value.absent(),
     this.deviceId = const Value.absent(),
     this.ownerName = const Value.absent(),
+    this.userEmail = const Value.absent(),
+    this.companyCode = const Value.absent(),
     this.durationSeconds = const Value.absent(),
     this.favorite = const Value.absent(),
     this.uploaded = const Value.absent(),
@@ -1263,17 +1497,23 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     this.createdAt = const Value.absent(),
     required String deviceId,
     this.ownerName = const Value.absent(),
+    required String userEmail,
+    required String companyCode,
     this.durationSeconds = const Value.absent(),
     this.favorite = const Value.absent(),
     this.uploaded = const Value.absent(),
   }) : filePath = Value(filePath),
-       deviceId = Value(deviceId);
+       deviceId = Value(deviceId),
+       userEmail = Value(userEmail),
+       companyCode = Value(companyCode);
   static Insertable<Audio> custom({
     Expression<int>? id,
     Expression<String>? filePath,
     Expression<DateTime>? createdAt,
     Expression<String>? deviceId,
     Expression<String>? ownerName,
+    Expression<String>? userEmail,
+    Expression<String>? companyCode,
     Expression<int>? durationSeconds,
     Expression<bool>? favorite,
     Expression<bool>? uploaded,
@@ -1284,6 +1524,8 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
       if (createdAt != null) 'created_at': createdAt,
       if (deviceId != null) 'device_id': deviceId,
       if (ownerName != null) 'owner_name': ownerName,
+      if (userEmail != null) 'user_email': userEmail,
+      if (companyCode != null) 'company_code': companyCode,
       if (durationSeconds != null) 'duration_seconds': durationSeconds,
       if (favorite != null) 'favorite': favorite,
       if (uploaded != null) 'uploaded': uploaded,
@@ -1296,6 +1538,8 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     Value<DateTime>? createdAt,
     Value<String>? deviceId,
     Value<String?>? ownerName,
+    Value<String>? userEmail,
+    Value<String>? companyCode,
     Value<int?>? durationSeconds,
     Value<bool>? favorite,
     Value<bool>? uploaded,
@@ -1306,6 +1550,8 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
       createdAt: createdAt ?? this.createdAt,
       deviceId: deviceId ?? this.deviceId,
       ownerName: ownerName ?? this.ownerName,
+      userEmail: userEmail ?? this.userEmail,
+      companyCode: companyCode ?? this.companyCode,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       favorite: favorite ?? this.favorite,
       uploaded: uploaded ?? this.uploaded,
@@ -1330,6 +1576,12 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     if (ownerName.present) {
       map['owner_name'] = Variable<String>(ownerName.value);
     }
+    if (userEmail.present) {
+      map['user_email'] = Variable<String>(userEmail.value);
+    }
+    if (companyCode.present) {
+      map['company_code'] = Variable<String>(companyCode.value);
+    }
     if (durationSeconds.present) {
       map['duration_seconds'] = Variable<int>(durationSeconds.value);
     }
@@ -1350,6 +1602,8 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
           ..write('createdAt: $createdAt, ')
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
           ..write('durationSeconds: $durationSeconds, ')
           ..write('favorite: $favorite, ')
           ..write('uploaded: $uploaded')
@@ -1421,6 +1675,28 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _userEmailMeta = const VerificationMeta(
+    'userEmail',
+  );
+  @override
+  late final GeneratedColumn<String> userEmail = GeneratedColumn<String>(
+    'user_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyCodeMeta = const VerificationMeta(
+    'companyCode',
+  );
+  @override
+  late final GeneratedColumn<String> companyCode = GeneratedColumn<String>(
+    'company_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _uploadedMeta = const VerificationMeta(
     'uploaded',
   );
@@ -1454,6 +1730,8 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
     createdAt,
     deviceId,
     ownerName,
+    userEmail,
+    companyCode,
     uploaded,
     durationSeconds,
   ];
@@ -1500,6 +1778,25 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
         ownerName.isAcceptableOrUnknown(data['owner_name']!, _ownerNameMeta),
       );
     }
+    if (data.containsKey('user_email')) {
+      context.handle(
+        _userEmailMeta,
+        userEmail.isAcceptableOrUnknown(data['user_email']!, _userEmailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userEmailMeta);
+    }
+    if (data.containsKey('company_code')) {
+      context.handle(
+        _companyCodeMeta,
+        companyCode.isAcceptableOrUnknown(
+          data['company_code']!,
+          _companyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_companyCodeMeta);
+    }
     if (data.containsKey('uploaded')) {
       context.handle(
         _uploadedMeta,
@@ -1544,6 +1841,14 @@ class $VideosTable extends Videos with TableInfo<$VideosTable, Video> {
         DriftSqlType.string,
         data['${effectivePrefix}owner_name'],
       ),
+      userEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_email'],
+      )!,
+      companyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_code'],
+      )!,
       uploaded: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}uploaded'],
@@ -1567,6 +1872,8 @@ class Video extends DataClass implements Insertable<Video> {
   final DateTime createdAt;
   final String deviceId;
   final String? ownerName;
+  final String userEmail;
+  final String companyCode;
   final bool uploaded;
   final int? durationSeconds;
   const Video({
@@ -1575,6 +1882,8 @@ class Video extends DataClass implements Insertable<Video> {
     required this.createdAt,
     required this.deviceId,
     this.ownerName,
+    required this.userEmail,
+    required this.companyCode,
     required this.uploaded,
     this.durationSeconds,
   });
@@ -1588,6 +1897,8 @@ class Video extends DataClass implements Insertable<Video> {
     if (!nullToAbsent || ownerName != null) {
       map['owner_name'] = Variable<String>(ownerName);
     }
+    map['user_email'] = Variable<String>(userEmail);
+    map['company_code'] = Variable<String>(companyCode);
     map['uploaded'] = Variable<bool>(uploaded);
     if (!nullToAbsent || durationSeconds != null) {
       map['duration_seconds'] = Variable<int>(durationSeconds);
@@ -1604,6 +1915,8 @@ class Video extends DataClass implements Insertable<Video> {
       ownerName: ownerName == null && nullToAbsent
           ? const Value.absent()
           : Value(ownerName),
+      userEmail: Value(userEmail),
+      companyCode: Value(companyCode),
       uploaded: Value(uploaded),
       durationSeconds: durationSeconds == null && nullToAbsent
           ? const Value.absent()
@@ -1622,6 +1935,8 @@ class Video extends DataClass implements Insertable<Video> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
       ownerName: serializer.fromJson<String?>(json['ownerName']),
+      userEmail: serializer.fromJson<String>(json['userEmail']),
+      companyCode: serializer.fromJson<String>(json['companyCode']),
       uploaded: serializer.fromJson<bool>(json['uploaded']),
       durationSeconds: serializer.fromJson<int?>(json['durationSeconds']),
     );
@@ -1635,6 +1950,8 @@ class Video extends DataClass implements Insertable<Video> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'deviceId': serializer.toJson<String>(deviceId),
       'ownerName': serializer.toJson<String?>(ownerName),
+      'userEmail': serializer.toJson<String>(userEmail),
+      'companyCode': serializer.toJson<String>(companyCode),
       'uploaded': serializer.toJson<bool>(uploaded),
       'durationSeconds': serializer.toJson<int?>(durationSeconds),
     };
@@ -1646,6 +1963,8 @@ class Video extends DataClass implements Insertable<Video> {
     DateTime? createdAt,
     String? deviceId,
     Value<String?> ownerName = const Value.absent(),
+    String? userEmail,
+    String? companyCode,
     bool? uploaded,
     Value<int?> durationSeconds = const Value.absent(),
   }) => Video(
@@ -1654,6 +1973,8 @@ class Video extends DataClass implements Insertable<Video> {
     createdAt: createdAt ?? this.createdAt,
     deviceId: deviceId ?? this.deviceId,
     ownerName: ownerName.present ? ownerName.value : this.ownerName,
+    userEmail: userEmail ?? this.userEmail,
+    companyCode: companyCode ?? this.companyCode,
     uploaded: uploaded ?? this.uploaded,
     durationSeconds: durationSeconds.present
         ? durationSeconds.value
@@ -1666,6 +1987,10 @@ class Video extends DataClass implements Insertable<Video> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       ownerName: data.ownerName.present ? data.ownerName.value : this.ownerName,
+      userEmail: data.userEmail.present ? data.userEmail.value : this.userEmail,
+      companyCode: data.companyCode.present
+          ? data.companyCode.value
+          : this.companyCode,
       uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
       durationSeconds: data.durationSeconds.present
           ? data.durationSeconds.value
@@ -1681,6 +2006,8 @@ class Video extends DataClass implements Insertable<Video> {
           ..write('createdAt: $createdAt, ')
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
           ..write('uploaded: $uploaded, ')
           ..write('durationSeconds: $durationSeconds')
           ..write(')'))
@@ -1694,6 +2021,8 @@ class Video extends DataClass implements Insertable<Video> {
     createdAt,
     deviceId,
     ownerName,
+    userEmail,
+    companyCode,
     uploaded,
     durationSeconds,
   );
@@ -1706,6 +2035,8 @@ class Video extends DataClass implements Insertable<Video> {
           other.createdAt == this.createdAt &&
           other.deviceId == this.deviceId &&
           other.ownerName == this.ownerName &&
+          other.userEmail == this.userEmail &&
+          other.companyCode == this.companyCode &&
           other.uploaded == this.uploaded &&
           other.durationSeconds == this.durationSeconds);
 }
@@ -1716,6 +2047,8 @@ class VideosCompanion extends UpdateCompanion<Video> {
   final Value<DateTime> createdAt;
   final Value<String> deviceId;
   final Value<String?> ownerName;
+  final Value<String> userEmail;
+  final Value<String> companyCode;
   final Value<bool> uploaded;
   final Value<int?> durationSeconds;
   const VideosCompanion({
@@ -1724,6 +2057,8 @@ class VideosCompanion extends UpdateCompanion<Video> {
     this.createdAt = const Value.absent(),
     this.deviceId = const Value.absent(),
     this.ownerName = const Value.absent(),
+    this.userEmail = const Value.absent(),
+    this.companyCode = const Value.absent(),
     this.uploaded = const Value.absent(),
     this.durationSeconds = const Value.absent(),
   });
@@ -1733,16 +2068,22 @@ class VideosCompanion extends UpdateCompanion<Video> {
     this.createdAt = const Value.absent(),
     required String deviceId,
     this.ownerName = const Value.absent(),
+    required String userEmail,
+    required String companyCode,
     this.uploaded = const Value.absent(),
     this.durationSeconds = const Value.absent(),
   }) : filePath = Value(filePath),
-       deviceId = Value(deviceId);
+       deviceId = Value(deviceId),
+       userEmail = Value(userEmail),
+       companyCode = Value(companyCode);
   static Insertable<Video> custom({
     Expression<int>? id,
     Expression<String>? filePath,
     Expression<DateTime>? createdAt,
     Expression<String>? deviceId,
     Expression<String>? ownerName,
+    Expression<String>? userEmail,
+    Expression<String>? companyCode,
     Expression<bool>? uploaded,
     Expression<int>? durationSeconds,
   }) {
@@ -1752,6 +2093,8 @@ class VideosCompanion extends UpdateCompanion<Video> {
       if (createdAt != null) 'created_at': createdAt,
       if (deviceId != null) 'device_id': deviceId,
       if (ownerName != null) 'owner_name': ownerName,
+      if (userEmail != null) 'user_email': userEmail,
+      if (companyCode != null) 'company_code': companyCode,
       if (uploaded != null) 'uploaded': uploaded,
       if (durationSeconds != null) 'duration_seconds': durationSeconds,
     });
@@ -1763,6 +2106,8 @@ class VideosCompanion extends UpdateCompanion<Video> {
     Value<DateTime>? createdAt,
     Value<String>? deviceId,
     Value<String?>? ownerName,
+    Value<String>? userEmail,
+    Value<String>? companyCode,
     Value<bool>? uploaded,
     Value<int?>? durationSeconds,
   }) {
@@ -1772,6 +2117,8 @@ class VideosCompanion extends UpdateCompanion<Video> {
       createdAt: createdAt ?? this.createdAt,
       deviceId: deviceId ?? this.deviceId,
       ownerName: ownerName ?? this.ownerName,
+      userEmail: userEmail ?? this.userEmail,
+      companyCode: companyCode ?? this.companyCode,
       uploaded: uploaded ?? this.uploaded,
       durationSeconds: durationSeconds ?? this.durationSeconds,
     );
@@ -1795,6 +2142,12 @@ class VideosCompanion extends UpdateCompanion<Video> {
     if (ownerName.present) {
       map['owner_name'] = Variable<String>(ownerName.value);
     }
+    if (userEmail.present) {
+      map['user_email'] = Variable<String>(userEmail.value);
+    }
+    if (companyCode.present) {
+      map['company_code'] = Variable<String>(companyCode.value);
+    }
     if (uploaded.present) {
       map['uploaded'] = Variable<bool>(uploaded.value);
     }
@@ -1812,6 +2165,8 @@ class VideosCompanion extends UpdateCompanion<Video> {
           ..write('createdAt: $createdAt, ')
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
           ..write('uploaded: $uploaded, ')
           ..write('durationSeconds: $durationSeconds')
           ..write(')'))
@@ -1841,16 +2196,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$UsersTableCreateCompanionBuilder =
     UsersCompanion Function({
       Value<int> id,
-      required String username,
-      required String password,
+      required String uid,
       required String email,
+      required String role,
+      required String companyCode,
     });
 typedef $$UsersTableUpdateCompanionBuilder =
     UsersCompanion Function({
       Value<int> id,
-      Value<String> username,
-      Value<String> password,
+      Value<String> uid,
       Value<String> email,
+      Value<String> role,
+      Value<String> companyCode,
     });
 
 class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
@@ -1866,18 +2223,23 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get username => $composableBuilder(
-    column: $table.username,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get password => $composableBuilder(
-    column: $table.password,
+  ColumnFilters<String> get uid => $composableBuilder(
+    column: $table.uid,
     builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<String> get email => $composableBuilder(
     column: $table.email,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1896,18 +2258,23 @@ class $$UsersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get username => $composableBuilder(
-    column: $table.username,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get password => $composableBuilder(
-    column: $table.password,
+  ColumnOrderings<String> get uid => $composableBuilder(
+    column: $table.uid,
     builder: (column) => ColumnOrderings(column),
   );
 
   ColumnOrderings<String> get email => $composableBuilder(
     column: $table.email,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -1924,14 +2291,19 @@ class $$UsersTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get username =>
-      $composableBuilder(column: $table.username, builder: (column) => column);
-
-  GeneratedColumn<String> get password =>
-      $composableBuilder(column: $table.password, builder: (column) => column);
+  GeneratedColumn<String> get uid =>
+      $composableBuilder(column: $table.uid, builder: (column) => column);
 
   GeneratedColumn<String> get email =>
       $composableBuilder(column: $table.email, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => column,
+  );
 }
 
 class $$UsersTableTableManager
@@ -1963,26 +2335,30 @@ class $$UsersTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<String> username = const Value.absent(),
-                Value<String> password = const Value.absent(),
+                Value<String> uid = const Value.absent(),
                 Value<String> email = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String> companyCode = const Value.absent(),
               }) => UsersCompanion(
                 id: id,
-                username: username,
-                password: password,
+                uid: uid,
                 email: email,
+                role: role,
+                companyCode: companyCode,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required String username,
-                required String password,
+                required String uid,
                 required String email,
+                required String role,
+                required String companyCode,
               }) => UsersCompanion.insert(
                 id: id,
-                username: username,
-                password: password,
+                uid: uid,
                 email: email,
+                role: role,
+                companyCode: companyCode,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -2013,6 +2389,8 @@ typedef $$PhotosTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       required String deviceId,
       Value<String?> ownerName,
+      required String userEmail,
+      required String companyCode,
       Value<bool> uploaded,
       Value<bool> favorite,
       Value<double?> latitude,
@@ -2025,6 +2403,8 @@ typedef $$PhotosTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String> deviceId,
       Value<String?> ownerName,
+      Value<String> userEmail,
+      Value<String> companyCode,
       Value<bool> uploaded,
       Value<bool> favorite,
       Value<double?> latitude,
@@ -2062,6 +2442,16 @@ class $$PhotosTableFilterComposer
 
   ColumnFilters<String> get ownerName => $composableBuilder(
     column: $table.ownerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2120,6 +2510,16 @@ class $$PhotosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get uploaded => $composableBuilder(
     column: $table.uploaded,
     builder: (column) => ColumnOrderings(column),
@@ -2164,6 +2564,14 @@ class $$PhotosTableAnnotationComposer
 
   GeneratedColumn<String> get ownerName =>
       $composableBuilder(column: $table.ownerName, builder: (column) => column);
+
+  GeneratedColumn<String> get userEmail =>
+      $composableBuilder(column: $table.userEmail, builder: (column) => column);
+
+  GeneratedColumn<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get uploaded =>
       $composableBuilder(column: $table.uploaded, builder: (column) => column);
@@ -2211,6 +2619,8 @@ class $$PhotosTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
                 Value<String?> ownerName = const Value.absent(),
+                Value<String> userEmail = const Value.absent(),
+                Value<String> companyCode = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
                 Value<double?> latitude = const Value.absent(),
@@ -2221,6 +2631,8 @@ class $$PhotosTableTableManager
                 createdAt: createdAt,
                 deviceId: deviceId,
                 ownerName: ownerName,
+                userEmail: userEmail,
+                companyCode: companyCode,
                 uploaded: uploaded,
                 favorite: favorite,
                 latitude: latitude,
@@ -2233,6 +2645,8 @@ class $$PhotosTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 required String deviceId,
                 Value<String?> ownerName = const Value.absent(),
+                required String userEmail,
+                required String companyCode,
                 Value<bool> uploaded = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
                 Value<double?> latitude = const Value.absent(),
@@ -2243,6 +2657,8 @@ class $$PhotosTableTableManager
                 createdAt: createdAt,
                 deviceId: deviceId,
                 ownerName: ownerName,
+                userEmail: userEmail,
+                companyCode: companyCode,
                 uploaded: uploaded,
                 favorite: favorite,
                 latitude: latitude,
@@ -2277,6 +2693,8 @@ typedef $$AudiosTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       required String deviceId,
       Value<String?> ownerName,
+      required String userEmail,
+      required String companyCode,
       Value<int?> durationSeconds,
       Value<bool> favorite,
       Value<bool> uploaded,
@@ -2288,6 +2706,8 @@ typedef $$AudiosTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String> deviceId,
       Value<String?> ownerName,
+      Value<String> userEmail,
+      Value<String> companyCode,
       Value<int?> durationSeconds,
       Value<bool> favorite,
       Value<bool> uploaded,
@@ -2324,6 +2744,16 @@ class $$AudiosTableFilterComposer
 
   ColumnFilters<String> get ownerName => $composableBuilder(
     column: $table.ownerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2377,6 +2807,16 @@ class $$AudiosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get durationSeconds => $composableBuilder(
     column: $table.durationSeconds,
     builder: (column) => ColumnOrderings(column),
@@ -2416,6 +2856,14 @@ class $$AudiosTableAnnotationComposer
 
   GeneratedColumn<String> get ownerName =>
       $composableBuilder(column: $table.ownerName, builder: (column) => column);
+
+  GeneratedColumn<String> get userEmail =>
+      $composableBuilder(column: $table.userEmail, builder: (column) => column);
+
+  GeneratedColumn<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get durationSeconds => $composableBuilder(
     column: $table.durationSeconds,
@@ -2462,6 +2910,8 @@ class $$AudiosTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
                 Value<String?> ownerName = const Value.absent(),
+                Value<String> userEmail = const Value.absent(),
+                Value<String> companyCode = const Value.absent(),
                 Value<int?> durationSeconds = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
@@ -2471,6 +2921,8 @@ class $$AudiosTableTableManager
                 createdAt: createdAt,
                 deviceId: deviceId,
                 ownerName: ownerName,
+                userEmail: userEmail,
+                companyCode: companyCode,
                 durationSeconds: durationSeconds,
                 favorite: favorite,
                 uploaded: uploaded,
@@ -2482,6 +2934,8 @@ class $$AudiosTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 required String deviceId,
                 Value<String?> ownerName = const Value.absent(),
+                required String userEmail,
+                required String companyCode,
                 Value<int?> durationSeconds = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
@@ -2491,6 +2945,8 @@ class $$AudiosTableTableManager
                 createdAt: createdAt,
                 deviceId: deviceId,
                 ownerName: ownerName,
+                userEmail: userEmail,
+                companyCode: companyCode,
                 durationSeconds: durationSeconds,
                 favorite: favorite,
                 uploaded: uploaded,
@@ -2524,6 +2980,8 @@ typedef $$VideosTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       required String deviceId,
       Value<String?> ownerName,
+      required String userEmail,
+      required String companyCode,
       Value<bool> uploaded,
       Value<int?> durationSeconds,
     });
@@ -2534,6 +2992,8 @@ typedef $$VideosTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String> deviceId,
       Value<String?> ownerName,
+      Value<String> userEmail,
+      Value<String> companyCode,
       Value<bool> uploaded,
       Value<int?> durationSeconds,
     });
@@ -2569,6 +3029,16 @@ class $$VideosTableFilterComposer
 
   ColumnFilters<String> get ownerName => $composableBuilder(
     column: $table.ownerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2617,6 +3087,16 @@ class $$VideosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get uploaded => $composableBuilder(
     column: $table.uploaded,
     builder: (column) => ColumnOrderings(column),
@@ -2651,6 +3131,14 @@ class $$VideosTableAnnotationComposer
 
   GeneratedColumn<String> get ownerName =>
       $composableBuilder(column: $table.ownerName, builder: (column) => column);
+
+  GeneratedColumn<String> get userEmail =>
+      $composableBuilder(column: $table.userEmail, builder: (column) => column);
+
+  GeneratedColumn<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get uploaded =>
       $composableBuilder(column: $table.uploaded, builder: (column) => column);
@@ -2694,6 +3182,8 @@ class $$VideosTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
                 Value<String?> ownerName = const Value.absent(),
+                Value<String> userEmail = const Value.absent(),
+                Value<String> companyCode = const Value.absent(),
                 Value<bool> uploaded = const Value.absent(),
                 Value<int?> durationSeconds = const Value.absent(),
               }) => VideosCompanion(
@@ -2702,6 +3192,8 @@ class $$VideosTableTableManager
                 createdAt: createdAt,
                 deviceId: deviceId,
                 ownerName: ownerName,
+                userEmail: userEmail,
+                companyCode: companyCode,
                 uploaded: uploaded,
                 durationSeconds: durationSeconds,
               ),
@@ -2712,6 +3204,8 @@ class $$VideosTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 required String deviceId,
                 Value<String?> ownerName = const Value.absent(),
+                required String userEmail,
+                required String companyCode,
                 Value<bool> uploaded = const Value.absent(),
                 Value<int?> durationSeconds = const Value.absent(),
               }) => VideosCompanion.insert(
@@ -2720,6 +3214,8 @@ class $$VideosTableTableManager
                 createdAt: createdAt,
                 deviceId: deviceId,
                 ownerName: ownerName,
+                userEmail: userEmail,
+                companyCode: companyCode,
                 uploaded: uploaded,
                 durationSeconds: durationSeconds,
               ),

@@ -10,12 +10,12 @@ import 'package:sqlite3/open.dart';
 part 'database.g.dart';
 
 /// --------------- Secure Storage ----------------
-final secureStorage = FlutterSecureStorage();
+final secureStorage = const FlutterSecureStorage();
 
 Future<String> getDbPassword() async {
   var pwd = await secureStorage.read(key: 'db_password');
   if (pwd == null) {
-    pwd = 'db_' + DateTime.now().millisecondsSinceEpoch.toString();
+    pwd = 'db_${DateTime.now().millisecondsSinceEpoch}';
     await secureStorage.write(key: 'db_password', value: pwd);
   }
   return pwd;
@@ -39,11 +39,13 @@ LazyDatabase _openConnection() {
 
 // --------------- TABUĽKY ----------------
 
+// Upravená tabuľka Users pre synchronizáciu s Firebase
 class Users extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get username => text()();
-  TextColumn get password => text()();
+  TextColumn get uid => text().unique()(); // Firebase UID
   TextColumn get email => text()();
+  TextColumn get role => text()(); // admin / technician
+  TextColumn get companyCode => text()(); // companyId z Firebase
 }
 
 class Photos extends Table {
@@ -52,6 +54,8 @@ class Photos extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get deviceId => text()();
   TextColumn get ownerName => text().nullable()();
+  TextColumn get userEmail => text()();
+  TextColumn get companyCode => text()();
   BoolColumn get uploaded => boolean().withDefault(const Constant(false))();
   BoolColumn get favorite => boolean().withDefault(const Constant(false))();
   RealColumn get latitude => real().nullable()();
@@ -64,9 +68,10 @@ class Audios extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get deviceId => text()();
   TextColumn get ownerName => text().nullable()();
+  TextColumn get userEmail => text()();
+  TextColumn get companyCode => text()();
   IntColumn get durationSeconds => integer().nullable()();
   BoolColumn get favorite => boolean().withDefault(const Constant(false))();
-  // Pridaný stĺpec pre synchronizáciu
   BoolColumn get uploaded => boolean().withDefault(const Constant(false))();
 }
 
@@ -76,6 +81,8 @@ class Videos extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get deviceId => text()();
   TextColumn get ownerName => text().nullable()();
+  TextColumn get userEmail => text()();
+  TextColumn get companyCode => text()();
   BoolColumn get uploaded => boolean().withDefault(const Constant(false))();
   IntColumn get durationSeconds => integer().nullable()();
 }
@@ -87,27 +94,47 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5; // Zvýšené na 5
+  int get schemaVersion => 7; // Zvýšené na 7 kvôli zmene tabuľky Users
 
-  // ---------------- USERS CRUD ----------------
-  Future<int> createUser(String username, String password, String email) {
-    return into(users).insert(
-      UsersCompanion(
-        username: Value(username),
-        password: Value(password),
-        email: Value(email),
-      ),
-    );
+  // ---------------- USER CRUD (Nové) ----------------
+
+  Future<int> upsertUser(UsersCompanion user) {
+    return into(users).insertOnConflictUpdate(user);
   }
 
-  Future<List<User>> getAllUsers() => select(users).get();
-
-  Future<User?> getUserByUsername(String username) {
-    return (select(users)..where((u) => u.username.equals(username)))
-        .getSingleOrNull();
+  Future<User?> getUser(String uid) {
+    return (select(users)..where((u) => u.uid.equals(uid))).getSingleOrNull();
   }
 
-  // ---------------- SYNC LOGIKA (Nové funkcie) ----------------
+  // ---------------- FILTROVANÉ STREAMY PRE POUŽÍVATEĽA (Technik) ----------------
+
+  Stream<List<Photo>> watchUserPhotos(String email) {
+    return (select(photos)..where((p) => p.userEmail.equals(email))).watch();
+  }
+
+  Stream<List<Video>> watchUserVideos(String email) {
+    return (select(videos)..where((v) => v.userEmail.equals(email))).watch();
+  }
+
+  Stream<List<Audio>> watchUserAudios(String email) {
+    return (select(audios)..where((a) => a.userEmail.equals(email))).watch();
+  }
+
+  // ---------------- FILTROVANÉ STREAMY PRE FIRMU (Admin) ----------------
+
+  Stream<List<Photo>> watchCompanyPhotos(String companyCode) {
+    return (select(photos)..where((p) => p.companyCode.equals(companyCode))).watch();
+  }
+
+  Stream<List<Video>> watchCompanyVideos(String companyCode) {
+    return (select(videos)..where((v) => v.companyCode.equals(companyCode))).watch();
+  }
+
+  Stream<List<Audio>> watchCompanyAudios(String companyCode) {
+    return (select(audios)..where((a) => a.companyCode.equals(companyCode))).watch();
+  }
+
+  // ---------------- SYNC LOGIKA ----------------
 
   Future<void> markPhotoAsUploaded(String filePath) {
     return (update(photos)..where((p) => p.filePath.equals(filePath))).write(
@@ -131,6 +158,8 @@ class AppDatabase extends _$AppDatabase {
   Future<int> insertPhoto({
     required String filePath,
     required String deviceId,
+    required String userEmail,
+    required String companyCode,
     String? ownerName,
     bool uploaded = false,
     double? latitude,
@@ -140,6 +169,8 @@ class AppDatabase extends _$AppDatabase {
       PhotosCompanion(
         filePath: Value(filePath),
         deviceId: Value(deviceId),
+        userEmail: Value(userEmail),
+        companyCode: Value(companyCode),
         ownerName: Value(ownerName),
         uploaded: Value(uploaded),
         latitude: Value(latitude),
@@ -147,9 +178,6 @@ class AppDatabase extends _$AppDatabase {
       ),
     );
   }
-
-  Future<List<Photo>> getAllPhotos() => select(photos).get();
-  Stream<List<Photo>> watchAllPhotos() => select(photos).watch();
 
   Future<void> deletePhoto(String filePath) async {
     await (delete(photos)..where((p) => p.filePath.equals(filePath))).go();
@@ -165,6 +193,8 @@ class AppDatabase extends _$AppDatabase {
   Future<int> insertAudio({
     required String filePath,
     required String deviceId,
+    required String userEmail,
+    required String companyCode,
     String? ownerName,
     int? duration,
     bool uploaded = false,
@@ -173,6 +203,8 @@ class AppDatabase extends _$AppDatabase {
       AudiosCompanion(
         filePath: Value(filePath),
         deviceId: Value(deviceId),
+        userEmail: Value(userEmail),
+        companyCode: Value(companyCode),
         ownerName: Value(ownerName),
         durationSeconds: Value(duration),
         uploaded: Value(uploaded),
@@ -180,23 +212,16 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<List<Audio>> getAllAudios() => select(audios).get();
-  Stream<List<Audio>> watchAllAudios() => select(audios).watch();
-
   Future<void> deleteAudio(String filePath) async {
     await (delete(audios)..where((a) => a.filePath.equals(filePath))).go();
-  }
-
-  Future<void> toggleAudioFavorite(String filePath, bool value) {
-    return (update(audios)..where((a) => a.filePath.equals(filePath))).write(
-      AudiosCompanion(favorite: Value(value)),
-    );
   }
 
   // ---------------- VIDEOS CRUD ----------------
   Future<int> insertVideo({
     required String filePath,
     required String deviceId,
+    required String userEmail,
+    required String companyCode,
     String? ownerName,
     bool uploaded = false,
     int? duration,
@@ -205,14 +230,14 @@ class AppDatabase extends _$AppDatabase {
       VideosCompanion(
         filePath: Value(filePath),
         deviceId: Value(deviceId),
+        userEmail: Value(userEmail),
+        companyCode: Value(companyCode),
         ownerName: Value(ownerName),
         uploaded: Value(uploaded),
         durationSeconds: Value(duration),
       ),
     );
   }
-
-  Stream<List<Video>> watchAllVideos() => select(videos).watch();
 
   Future<void> deleteVideo(String filePath) async {
     await (delete(videos)..where((v) => v.filePath.equals(filePath))).go();
@@ -228,10 +253,23 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) await m.createTable(audios);
       if (from < 4) await m.createTable(videos);
-      if (from < 5) {
-        // Pridá stĺpec uploaded do už existujúcej tabuľky audios
-        await m.addColumn(audios, audios.uploaded);
+      if (from < 5) await m.addColumn(audios, audios.uploaded);
+      if (from < 6) {
+        await m.addColumn(photos, photos.userEmail);
+        await m.addColumn(photos, photos.companyCode);
+        await m.addColumn(audios, audios.userEmail);
+        await m.addColumn(audios, audios.companyCode);
+        await m.addColumn(videos, videos.userEmail);
+        await m.addColumn(videos, videos.companyCode);
       }
+      if (from < 7) {
+        // Pri zmene štruktúry Users je najbezpečnejšie tabuľku dropnúť a vytvoriť znova
+        await m.deleteTable('users');
+        await m.createTable(users);
+      }
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
     },
   );
 }

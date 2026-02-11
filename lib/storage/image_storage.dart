@@ -6,7 +6,6 @@ import 'package:bakalarka/database.dart';
 import 'dart:typed_data';
 
 class ImageStorage {
-  // Databázu by si mal dostávať zvonku (napr. cez konštruktor alebo Provider)
   final AppDatabase db;
   ImageStorage(this.db);
 
@@ -28,15 +27,21 @@ class ImageStorage {
         .toList();
   }
 
-  // Vytvorenie súboru (používame len ID, nie celú cestu)
   static Future<File> createEncryptedFile(String id) async {
     final dir = await _baseDir();
     return File(p.join(dir.path, '$id.enc'));
   }
 
-
-  // V ImageStorage alebo v nejakej Logike:
-  Future<void> saveSecurePhoto(Uint8List originalBytes, String photoId) async {
+  // --- UPRAVENÁ METÓDA NA UKLADANIE ---
+  Future<void> saveSecurePhoto({
+    required Uint8List originalBytes,
+    required String photoId,
+    required String userEmail,    // PRIDANÉ
+    required String companyCode,  // PRIDANÉ
+    String? ownerName,            // Odporúčam pridať pre zobrazenie mena adminovi
+    double? latitude,
+    double? longitude,
+  }) async {
     // 1. Zašifrujeme dáta
     final encryptedBytes = await CryptoService.encryptBytes(originalBytes);
 
@@ -46,11 +51,15 @@ class ImageStorage {
     // 3. Zapíšeme zašifrované dáta na disk
     await file.writeAsBytes(encryptedBytes);
 
-    // 4. Uložíme záznam do Drift databázy
+    // 4. Uložíme záznam do Drift databázy so všetkými novými stĺpcami
     await db.insertPhoto(
       filePath: file.path,
-      deviceId: "mobile_1",
-      // ... ďalšie údaje
+      deviceId: "mobile_1", // Tu môžeš neskôr doplniť reálne ID zariadenia
+      userEmail: userEmail,
+      companyCode: companyCode,
+      ownerName: ownerName,
+      latitude: latitude,
+      longitude: longitude,
     );
   }
 }

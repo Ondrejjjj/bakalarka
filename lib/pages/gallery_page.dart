@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../security/crypto_service.dart';
-import '../services/sync_service.dart'; // Import novej služby
+import '../services/sync_service.dart';
 import 'fullscreen_image_page.dart';
 import 'package:bakalarka/database.dart';
 
@@ -19,7 +21,36 @@ class _GalleryPageState extends State<GalleryPage> {
   bool _showOnlyFavorites = false;
   final Set<File> _selectedFiles = {};
   bool _selectionMode = false;
-  bool _isSyncing = false; // Indikátor nahrávania
+  bool _isSyncing = false;
+
+  // Cache pre filtrovanie
+  String? _currentUserEmail;
+  String? _currentUserRole;
+  String? _currentCompanyCode; // PRIDANÉ
+
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserIdentity();
+  }
+
+  Future<void> _loadUserIdentity() async {
+    final email = await _storage.read(key: 'user_email');
+    final role = await _storage.read(key: 'user_role');
+    final company = await _storage.read(key: 'company_code'); // PRIDANÉ
+
+    if (mounted) {
+      setState(() {
+        _currentUserEmail = email;
+        _currentUserRole = role;
+        _currentCompanyCode = company;
+      });
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -27,8 +58,21 @@ class _GalleryPageState extends State<GalleryPage> {
     db = Provider.of<AppDatabase>(context);
   }
 
+  // --- UPRAVENÝ STREAM POUŽÍVAJÚCI NOVÉ METÓDY Z DATABASE.DART ---
   Stream<List<_PhotoItem>> _watchPhotos() {
-    return db.select(db.photos).watch().asyncMap((rows) async {
+    if (_currentUserEmail == null || _currentCompanyCode == null) {
+      return Stream.value([]);
+    }
+
+    // Výber správneho streamu podľa roly
+    final Stream<List<Photo>> photoStream;
+    if (_currentUserRole == 'admin') {
+      photoStream = db.watchCompanyPhotos(_currentCompanyCode!);
+    } else {
+      photoStream = db.watchUserPhotos(_currentUserEmail!);
+    }
+
+    return photoStream.asyncMap((rows) async {
       final List<_PhotoItem> items = [];
       for (var row in rows) {
         final file = File(row.filePath);
@@ -72,7 +116,6 @@ class _GalleryPageState extends State<GalleryPage> {
     });
   }
 
-  // FUNKCIA PRE SYNCHRONIZÁCIU
   void _syncSelected() async {
     setState(() => _isSyncing = true);
     final syncService = SyncService(db);
@@ -134,7 +177,6 @@ class _GalleryPageState extends State<GalleryPage> {
               children: [
                 Text('${_selectedFiles.length} vybrané', style: const TextStyle(fontWeight: FontWeight.bold)),
                 const Spacer(),
-                // TLAČIDLO PRE SYNC
                 if (_isSyncing)
                   const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
                 else
@@ -186,7 +228,7 @@ class _GalleryPageState extends State<GalleryPage> {
                         if (!mounted) return;
                         Navigator.push(context, MaterialPageRoute(
                           builder: (_) => FullscreenImagePage(
-                            imageBytes: bytes, photoName: item.ownerName,
+                            imageBytes: bytes, photoName: item.ownerName ?? 'Neznámy',
                             latitude: item.latitude, longitude: item.longitude,
                           ),
                         ));
@@ -207,7 +249,6 @@ class _GalleryPageState extends State<GalleryPage> {
                         ),
                         if (isSelected) Container(color: Colors.black54, child: const Icon(Icons.check_circle, color: Colors.blue, size: 32)),
 
-                        // INDIKÁTOR STAVU CLOUDU
                         Positioned(
                           top: 4, left: 4,
                           child: Container(
