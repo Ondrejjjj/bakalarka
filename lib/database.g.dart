@@ -937,6 +937,21 @@ class $AudiosTable extends Audios with TableInfo<$AudiosTable, Audio> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _uploadedMeta = const VerificationMeta(
+    'uploaded',
+  );
+  @override
+  late final GeneratedColumn<bool> uploaded = GeneratedColumn<bool>(
+    'uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -946,6 +961,7 @@ class $AudiosTable extends Audios with TableInfo<$AudiosTable, Audio> {
     ownerName,
     durationSeconds,
     favorite,
+    uploaded,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1005,6 +1021,12 @@ class $AudiosTable extends Audios with TableInfo<$AudiosTable, Audio> {
         favorite.isAcceptableOrUnknown(data['favorite']!, _favoriteMeta),
       );
     }
+    if (data.containsKey('uploaded')) {
+      context.handle(
+        _uploadedMeta,
+        uploaded.isAcceptableOrUnknown(data['uploaded']!, _uploadedMeta),
+      );
+    }
     return context;
   }
 
@@ -1042,6 +1064,10 @@ class $AudiosTable extends Audios with TableInfo<$AudiosTable, Audio> {
         DriftSqlType.bool,
         data['${effectivePrefix}favorite'],
       )!,
+      uploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}uploaded'],
+      )!,
     );
   }
 
@@ -1059,6 +1085,7 @@ class Audio extends DataClass implements Insertable<Audio> {
   final String? ownerName;
   final int? durationSeconds;
   final bool favorite;
+  final bool uploaded;
   const Audio({
     required this.id,
     required this.filePath,
@@ -1067,6 +1094,7 @@ class Audio extends DataClass implements Insertable<Audio> {
     this.ownerName,
     this.durationSeconds,
     required this.favorite,
+    required this.uploaded,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1082,6 +1110,7 @@ class Audio extends DataClass implements Insertable<Audio> {
       map['duration_seconds'] = Variable<int>(durationSeconds);
     }
     map['favorite'] = Variable<bool>(favorite);
+    map['uploaded'] = Variable<bool>(uploaded);
     return map;
   }
 
@@ -1098,6 +1127,7 @@ class Audio extends DataClass implements Insertable<Audio> {
           ? const Value.absent()
           : Value(durationSeconds),
       favorite: Value(favorite),
+      uploaded: Value(uploaded),
     );
   }
 
@@ -1114,6 +1144,7 @@ class Audio extends DataClass implements Insertable<Audio> {
       ownerName: serializer.fromJson<String?>(json['ownerName']),
       durationSeconds: serializer.fromJson<int?>(json['durationSeconds']),
       favorite: serializer.fromJson<bool>(json['favorite']),
+      uploaded: serializer.fromJson<bool>(json['uploaded']),
     );
   }
   @override
@@ -1127,6 +1158,7 @@ class Audio extends DataClass implements Insertable<Audio> {
       'ownerName': serializer.toJson<String?>(ownerName),
       'durationSeconds': serializer.toJson<int?>(durationSeconds),
       'favorite': serializer.toJson<bool>(favorite),
+      'uploaded': serializer.toJson<bool>(uploaded),
     };
   }
 
@@ -1138,6 +1170,7 @@ class Audio extends DataClass implements Insertable<Audio> {
     Value<String?> ownerName = const Value.absent(),
     Value<int?> durationSeconds = const Value.absent(),
     bool? favorite,
+    bool? uploaded,
   }) => Audio(
     id: id ?? this.id,
     filePath: filePath ?? this.filePath,
@@ -1148,6 +1181,7 @@ class Audio extends DataClass implements Insertable<Audio> {
         ? durationSeconds.value
         : this.durationSeconds,
     favorite: favorite ?? this.favorite,
+    uploaded: uploaded ?? this.uploaded,
   );
   Audio copyWithCompanion(AudiosCompanion data) {
     return Audio(
@@ -1160,6 +1194,7 @@ class Audio extends DataClass implements Insertable<Audio> {
           ? data.durationSeconds.value
           : this.durationSeconds,
       favorite: data.favorite.present ? data.favorite.value : this.favorite,
+      uploaded: data.uploaded.present ? data.uploaded.value : this.uploaded,
     );
   }
 
@@ -1172,7 +1207,8 @@ class Audio extends DataClass implements Insertable<Audio> {
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
           ..write('durationSeconds: $durationSeconds, ')
-          ..write('favorite: $favorite')
+          ..write('favorite: $favorite, ')
+          ..write('uploaded: $uploaded')
           ..write(')'))
         .toString();
   }
@@ -1186,6 +1222,7 @@ class Audio extends DataClass implements Insertable<Audio> {
     ownerName,
     durationSeconds,
     favorite,
+    uploaded,
   );
   @override
   bool operator ==(Object other) =>
@@ -1197,7 +1234,8 @@ class Audio extends DataClass implements Insertable<Audio> {
           other.deviceId == this.deviceId &&
           other.ownerName == this.ownerName &&
           other.durationSeconds == this.durationSeconds &&
-          other.favorite == this.favorite);
+          other.favorite == this.favorite &&
+          other.uploaded == this.uploaded);
 }
 
 class AudiosCompanion extends UpdateCompanion<Audio> {
@@ -1208,6 +1246,7 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
   final Value<String?> ownerName;
   final Value<int?> durationSeconds;
   final Value<bool> favorite;
+  final Value<bool> uploaded;
   const AudiosCompanion({
     this.id = const Value.absent(),
     this.filePath = const Value.absent(),
@@ -1216,6 +1255,7 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     this.ownerName = const Value.absent(),
     this.durationSeconds = const Value.absent(),
     this.favorite = const Value.absent(),
+    this.uploaded = const Value.absent(),
   });
   AudiosCompanion.insert({
     this.id = const Value.absent(),
@@ -1225,6 +1265,7 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     this.ownerName = const Value.absent(),
     this.durationSeconds = const Value.absent(),
     this.favorite = const Value.absent(),
+    this.uploaded = const Value.absent(),
   }) : filePath = Value(filePath),
        deviceId = Value(deviceId);
   static Insertable<Audio> custom({
@@ -1235,6 +1276,7 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     Expression<String>? ownerName,
     Expression<int>? durationSeconds,
     Expression<bool>? favorite,
+    Expression<bool>? uploaded,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1244,6 +1286,7 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
       if (ownerName != null) 'owner_name': ownerName,
       if (durationSeconds != null) 'duration_seconds': durationSeconds,
       if (favorite != null) 'favorite': favorite,
+      if (uploaded != null) 'uploaded': uploaded,
     });
   }
 
@@ -1255,6 +1298,7 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     Value<String?>? ownerName,
     Value<int?>? durationSeconds,
     Value<bool>? favorite,
+    Value<bool>? uploaded,
   }) {
     return AudiosCompanion(
       id: id ?? this.id,
@@ -1264,6 +1308,7 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
       ownerName: ownerName ?? this.ownerName,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       favorite: favorite ?? this.favorite,
+      uploaded: uploaded ?? this.uploaded,
     );
   }
 
@@ -1291,6 +1336,9 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
     if (favorite.present) {
       map['favorite'] = Variable<bool>(favorite.value);
     }
+    if (uploaded.present) {
+      map['uploaded'] = Variable<bool>(uploaded.value);
+    }
     return map;
   }
 
@@ -1303,7 +1351,8 @@ class AudiosCompanion extends UpdateCompanion<Audio> {
           ..write('deviceId: $deviceId, ')
           ..write('ownerName: $ownerName, ')
           ..write('durationSeconds: $durationSeconds, ')
-          ..write('favorite: $favorite')
+          ..write('favorite: $favorite, ')
+          ..write('uploaded: $uploaded')
           ..write(')'))
         .toString();
   }
@@ -2230,6 +2279,7 @@ typedef $$AudiosTableCreateCompanionBuilder =
       Value<String?> ownerName,
       Value<int?> durationSeconds,
       Value<bool> favorite,
+      Value<bool> uploaded,
     });
 typedef $$AudiosTableUpdateCompanionBuilder =
     AudiosCompanion Function({
@@ -2240,6 +2290,7 @@ typedef $$AudiosTableUpdateCompanionBuilder =
       Value<String?> ownerName,
       Value<int?> durationSeconds,
       Value<bool> favorite,
+      Value<bool> uploaded,
     });
 
 class $$AudiosTableFilterComposer
@@ -2283,6 +2334,11 @@ class $$AudiosTableFilterComposer
 
   ColumnFilters<bool> get favorite => $composableBuilder(
     column: $table.favorite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2330,6 +2386,11 @@ class $$AudiosTableOrderingComposer
     column: $table.favorite,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get uploaded => $composableBuilder(
+    column: $table.uploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AudiosTableAnnotationComposer
@@ -2363,6 +2424,9 @@ class $$AudiosTableAnnotationComposer
 
   GeneratedColumn<bool> get favorite =>
       $composableBuilder(column: $table.favorite, builder: (column) => column);
+
+  GeneratedColumn<bool> get uploaded =>
+      $composableBuilder(column: $table.uploaded, builder: (column) => column);
 }
 
 class $$AudiosTableTableManager
@@ -2400,6 +2464,7 @@ class $$AudiosTableTableManager
                 Value<String?> ownerName = const Value.absent(),
                 Value<int?> durationSeconds = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
               }) => AudiosCompanion(
                 id: id,
                 filePath: filePath,
@@ -2408,6 +2473,7 @@ class $$AudiosTableTableManager
                 ownerName: ownerName,
                 durationSeconds: durationSeconds,
                 favorite: favorite,
+                uploaded: uploaded,
               ),
           createCompanionCallback:
               ({
@@ -2418,6 +2484,7 @@ class $$AudiosTableTableManager
                 Value<String?> ownerName = const Value.absent(),
                 Value<int?> durationSeconds = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
+                Value<bool> uploaded = const Value.absent(),
               }) => AudiosCompanion.insert(
                 id: id,
                 filePath: filePath,
@@ -2426,6 +2493,7 @@ class $$AudiosTableTableManager
                 ownerName: ownerName,
                 durationSeconds: durationSeconds,
                 favorite: favorite,
+                uploaded: uploaded,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

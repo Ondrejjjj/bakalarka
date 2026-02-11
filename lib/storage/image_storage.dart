@@ -34,19 +34,7 @@ class ImageStorage {
     return File(p.join(dir.path, '$id.enc'));
   }
 
-  // Získanie obľúbených - bezpečný prístup
-  Future<List<File>> getFavoriteEncryptedFiles() async {
-    final favoritePhotos = await db.getFavoritePhotos();
-    final List<File> files = [];
 
-    for (var photo in favoritePhotos) {
-      final file = File(photo.filePath);
-      if (await file.exists()) {
-        files.add(file);
-      }
-    }
-    return files;
-  }
   // V ImageStorage alebo v nejakej Logike:
   Future<void> saveSecurePhoto(Uint8List originalBytes, String photoId) async {
     // 1. Zašifrujeme dáta

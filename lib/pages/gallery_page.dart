@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../storage/image_storage.dart';
 import '../security/crypto_service.dart';
+import '../services/sync_service.dart'; // Import novej služby
 import 'fullscreen_image_page.dart';
 import 'package:bakalarka/database.dart';
 
@@ -19,6 +19,7 @@ class _GalleryPageState extends State<GalleryPage> {
   bool _showOnlyFavorites = false;
   final Set<File> _selectedFiles = {};
   bool _selectionMode = false;
+  bool _isSyncing = false; // Indikátor nahrávania
 
   @override
   void didChangeDependencies() {
@@ -29,7 +30,6 @@ class _GalleryPageState extends State<GalleryPage> {
   Stream<List<_PhotoItem>> _watchPhotos() {
     return db.select(db.photos).watch().asyncMap((rows) async {
       final List<_PhotoItem> items = [];
-
       for (var row in rows) {
         final file = File(row.filePath);
         if (await file.exists()) {
@@ -43,7 +43,6 @@ class _GalleryPageState extends State<GalleryPage> {
           ));
         }
       }
-
       if (_showOnlyFavorites) {
         return items.where((e) => e.isFavorite).toList();
       }
@@ -73,18 +72,38 @@ class _GalleryPageState extends State<GalleryPage> {
     });
   }
 
+  // FUNKCIA PRE SYNCHRONIZÁCIU
+  void _syncSelected() async {
+    setState(() => _isSyncing = true);
+    final syncService = SyncService(db);
+    int successCount = 0;
+
+    for (var file in _selectedFiles) {
+      bool ok = await syncService.syncMedia(file, 'image');
+      if (ok) successCount++;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Úspešne nahraných $successCount fotiek.')),
+      );
+      setState(() {
+        _isSyncing = false;
+        _selectedFiles.clear();
+        _selectionMode = false;
+      });
+    }
+  }
+
   void _deleteSelected() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Vymazať výber?'),
-        content: Text('Naozaj chcete vymazať ${_selectedFiles.length} položiek z trezoru?'),
+        content: Text('Naozaj chcete vymazať ${_selectedFiles.length} položiek?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zrušiť')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Vymazať', style: TextStyle(color: Colors.red)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Vymazať', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -105,23 +124,28 @@ class _GalleryPageState extends State<GalleryPage> {
 
   @override
   Widget build(BuildContext context) {
-    // TU JE ZMENA: Namiesto Scaffold vraciame Column,
-    // pretože Scaffold je už v MediaVaultPage
     return Column(
       children: [
-        // Ak sme v režime výberu, ukážeme malú lištu s akcia pod prepínačom
         if (_selectionMode)
           Container(
-            color: Theme.of(context).colorScheme.errorContainer,
+            color: Theme.of(context).colorScheme.secondaryContainer,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                Text('${_selectedFiles.length} vybrané',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer, fontWeight: FontWeight.bold)),
+                Text('${_selectedFiles.length} vybrané', style: const TextStyle(fontWeight: FontWeight.bold)),
                 const Spacer(),
+                // TLAČIDLO PRE SYNC
+                if (_isSyncing)
+                  const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                else
+                  IconButton(
+                    icon: const Icon(Icons.cloud_upload, color: Colors.blue),
+                    onPressed: _syncSelected,
+                    tooltip: 'Nahrať do cloudu',
+                  ),
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: _deleteSelected,
+                  onPressed: _isSyncing ? null : _deleteSelected,
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -138,35 +162,14 @@ class _GalleryPageState extends State<GalleryPage> {
           child: StreamBuilder<List<_PhotoItem>>(
             stream: _watchPhotos(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return Center(child: Text('Chyba načítania: ${snapshot.error}'));
-              }
-
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               final items = snapshot.data ?? [];
-
-              if (items.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      const Text('Trezor fotiek je prázdny'),
-                    ],
-                  ),
-                );
-              }
+              if (items.isEmpty) return const Center(child: Text('Trezor fotiek je prázdny'));
 
               return GridView.builder(
                 padding: const EdgeInsets.all(4),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
+                  crossAxisCount: 3, mainAxisSpacing: 4, crossAxisSpacing: 4,
                 ),
                 itemCount: items.length,
                 itemBuilder: (context, index) {
@@ -181,18 +184,12 @@ class _GalleryPageState extends State<GalleryPage> {
                       } else {
                         final bytes = await _decryptForDisplay(item.file);
                         if (!mounted) return;
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FullscreenImagePage(
-                              imageBytes: bytes,
-                              photoName: item.ownerName,
-                              latitude: item.latitude,
-                              longitude: item.longitude,
-                            ),
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => FullscreenImagePage(
+                            imageBytes: bytes, photoName: item.ownerName,
+                            latitude: item.latitude, longitude: item.longitude,
                           ),
-                        );
+                        ));
                       }
                     },
                     child: Stack(
@@ -201,44 +198,34 @@ class _GalleryPageState extends State<GalleryPage> {
                         FutureBuilder<Uint8List>(
                           future: _decryptForDisplay(item.file),
                           builder: (context, thumbSnapshot) {
-                            if (thumbSnapshot.connectionState == ConnectionState.waiting) {
-                              return Container(color: Colors.black12);
-                            }
-                            if (thumbSnapshot.hasError || !thumbSnapshot.hasData) {
-                              return Container(color: Colors.grey, child: const Icon(Icons.error));
-                            }
+                            if (!thumbSnapshot.hasData) return Container(color: Colors.black12);
                             return ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: Image.memory(thumbSnapshot.data!, fit: BoxFit.cover),
                             );
                           },
                         ),
-                        if (isSelected)
-                          Container(
-                            color: Colors.black54,
-                            child: const Icon(Icons.check_circle, color: Colors.blue, size: 32),
-                          ),
+                        if (isSelected) Container(color: Colors.black54, child: const Icon(Icons.check_circle, color: Colors.blue, size: 32)),
+
+                        // INDIKÁTOR STAVU CLOUDU
                         Positioned(
-                          top: 4,
-                          left: 4,
-                          child: Icon(
-                            item.isUploaded ? Icons.cloud_done : Icons.cloud_off,
-                            color: item.isUploaded ? Colors.greenAccent : Colors.white70,
-                            size: 14,
+                          top: 4, left: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(4)),
+                            child: Icon(
+                              item.isUploaded ? Icons.cloud_done : Icons.cloud_off,
+                              color: item.isUploaded ? Colors.greenAccent : Colors.white70,
+                              size: 16,
+                            ),
                           ),
                         ),
+
                         Positioned(
-                          bottom: -4,
-                          right: -4,
+                          bottom: -4, right: -4,
                           child: IconButton(
-                            icon: Icon(
-                              item.isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: item.isFavorite ? Colors.red : Colors.white,
-                              size: 20,
-                            ),
-                            onPressed: () async {
-                              await db.toggleFavorite(item.file.path, !item.isFavorite);
-                            },
+                            icon: Icon(item.isFavorite ? Icons.favorite : Icons.favorite_border, color: item.isFavorite ? Colors.red : Colors.white, size: 20),
+                            onPressed: () => db.toggleFavorite(item.file.path, !item.isFavorite),
                           ),
                         ),
                       ],
@@ -249,7 +236,6 @@ class _GalleryPageState extends State<GalleryPage> {
             },
           ),
         ),
-        // Filter zostáva na spodku tejto pod-stránky
         _buildBottomFilterBar(),
       ],
     );
@@ -265,11 +251,7 @@ class _GalleryPageState extends State<GalleryPage> {
             ButtonSegment(value: true, label: Text('Obľúbené'), icon: Icon(Icons.favorite)),
           ],
           selected: {_showOnlyFavorites},
-          onSelectionChanged: (value) {
-            setState(() {
-              _showOnlyFavorites = value.first;
-            });
-          },
+          onSelectionChanged: (value) => setState(() => _showOnlyFavorites = value.first),
         ),
       ),
     );
@@ -285,11 +267,7 @@ class _PhotoItem {
   final double? longitude;
 
   _PhotoItem({
-    required this.file,
-    required this.isFavorite,
-    required this.isUploaded,
-    this.ownerName,
-    this.latitude,
-    this.longitude,
+    required this.file, required this.isFavorite, required this.isUploaded,
+    this.ownerName, this.latitude, this.longitude,
   });
 }

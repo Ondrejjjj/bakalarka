@@ -37,7 +37,8 @@ LazyDatabase _openConnection() {
   });
 }
 
-// --------------- Prvá tabuľka: Users ----------------
+// --------------- TABUĽKY ----------------
+
 class Users extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get username => text()();
@@ -45,10 +46,9 @@ class Users extends Table {
   TextColumn get email => text()();
 }
 
-// --------------- Druhá tabuľka: Photos ----------------
 class Photos extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get filePath => text()(); // cesta k šifrovanému súboru
+  TextColumn get filePath => text()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get deviceId => text()();
   TextColumn get ownerName => text().nullable()();
@@ -58,36 +58,36 @@ class Photos extends Table {
   RealColumn get longitude => real().nullable()();
 }
 
-// --------------- Tretia tabuľka: Audios ----------------
 class Audios extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get filePath => text()(); // cesta k šifrovanému .enc súboru
+  TextColumn get filePath => text()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get deviceId => text()();
   TextColumn get ownerName => text().nullable()();
   IntColumn get durationSeconds => integer().nullable()();
   BoolColumn get favorite => boolean().withDefault(const Constant(false))();
+  // Pridaný stĺpec pre synchronizáciu
+  BoolColumn get uploaded => boolean().withDefault(const Constant(false))();
 }
 
-// --------------- Štvrtá tabuľka: Videos (NOVÁ) ----------------
 class Videos extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get filePath => text()(); // cesta k šifrovanému .enc súboru
+  TextColumn get filePath => text()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get deviceId => text()();
   TextColumn get ownerName => text().nullable()();
   BoolColumn get uploaded => boolean().withDefault(const Constant(false))();
-  // Pri videu sa môže hodiť aj dĺžka, ak ju vieš zistiť
   IntColumn get durationSeconds => integer().nullable()();
 }
 
 // --------------- Drift Database ----------------
-@DriftDatabase(tables: [Users, Photos, Audios, Videos]) // Pridané Videos
+
+@DriftDatabase(tables: [Users, Photos, Audios, Videos])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4; // Zvýšené na 4
+  int get schemaVersion => 5; // Zvýšené na 5
 
   // ---------------- USERS CRUD ----------------
   Future<int> createUser(String username, String password, String email) {
@@ -107,6 +107,26 @@ class AppDatabase extends _$AppDatabase {
         .getSingleOrNull();
   }
 
+  // ---------------- SYNC LOGIKA (Nové funkcie) ----------------
+
+  Future<void> markPhotoAsUploaded(String filePath) {
+    return (update(photos)..where((p) => p.filePath.equals(filePath))).write(
+      const PhotosCompanion(uploaded: Value(true)),
+    );
+  }
+
+  Future<void> markVideoAsUploaded(String filePath) {
+    return (update(videos)..where((v) => v.filePath.equals(filePath))).write(
+      const VideosCompanion(uploaded: Value(true)),
+    );
+  }
+
+  Future<void> markAudioAsUploaded(String filePath) {
+    return (update(audios)..where((a) => a.filePath.equals(filePath))).write(
+      const AudiosCompanion(uploaded: Value(true)),
+    );
+  }
+
   // ---------------- PHOTOS CRUD ----------------
   Future<int> insertPhoto({
     required String filePath,
@@ -116,7 +136,7 @@ class AppDatabase extends _$AppDatabase {
     double? latitude,
     double? longitude,
   }) async {
-    final id = await into(photos).insert(
+    return await into(photos).insert(
       PhotosCompanion(
         filePath: Value(filePath),
         deviceId: Value(deviceId),
@@ -126,17 +146,10 @@ class AppDatabase extends _$AppDatabase {
         longitude: Value(longitude),
       ),
     );
-    return id;
   }
 
   Future<List<Photo>> getAllPhotos() => select(photos).get();
-
   Stream<List<Photo>> watchAllPhotos() => select(photos).watch();
-
-  Future<Photo?> getPhotoByPath(String filePath) {
-    return (select(photos)..where((p) => p.filePath.equals(filePath)))
-        .getSingleOrNull();
-  }
 
   Future<void> deletePhoto(String filePath) async {
     await (delete(photos)..where((p) => p.filePath.equals(filePath))).go();
@@ -148,16 +161,13 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<List<Photo>> getFavoritePhotos() {
-    return (select(photos)..where((p) => p.favorite.equals(true))).get();
-  }
-
   // ---------------- AUDIOS CRUD ----------------
   Future<int> insertAudio({
     required String filePath,
     required String deviceId,
     String? ownerName,
     int? duration,
+    bool uploaded = false,
   }) {
     return into(audios).insert(
       AudiosCompanion(
@@ -165,12 +175,12 @@ class AppDatabase extends _$AppDatabase {
         deviceId: Value(deviceId),
         ownerName: Value(ownerName),
         durationSeconds: Value(duration),
+        uploaded: Value(uploaded),
       ),
     );
   }
 
   Future<List<Audio>> getAllAudios() => select(audios).get();
-
   Stream<List<Audio>> watchAllAudios() => select(audios).watch();
 
   Future<void> deleteAudio(String filePath) async {
@@ -183,7 +193,7 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  // ---------------- VIDEOS CRUD (NOVÉ) ----------------
+  // ---------------- VIDEOS CRUD ----------------
   Future<int> insertVideo({
     required String filePath,
     required String deviceId,
@@ -202,9 +212,7 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Stream<List<Video>> watchAllVideos() {
-    return select(videos).watch();
-  }
+  Stream<List<Video>> watchAllVideos() => select(videos).watch();
 
   Future<void> deleteVideo(String filePath) async {
     await (delete(videos)..where((v) => v.filePath.equals(filePath))).go();
@@ -218,12 +226,11 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(photos, photos.latitude);
         await m.addColumn(photos, photos.longitude);
       }
-      if (from < 3) {
-        await m.createTable(audios);
-      }
-      if (from < 4) {
-        // Vytvorí tabuľku videos pri prechode na verziu 4
-        await m.createTable(videos);
+      if (from < 3) await m.createTable(audios);
+      if (from < 4) await m.createTable(videos);
+      if (from < 5) {
+        // Pridá stĺpec uploaded do už existujúcej tabuľky audios
+        await m.addColumn(audios, audios.uploaded);
       }
     },
   );
