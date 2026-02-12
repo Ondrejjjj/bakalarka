@@ -18,6 +18,10 @@ import 'package:bakalarka/microphone.dart';
 import 'package:bakalarka/pages/actions/action_report_pages.dart';
 import 'package:bakalarka/pages/login_page.dart'; // Tvoja nová prihlasovacia stránka
 import 'generated/l10n.dart';
+import 'package:bakalarka/pages/inventory_page.dart';
+import 'package:bakalarka/pages/assets_management_page.dart';
+
+
 
 // Ignorujeme varovania pre schovanie ThemeProvider, ak ho máš v theme.dart
 import 'theme.dart' hide ThemeProvider, AppTheme;
@@ -318,26 +322,131 @@ class SettingsDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          DrawerHeader(
+          // HLAVIČKA DRAWERU (Info o firme/aplikácii)
+          UserAccountsDrawerHeader(
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
+              color: colorScheme.primaryContainer,
             ),
-            child: const Text('Settings', style: TextStyle(fontSize: 20)),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: colorScheme.primary,
+              child: Icon(Icons.business_center, color: colorScheme.onPrimary, size: 30),
+            ),
+            accountName: Text(
+              "Trezor System",
+              style: TextStyle(color: colorScheme.onPrimaryContainer, fontWeight: FontWeight.bold),
+            ),
+            accountEmail: Text(
+              "Správa majetku a skladu",
+              style: TextStyle(color: colorScheme.onPrimaryContainer.withOpacity(0.8)),
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: Text(S.of(context).settingsTitle),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/settings');
-            },
+
+          // TELO DRAWERU (Navigácia)
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _drawerSectionTitle(context, 'Evidencia'),
+                _drawerItem(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Zariadenia',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => const AssetsManagementPage(initialIndex: 0) // Otvorí prvú kartu
+                    ));
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.history_outlined,
+                  label: 'História kontrol',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => const AssetsManagementPage(initialIndex: 1) // Otvorí druhú kartu
+                    ));
+                  },
+                ),
+                const Divider(indent: 16, endIndent: 16),
+                _drawerSectionTitle(context, 'Sklad'),
+                _drawerItem(
+                  icon: Icons.warehouse_outlined,
+                  label: 'Stav zásob',
+                  onTap: () {
+                    Navigator.pop(context);
+                     Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryPage()));
+                  },
+                ),
+                _drawerItem(
+                  icon: Icons.swap_vert_rounded,
+                  label: 'Príjem / Výdaj',
+                  onTap: () {
+                    Navigator.pop(context);
+                    // Navigator.push(context, MaterialPageRoute(builder: (_) => const StockMovementsPage()));
+                  },
+                ),
+
+                const Divider(indent: 16, endIndent: 16),
+                _drawerSectionTitle(context, 'Systém'),
+                _drawerItem(
+                  icon: Icons.settings_outlined,
+                  label: 'Nastavenia',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/settings');
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // SPODNÁ ČASŤ (Verzia alebo Logout poistka)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'v1.0.0-beta',
+              style: textTheme.labelSmall?.copyWith(color: colorScheme.outline),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  // Pomocný widget pre nadpisy sekcií
+  Widget _drawerSectionTitle(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        title.toUpperCase(),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  // Pomocný widget pre položku v zozname
+  Widget _drawerItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      onTap: onTap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
     );
   }
 }
