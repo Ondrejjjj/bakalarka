@@ -1090,6 +1090,1330 @@ class AssetsCompanion extends UpdateCompanion<Asset> {
   }
 }
 
+class $InventoryTable extends Inventory
+    with TableInfo<$InventoryTable, InventoryData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InventoryTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _firebaseIdMeta = const VerificationMeta(
+    'firebaseId',
+  );
+  @override
+  late final GeneratedColumn<String> firebaseId = GeneratedColumn<String>(
+    'firebase_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 100,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _skuMeta = const VerificationMeta('sku');
+  @override
+  late final GeneratedColumn<String> sku = GeneratedColumn<String>(
+    'sku',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 50,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _eanMeta = const VerificationMeta('ean');
+  @override
+  late final GeneratedColumn<String> ean = GeneratedColumn<String>(
+    'ean',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 50,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _qtyMeta = const VerificationMeta('qty');
+  @override
+  late final GeneratedColumn<double> qty = GeneratedColumn<double>(
+    'qty',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 10,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userEmailMeta = const VerificationMeta(
+    'userEmail',
+  );
+  @override
+  late final GeneratedColumn<String> userEmail = GeneratedColumn<String>(
+    'user_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyCodeMeta = const VerificationMeta(
+    'companyCode',
+  );
+  @override
+  late final GeneratedColumn<String> companyCode = GeneratedColumn<String>(
+    'company_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastModified = GeneratedColumn<DateTime>(
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isUploadedMeta = const VerificationMeta(
+    'isUploaded',
+  );
+  @override
+  late final GeneratedColumn<bool> isUploaded = GeneratedColumn<bool>(
+    'is_uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    firebaseId,
+    name,
+    sku,
+    ean,
+    qty,
+    unit,
+    userEmail,
+    companyCode,
+    lastModified,
+    isUploaded,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'inventory';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<InventoryData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('firebase_id')) {
+      context.handle(
+        _firebaseIdMeta,
+        firebaseId.isAcceptableOrUnknown(data['firebase_id']!, _firebaseIdMeta),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sku')) {
+      context.handle(
+        _skuMeta,
+        sku.isAcceptableOrUnknown(data['sku']!, _skuMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_skuMeta);
+    }
+    if (data.containsKey('ean')) {
+      context.handle(
+        _eanMeta,
+        ean.isAcceptableOrUnknown(data['ean']!, _eanMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eanMeta);
+    }
+    if (data.containsKey('qty')) {
+      context.handle(
+        _qtyMeta,
+        qty.isAcceptableOrUnknown(data['qty']!, _qtyMeta),
+      );
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_unitMeta);
+    }
+    if (data.containsKey('user_email')) {
+      context.handle(
+        _userEmailMeta,
+        userEmail.isAcceptableOrUnknown(data['user_email']!, _userEmailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userEmailMeta);
+    }
+    if (data.containsKey('company_code')) {
+      context.handle(
+        _companyCodeMeta,
+        companyCode.isAcceptableOrUnknown(
+          data['company_code']!,
+          _companyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_companyCodeMeta);
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
+          _lastModifiedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_uploaded')) {
+      context.handle(
+        _isUploadedMeta,
+        isUploaded.isAcceptableOrUnknown(data['is_uploaded']!, _isUploadedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  InventoryData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InventoryData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      firebaseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}firebase_id'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      sku: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sku'],
+      )!,
+      ean: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ean'],
+      )!,
+      qty: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}qty'],
+      )!,
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      )!,
+      userEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_email'],
+      )!,
+      companyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_code'],
+      )!,
+      lastModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_modified'],
+      )!,
+      isUploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_uploaded'],
+      )!,
+    );
+  }
+
+  @override
+  $InventoryTable createAlias(String alias) {
+    return $InventoryTable(attachedDatabase, alias);
+  }
+}
+
+class InventoryData extends DataClass implements Insertable<InventoryData> {
+  final int id;
+  final String? firebaseId;
+  final String name;
+  final String sku;
+  final String ean;
+  final double qty;
+  final String unit;
+  final String userEmail;
+  final String companyCode;
+  final DateTime lastModified;
+  final bool isUploaded;
+  const InventoryData({
+    required this.id,
+    this.firebaseId,
+    required this.name,
+    required this.sku,
+    required this.ean,
+    required this.qty,
+    required this.unit,
+    required this.userEmail,
+    required this.companyCode,
+    required this.lastModified,
+    required this.isUploaded,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || firebaseId != null) {
+      map['firebase_id'] = Variable<String>(firebaseId);
+    }
+    map['name'] = Variable<String>(name);
+    map['sku'] = Variable<String>(sku);
+    map['ean'] = Variable<String>(ean);
+    map['qty'] = Variable<double>(qty);
+    map['unit'] = Variable<String>(unit);
+    map['user_email'] = Variable<String>(userEmail);
+    map['company_code'] = Variable<String>(companyCode);
+    map['last_modified'] = Variable<DateTime>(lastModified);
+    map['is_uploaded'] = Variable<bool>(isUploaded);
+    return map;
+  }
+
+  InventoryCompanion toCompanion(bool nullToAbsent) {
+    return InventoryCompanion(
+      id: Value(id),
+      firebaseId: firebaseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(firebaseId),
+      name: Value(name),
+      sku: Value(sku),
+      ean: Value(ean),
+      qty: Value(qty),
+      unit: Value(unit),
+      userEmail: Value(userEmail),
+      companyCode: Value(companyCode),
+      lastModified: Value(lastModified),
+      isUploaded: Value(isUploaded),
+    );
+  }
+
+  factory InventoryData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InventoryData(
+      id: serializer.fromJson<int>(json['id']),
+      firebaseId: serializer.fromJson<String?>(json['firebaseId']),
+      name: serializer.fromJson<String>(json['name']),
+      sku: serializer.fromJson<String>(json['sku']),
+      ean: serializer.fromJson<String>(json['ean']),
+      qty: serializer.fromJson<double>(json['qty']),
+      unit: serializer.fromJson<String>(json['unit']),
+      userEmail: serializer.fromJson<String>(json['userEmail']),
+      companyCode: serializer.fromJson<String>(json['companyCode']),
+      lastModified: serializer.fromJson<DateTime>(json['lastModified']),
+      isUploaded: serializer.fromJson<bool>(json['isUploaded']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'firebaseId': serializer.toJson<String?>(firebaseId),
+      'name': serializer.toJson<String>(name),
+      'sku': serializer.toJson<String>(sku),
+      'ean': serializer.toJson<String>(ean),
+      'qty': serializer.toJson<double>(qty),
+      'unit': serializer.toJson<String>(unit),
+      'userEmail': serializer.toJson<String>(userEmail),
+      'companyCode': serializer.toJson<String>(companyCode),
+      'lastModified': serializer.toJson<DateTime>(lastModified),
+      'isUploaded': serializer.toJson<bool>(isUploaded),
+    };
+  }
+
+  InventoryData copyWith({
+    int? id,
+    Value<String?> firebaseId = const Value.absent(),
+    String? name,
+    String? sku,
+    String? ean,
+    double? qty,
+    String? unit,
+    String? userEmail,
+    String? companyCode,
+    DateTime? lastModified,
+    bool? isUploaded,
+  }) => InventoryData(
+    id: id ?? this.id,
+    firebaseId: firebaseId.present ? firebaseId.value : this.firebaseId,
+    name: name ?? this.name,
+    sku: sku ?? this.sku,
+    ean: ean ?? this.ean,
+    qty: qty ?? this.qty,
+    unit: unit ?? this.unit,
+    userEmail: userEmail ?? this.userEmail,
+    companyCode: companyCode ?? this.companyCode,
+    lastModified: lastModified ?? this.lastModified,
+    isUploaded: isUploaded ?? this.isUploaded,
+  );
+  InventoryData copyWithCompanion(InventoryCompanion data) {
+    return InventoryData(
+      id: data.id.present ? data.id.value : this.id,
+      firebaseId: data.firebaseId.present
+          ? data.firebaseId.value
+          : this.firebaseId,
+      name: data.name.present ? data.name.value : this.name,
+      sku: data.sku.present ? data.sku.value : this.sku,
+      ean: data.ean.present ? data.ean.value : this.ean,
+      qty: data.qty.present ? data.qty.value : this.qty,
+      unit: data.unit.present ? data.unit.value : this.unit,
+      userEmail: data.userEmail.present ? data.userEmail.value : this.userEmail,
+      companyCode: data.companyCode.present
+          ? data.companyCode.value
+          : this.companyCode,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      isUploaded: data.isUploaded.present
+          ? data.isUploaded.value
+          : this.isUploaded,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InventoryData(')
+          ..write('id: $id, ')
+          ..write('firebaseId: $firebaseId, ')
+          ..write('name: $name, ')
+          ..write('sku: $sku, ')
+          ..write('ean: $ean, ')
+          ..write('qty: $qty, ')
+          ..write('unit: $unit, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('isUploaded: $isUploaded')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    firebaseId,
+    name,
+    sku,
+    ean,
+    qty,
+    unit,
+    userEmail,
+    companyCode,
+    lastModified,
+    isUploaded,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InventoryData &&
+          other.id == this.id &&
+          other.firebaseId == this.firebaseId &&
+          other.name == this.name &&
+          other.sku == this.sku &&
+          other.ean == this.ean &&
+          other.qty == this.qty &&
+          other.unit == this.unit &&
+          other.userEmail == this.userEmail &&
+          other.companyCode == this.companyCode &&
+          other.lastModified == this.lastModified &&
+          other.isUploaded == this.isUploaded);
+}
+
+class InventoryCompanion extends UpdateCompanion<InventoryData> {
+  final Value<int> id;
+  final Value<String?> firebaseId;
+  final Value<String> name;
+  final Value<String> sku;
+  final Value<String> ean;
+  final Value<double> qty;
+  final Value<String> unit;
+  final Value<String> userEmail;
+  final Value<String> companyCode;
+  final Value<DateTime> lastModified;
+  final Value<bool> isUploaded;
+  const InventoryCompanion({
+    this.id = const Value.absent(),
+    this.firebaseId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sku = const Value.absent(),
+    this.ean = const Value.absent(),
+    this.qty = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.userEmail = const Value.absent(),
+    this.companyCode = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.isUploaded = const Value.absent(),
+  });
+  InventoryCompanion.insert({
+    this.id = const Value.absent(),
+    this.firebaseId = const Value.absent(),
+    required String name,
+    required String sku,
+    required String ean,
+    this.qty = const Value.absent(),
+    required String unit,
+    required String userEmail,
+    required String companyCode,
+    this.lastModified = const Value.absent(),
+    this.isUploaded = const Value.absent(),
+  }) : name = Value(name),
+       sku = Value(sku),
+       ean = Value(ean),
+       unit = Value(unit),
+       userEmail = Value(userEmail),
+       companyCode = Value(companyCode);
+  static Insertable<InventoryData> custom({
+    Expression<int>? id,
+    Expression<String>? firebaseId,
+    Expression<String>? name,
+    Expression<String>? sku,
+    Expression<String>? ean,
+    Expression<double>? qty,
+    Expression<String>? unit,
+    Expression<String>? userEmail,
+    Expression<String>? companyCode,
+    Expression<DateTime>? lastModified,
+    Expression<bool>? isUploaded,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (firebaseId != null) 'firebase_id': firebaseId,
+      if (name != null) 'name': name,
+      if (sku != null) 'sku': sku,
+      if (ean != null) 'ean': ean,
+      if (qty != null) 'qty': qty,
+      if (unit != null) 'unit': unit,
+      if (userEmail != null) 'user_email': userEmail,
+      if (companyCode != null) 'company_code': companyCode,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (isUploaded != null) 'is_uploaded': isUploaded,
+    });
+  }
+
+  InventoryCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? firebaseId,
+    Value<String>? name,
+    Value<String>? sku,
+    Value<String>? ean,
+    Value<double>? qty,
+    Value<String>? unit,
+    Value<String>? userEmail,
+    Value<String>? companyCode,
+    Value<DateTime>? lastModified,
+    Value<bool>? isUploaded,
+  }) {
+    return InventoryCompanion(
+      id: id ?? this.id,
+      firebaseId: firebaseId ?? this.firebaseId,
+      name: name ?? this.name,
+      sku: sku ?? this.sku,
+      ean: ean ?? this.ean,
+      qty: qty ?? this.qty,
+      unit: unit ?? this.unit,
+      userEmail: userEmail ?? this.userEmail,
+      companyCode: companyCode ?? this.companyCode,
+      lastModified: lastModified ?? this.lastModified,
+      isUploaded: isUploaded ?? this.isUploaded,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (firebaseId.present) {
+      map['firebase_id'] = Variable<String>(firebaseId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sku.present) {
+      map['sku'] = Variable<String>(sku.value);
+    }
+    if (ean.present) {
+      map['ean'] = Variable<String>(ean.value);
+    }
+    if (qty.present) {
+      map['qty'] = Variable<double>(qty.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
+    if (userEmail.present) {
+      map['user_email'] = Variable<String>(userEmail.value);
+    }
+    if (companyCode.present) {
+      map['company_code'] = Variable<String>(companyCode.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<DateTime>(lastModified.value);
+    }
+    if (isUploaded.present) {
+      map['is_uploaded'] = Variable<bool>(isUploaded.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InventoryCompanion(')
+          ..write('id: $id, ')
+          ..write('firebaseId: $firebaseId, ')
+          ..write('name: $name, ')
+          ..write('sku: $sku, ')
+          ..write('ean: $ean, ')
+          ..write('qty: $qty, ')
+          ..write('unit: $unit, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('isUploaded: $isUploaded')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StockMovementsTable extends StockMovements
+    with TableInfo<$StockMovementsTable, StockMovement> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StockMovementsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _firebaseIdMeta = const VerificationMeta(
+    'firebaseId',
+  );
+  @override
+  late final GeneratedColumn<String> firebaseId = GeneratedColumn<String>(
+    'firebase_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _inventoryIdMeta = const VerificationMeta(
+    'inventoryId',
+  );
+  @override
+  late final GeneratedColumn<int> inventoryId = GeneratedColumn<int>(
+    'inventory_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES inventory (id)',
+    ),
+  );
+  static const VerificationMeta _itemNameMeta = const VerificationMeta(
+    'itemName',
+  );
+  @override
+  late final GeneratedColumn<String> itemName = GeneratedColumn<String>(
+    'item_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _changeQtyMeta = const VerificationMeta(
+    'changeQty',
+  );
+  @override
+  late final GeneratedColumn<double> changeQty = GeneratedColumn<double>(
+    'change_qty',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _extraDataMeta = const VerificationMeta(
+    'extraData',
+  );
+  @override
+  late final GeneratedColumn<String> extraData = GeneratedColumn<String>(
+    'extra_data',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 1000),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _userEmailMeta = const VerificationMeta(
+    'userEmail',
+  );
+  @override
+  late final GeneratedColumn<String> userEmail = GeneratedColumn<String>(
+    'user_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyCodeMeta = const VerificationMeta(
+    'companyCode',
+  );
+  @override
+  late final GeneratedColumn<String> companyCode = GeneratedColumn<String>(
+    'company_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isUploadedMeta = const VerificationMeta(
+    'isUploaded',
+  );
+  @override
+  late final GeneratedColumn<bool> isUploaded = GeneratedColumn<bool>(
+    'is_uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    firebaseId,
+    inventoryId,
+    itemName,
+    changeQty,
+    type,
+    extraData,
+    userEmail,
+    companyCode,
+    createdAt,
+    isUploaded,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stock_movements';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StockMovement> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('firebase_id')) {
+      context.handle(
+        _firebaseIdMeta,
+        firebaseId.isAcceptableOrUnknown(data['firebase_id']!, _firebaseIdMeta),
+      );
+    }
+    if (data.containsKey('inventory_id')) {
+      context.handle(
+        _inventoryIdMeta,
+        inventoryId.isAcceptableOrUnknown(
+          data['inventory_id']!,
+          _inventoryIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_inventoryIdMeta);
+    }
+    if (data.containsKey('item_name')) {
+      context.handle(
+        _itemNameMeta,
+        itemName.isAcceptableOrUnknown(data['item_name']!, _itemNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemNameMeta);
+    }
+    if (data.containsKey('change_qty')) {
+      context.handle(
+        _changeQtyMeta,
+        changeQty.isAcceptableOrUnknown(data['change_qty']!, _changeQtyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_changeQtyMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('extra_data')) {
+      context.handle(
+        _extraDataMeta,
+        extraData.isAcceptableOrUnknown(data['extra_data']!, _extraDataMeta),
+      );
+    }
+    if (data.containsKey('user_email')) {
+      context.handle(
+        _userEmailMeta,
+        userEmail.isAcceptableOrUnknown(data['user_email']!, _userEmailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userEmailMeta);
+    }
+    if (data.containsKey('company_code')) {
+      context.handle(
+        _companyCodeMeta,
+        companyCode.isAcceptableOrUnknown(
+          data['company_code']!,
+          _companyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_companyCodeMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('is_uploaded')) {
+      context.handle(
+        _isUploadedMeta,
+        isUploaded.isAcceptableOrUnknown(data['is_uploaded']!, _isUploadedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StockMovement map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StockMovement(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      firebaseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}firebase_id'],
+      ),
+      inventoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}inventory_id'],
+      )!,
+      itemName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_name'],
+      )!,
+      changeQty: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}change_qty'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      extraData: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}extra_data'],
+      )!,
+      userEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_email'],
+      )!,
+      companyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_code'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      isUploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_uploaded'],
+      )!,
+    );
+  }
+
+  @override
+  $StockMovementsTable createAlias(String alias) {
+    return $StockMovementsTable(attachedDatabase, alias);
+  }
+}
+
+class StockMovement extends DataClass implements Insertable<StockMovement> {
+  final int id;
+  final String? firebaseId;
+  final int inventoryId;
+  final String itemName;
+  final double changeQty;
+  final String type;
+  final String extraData;
+  final String userEmail;
+  final String companyCode;
+  final DateTime createdAt;
+  final bool isUploaded;
+  const StockMovement({
+    required this.id,
+    this.firebaseId,
+    required this.inventoryId,
+    required this.itemName,
+    required this.changeQty,
+    required this.type,
+    required this.extraData,
+    required this.userEmail,
+    required this.companyCode,
+    required this.createdAt,
+    required this.isUploaded,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || firebaseId != null) {
+      map['firebase_id'] = Variable<String>(firebaseId);
+    }
+    map['inventory_id'] = Variable<int>(inventoryId);
+    map['item_name'] = Variable<String>(itemName);
+    map['change_qty'] = Variable<double>(changeQty);
+    map['type'] = Variable<String>(type);
+    map['extra_data'] = Variable<String>(extraData);
+    map['user_email'] = Variable<String>(userEmail);
+    map['company_code'] = Variable<String>(companyCode);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_uploaded'] = Variable<bool>(isUploaded);
+    return map;
+  }
+
+  StockMovementsCompanion toCompanion(bool nullToAbsent) {
+    return StockMovementsCompanion(
+      id: Value(id),
+      firebaseId: firebaseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(firebaseId),
+      inventoryId: Value(inventoryId),
+      itemName: Value(itemName),
+      changeQty: Value(changeQty),
+      type: Value(type),
+      extraData: Value(extraData),
+      userEmail: Value(userEmail),
+      companyCode: Value(companyCode),
+      createdAt: Value(createdAt),
+      isUploaded: Value(isUploaded),
+    );
+  }
+
+  factory StockMovement.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StockMovement(
+      id: serializer.fromJson<int>(json['id']),
+      firebaseId: serializer.fromJson<String?>(json['firebaseId']),
+      inventoryId: serializer.fromJson<int>(json['inventoryId']),
+      itemName: serializer.fromJson<String>(json['itemName']),
+      changeQty: serializer.fromJson<double>(json['changeQty']),
+      type: serializer.fromJson<String>(json['type']),
+      extraData: serializer.fromJson<String>(json['extraData']),
+      userEmail: serializer.fromJson<String>(json['userEmail']),
+      companyCode: serializer.fromJson<String>(json['companyCode']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isUploaded: serializer.fromJson<bool>(json['isUploaded']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'firebaseId': serializer.toJson<String?>(firebaseId),
+      'inventoryId': serializer.toJson<int>(inventoryId),
+      'itemName': serializer.toJson<String>(itemName),
+      'changeQty': serializer.toJson<double>(changeQty),
+      'type': serializer.toJson<String>(type),
+      'extraData': serializer.toJson<String>(extraData),
+      'userEmail': serializer.toJson<String>(userEmail),
+      'companyCode': serializer.toJson<String>(companyCode),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isUploaded': serializer.toJson<bool>(isUploaded),
+    };
+  }
+
+  StockMovement copyWith({
+    int? id,
+    Value<String?> firebaseId = const Value.absent(),
+    int? inventoryId,
+    String? itemName,
+    double? changeQty,
+    String? type,
+    String? extraData,
+    String? userEmail,
+    String? companyCode,
+    DateTime? createdAt,
+    bool? isUploaded,
+  }) => StockMovement(
+    id: id ?? this.id,
+    firebaseId: firebaseId.present ? firebaseId.value : this.firebaseId,
+    inventoryId: inventoryId ?? this.inventoryId,
+    itemName: itemName ?? this.itemName,
+    changeQty: changeQty ?? this.changeQty,
+    type: type ?? this.type,
+    extraData: extraData ?? this.extraData,
+    userEmail: userEmail ?? this.userEmail,
+    companyCode: companyCode ?? this.companyCode,
+    createdAt: createdAt ?? this.createdAt,
+    isUploaded: isUploaded ?? this.isUploaded,
+  );
+  StockMovement copyWithCompanion(StockMovementsCompanion data) {
+    return StockMovement(
+      id: data.id.present ? data.id.value : this.id,
+      firebaseId: data.firebaseId.present
+          ? data.firebaseId.value
+          : this.firebaseId,
+      inventoryId: data.inventoryId.present
+          ? data.inventoryId.value
+          : this.inventoryId,
+      itemName: data.itemName.present ? data.itemName.value : this.itemName,
+      changeQty: data.changeQty.present ? data.changeQty.value : this.changeQty,
+      type: data.type.present ? data.type.value : this.type,
+      extraData: data.extraData.present ? data.extraData.value : this.extraData,
+      userEmail: data.userEmail.present ? data.userEmail.value : this.userEmail,
+      companyCode: data.companyCode.present
+          ? data.companyCode.value
+          : this.companyCode,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isUploaded: data.isUploaded.present
+          ? data.isUploaded.value
+          : this.isUploaded,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockMovement(')
+          ..write('id: $id, ')
+          ..write('firebaseId: $firebaseId, ')
+          ..write('inventoryId: $inventoryId, ')
+          ..write('itemName: $itemName, ')
+          ..write('changeQty: $changeQty, ')
+          ..write('type: $type, ')
+          ..write('extraData: $extraData, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('isUploaded: $isUploaded')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    firebaseId,
+    inventoryId,
+    itemName,
+    changeQty,
+    type,
+    extraData,
+    userEmail,
+    companyCode,
+    createdAt,
+    isUploaded,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StockMovement &&
+          other.id == this.id &&
+          other.firebaseId == this.firebaseId &&
+          other.inventoryId == this.inventoryId &&
+          other.itemName == this.itemName &&
+          other.changeQty == this.changeQty &&
+          other.type == this.type &&
+          other.extraData == this.extraData &&
+          other.userEmail == this.userEmail &&
+          other.companyCode == this.companyCode &&
+          other.createdAt == this.createdAt &&
+          other.isUploaded == this.isUploaded);
+}
+
+class StockMovementsCompanion extends UpdateCompanion<StockMovement> {
+  final Value<int> id;
+  final Value<String?> firebaseId;
+  final Value<int> inventoryId;
+  final Value<String> itemName;
+  final Value<double> changeQty;
+  final Value<String> type;
+  final Value<String> extraData;
+  final Value<String> userEmail;
+  final Value<String> companyCode;
+  final Value<DateTime> createdAt;
+  final Value<bool> isUploaded;
+  const StockMovementsCompanion({
+    this.id = const Value.absent(),
+    this.firebaseId = const Value.absent(),
+    this.inventoryId = const Value.absent(),
+    this.itemName = const Value.absent(),
+    this.changeQty = const Value.absent(),
+    this.type = const Value.absent(),
+    this.extraData = const Value.absent(),
+    this.userEmail = const Value.absent(),
+    this.companyCode = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.isUploaded = const Value.absent(),
+  });
+  StockMovementsCompanion.insert({
+    this.id = const Value.absent(),
+    this.firebaseId = const Value.absent(),
+    required int inventoryId,
+    required String itemName,
+    required double changeQty,
+    required String type,
+    this.extraData = const Value.absent(),
+    required String userEmail,
+    required String companyCode,
+    this.createdAt = const Value.absent(),
+    this.isUploaded = const Value.absent(),
+  }) : inventoryId = Value(inventoryId),
+       itemName = Value(itemName),
+       changeQty = Value(changeQty),
+       type = Value(type),
+       userEmail = Value(userEmail),
+       companyCode = Value(companyCode);
+  static Insertable<StockMovement> custom({
+    Expression<int>? id,
+    Expression<String>? firebaseId,
+    Expression<int>? inventoryId,
+    Expression<String>? itemName,
+    Expression<double>? changeQty,
+    Expression<String>? type,
+    Expression<String>? extraData,
+    Expression<String>? userEmail,
+    Expression<String>? companyCode,
+    Expression<DateTime>? createdAt,
+    Expression<bool>? isUploaded,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (firebaseId != null) 'firebase_id': firebaseId,
+      if (inventoryId != null) 'inventory_id': inventoryId,
+      if (itemName != null) 'item_name': itemName,
+      if (changeQty != null) 'change_qty': changeQty,
+      if (type != null) 'type': type,
+      if (extraData != null) 'extra_data': extraData,
+      if (userEmail != null) 'user_email': userEmail,
+      if (companyCode != null) 'company_code': companyCode,
+      if (createdAt != null) 'created_at': createdAt,
+      if (isUploaded != null) 'is_uploaded': isUploaded,
+    });
+  }
+
+  StockMovementsCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? firebaseId,
+    Value<int>? inventoryId,
+    Value<String>? itemName,
+    Value<double>? changeQty,
+    Value<String>? type,
+    Value<String>? extraData,
+    Value<String>? userEmail,
+    Value<String>? companyCode,
+    Value<DateTime>? createdAt,
+    Value<bool>? isUploaded,
+  }) {
+    return StockMovementsCompanion(
+      id: id ?? this.id,
+      firebaseId: firebaseId ?? this.firebaseId,
+      inventoryId: inventoryId ?? this.inventoryId,
+      itemName: itemName ?? this.itemName,
+      changeQty: changeQty ?? this.changeQty,
+      type: type ?? this.type,
+      extraData: extraData ?? this.extraData,
+      userEmail: userEmail ?? this.userEmail,
+      companyCode: companyCode ?? this.companyCode,
+      createdAt: createdAt ?? this.createdAt,
+      isUploaded: isUploaded ?? this.isUploaded,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (firebaseId.present) {
+      map['firebase_id'] = Variable<String>(firebaseId.value);
+    }
+    if (inventoryId.present) {
+      map['inventory_id'] = Variable<int>(inventoryId.value);
+    }
+    if (itemName.present) {
+      map['item_name'] = Variable<String>(itemName.value);
+    }
+    if (changeQty.present) {
+      map['change_qty'] = Variable<double>(changeQty.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (extraData.present) {
+      map['extra_data'] = Variable<String>(extraData.value);
+    }
+    if (userEmail.present) {
+      map['user_email'] = Variable<String>(userEmail.value);
+    }
+    if (companyCode.present) {
+      map['company_code'] = Variable<String>(companyCode.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (isUploaded.present) {
+      map['is_uploaded'] = Variable<bool>(isUploaded.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockMovementsCompanion(')
+          ..write('id: $id, ')
+          ..write('firebaseId: $firebaseId, ')
+          ..write('inventoryId: $inventoryId, ')
+          ..write('itemName: $itemName, ')
+          ..write('changeQty: $changeQty, ')
+          ..write('type: $type, ')
+          ..write('extraData: $extraData, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('isUploaded: $isUploaded')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -2921,6 +4245,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $UsersTable users = $UsersTable(this);
   late final $AssetsTable assets = $AssetsTable(this);
+  late final $InventoryTable inventory = $InventoryTable(this);
+  late final $StockMovementsTable stockMovements = $StockMovementsTable(this);
   late final $PhotosTable photos = $PhotosTable(this);
   late final $AudiosTable audios = $AudiosTable(this);
   late final $VideosTable videos = $VideosTable(this);
@@ -2931,6 +4257,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     users,
     assets,
+    inventory,
+    stockMovements,
     photos,
     audios,
     videos,
@@ -3473,6 +4801,870 @@ typedef $$AssetsTableProcessedTableManager =
       (Asset, BaseReferences<_$AppDatabase, $AssetsTable, Asset>),
       Asset,
       PrefetchHooks Function()
+    >;
+typedef $$InventoryTableCreateCompanionBuilder =
+    InventoryCompanion Function({
+      Value<int> id,
+      Value<String?> firebaseId,
+      required String name,
+      required String sku,
+      required String ean,
+      Value<double> qty,
+      required String unit,
+      required String userEmail,
+      required String companyCode,
+      Value<DateTime> lastModified,
+      Value<bool> isUploaded,
+    });
+typedef $$InventoryTableUpdateCompanionBuilder =
+    InventoryCompanion Function({
+      Value<int> id,
+      Value<String?> firebaseId,
+      Value<String> name,
+      Value<String> sku,
+      Value<String> ean,
+      Value<double> qty,
+      Value<String> unit,
+      Value<String> userEmail,
+      Value<String> companyCode,
+      Value<DateTime> lastModified,
+      Value<bool> isUploaded,
+    });
+
+final class $$InventoryTableReferences
+    extends BaseReferences<_$AppDatabase, $InventoryTable, InventoryData> {
+  $$InventoryTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$StockMovementsTable, List<StockMovement>>
+  _stockMovementsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.stockMovements,
+    aliasName: $_aliasNameGenerator(
+      db.inventory.id,
+      db.stockMovements.inventoryId,
+    ),
+  );
+
+  $$StockMovementsTableProcessedTableManager get stockMovementsRefs {
+    final manager = $$StockMovementsTableTableManager(
+      $_db,
+      $_db.stockMovements,
+    ).filter((f) => f.inventoryId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stockMovementsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$InventoryTableFilterComposer
+    extends Composer<_$AppDatabase, $InventoryTable> {
+  $$InventoryTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sku => $composableBuilder(
+    column: $table.sku,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ean => $composableBuilder(
+    column: $table.ean,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get qty => $composableBuilder(
+    column: $table.qty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> stockMovementsRefs(
+    Expression<bool> Function($$StockMovementsTableFilterComposer f) f,
+  ) {
+    final $$StockMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stockMovements,
+      getReferencedColumn: (t) => t.inventoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StockMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.stockMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$InventoryTableOrderingComposer
+    extends Composer<_$AppDatabase, $InventoryTable> {
+  $$InventoryTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sku => $composableBuilder(
+    column: $table.sku,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ean => $composableBuilder(
+    column: $table.ean,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get qty => $composableBuilder(
+    column: $table.qty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$InventoryTableAnnotationComposer
+    extends Composer<_$AppDatabase, $InventoryTable> {
+  $$InventoryTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get sku =>
+      $composableBuilder(column: $table.sku, builder: (column) => column);
+
+  GeneratedColumn<String> get ean =>
+      $composableBuilder(column: $table.ean, builder: (column) => column);
+
+  GeneratedColumn<double> get qty =>
+      $composableBuilder(column: $table.qty, builder: (column) => column);
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<String> get userEmail =>
+      $composableBuilder(column: $table.userEmail, builder: (column) => column);
+
+  GeneratedColumn<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => column,
+  );
+
+  Expression<T> stockMovementsRefs<T extends Object>(
+    Expression<T> Function($$StockMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$StockMovementsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stockMovements,
+      getReferencedColumn: (t) => t.inventoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StockMovementsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stockMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$InventoryTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $InventoryTable,
+          InventoryData,
+          $$InventoryTableFilterComposer,
+          $$InventoryTableOrderingComposer,
+          $$InventoryTableAnnotationComposer,
+          $$InventoryTableCreateCompanionBuilder,
+          $$InventoryTableUpdateCompanionBuilder,
+          (InventoryData, $$InventoryTableReferences),
+          InventoryData,
+          PrefetchHooks Function({bool stockMovementsRefs})
+        > {
+  $$InventoryTableTableManager(_$AppDatabase db, $InventoryTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$InventoryTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$InventoryTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$InventoryTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> firebaseId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> sku = const Value.absent(),
+                Value<String> ean = const Value.absent(),
+                Value<double> qty = const Value.absent(),
+                Value<String> unit = const Value.absent(),
+                Value<String> userEmail = const Value.absent(),
+                Value<String> companyCode = const Value.absent(),
+                Value<DateTime> lastModified = const Value.absent(),
+                Value<bool> isUploaded = const Value.absent(),
+              }) => InventoryCompanion(
+                id: id,
+                firebaseId: firebaseId,
+                name: name,
+                sku: sku,
+                ean: ean,
+                qty: qty,
+                unit: unit,
+                userEmail: userEmail,
+                companyCode: companyCode,
+                lastModified: lastModified,
+                isUploaded: isUploaded,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> firebaseId = const Value.absent(),
+                required String name,
+                required String sku,
+                required String ean,
+                Value<double> qty = const Value.absent(),
+                required String unit,
+                required String userEmail,
+                required String companyCode,
+                Value<DateTime> lastModified = const Value.absent(),
+                Value<bool> isUploaded = const Value.absent(),
+              }) => InventoryCompanion.insert(
+                id: id,
+                firebaseId: firebaseId,
+                name: name,
+                sku: sku,
+                ean: ean,
+                qty: qty,
+                unit: unit,
+                userEmail: userEmail,
+                companyCode: companyCode,
+                lastModified: lastModified,
+                isUploaded: isUploaded,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$InventoryTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({stockMovementsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (stockMovementsRefs) db.stockMovements,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (stockMovementsRefs)
+                    await $_getPrefetchedData<
+                      InventoryData,
+                      $InventoryTable,
+                      StockMovement
+                    >(
+                      currentTable: table,
+                      referencedTable: $$InventoryTableReferences
+                          ._stockMovementsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$InventoryTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).stockMovementsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.inventoryId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$InventoryTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $InventoryTable,
+      InventoryData,
+      $$InventoryTableFilterComposer,
+      $$InventoryTableOrderingComposer,
+      $$InventoryTableAnnotationComposer,
+      $$InventoryTableCreateCompanionBuilder,
+      $$InventoryTableUpdateCompanionBuilder,
+      (InventoryData, $$InventoryTableReferences),
+      InventoryData,
+      PrefetchHooks Function({bool stockMovementsRefs})
+    >;
+typedef $$StockMovementsTableCreateCompanionBuilder =
+    StockMovementsCompanion Function({
+      Value<int> id,
+      Value<String?> firebaseId,
+      required int inventoryId,
+      required String itemName,
+      required double changeQty,
+      required String type,
+      Value<String> extraData,
+      required String userEmail,
+      required String companyCode,
+      Value<DateTime> createdAt,
+      Value<bool> isUploaded,
+    });
+typedef $$StockMovementsTableUpdateCompanionBuilder =
+    StockMovementsCompanion Function({
+      Value<int> id,
+      Value<String?> firebaseId,
+      Value<int> inventoryId,
+      Value<String> itemName,
+      Value<double> changeQty,
+      Value<String> type,
+      Value<String> extraData,
+      Value<String> userEmail,
+      Value<String> companyCode,
+      Value<DateTime> createdAt,
+      Value<bool> isUploaded,
+    });
+
+final class $$StockMovementsTableReferences
+    extends BaseReferences<_$AppDatabase, $StockMovementsTable, StockMovement> {
+  $$StockMovementsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $InventoryTable _inventoryIdTable(_$AppDatabase db) =>
+      db.inventory.createAlias(
+        $_aliasNameGenerator(db.stockMovements.inventoryId, db.inventory.id),
+      );
+
+  $$InventoryTableProcessedTableManager get inventoryId {
+    final $_column = $_itemColumn<int>('inventory_id')!;
+
+    final manager = $$InventoryTableTableManager(
+      $_db,
+      $_db.inventory,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_inventoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StockMovementsTableFilterComposer
+    extends Composer<_$AppDatabase, $StockMovementsTable> {
+  $$StockMovementsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemName => $composableBuilder(
+    column: $table.itemName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get changeQty => $composableBuilder(
+    column: $table.changeQty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get extraData => $composableBuilder(
+    column: $table.extraData,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$InventoryTableFilterComposer get inventoryId {
+    final $$InventoryTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventory,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryTableFilterComposer(
+            $db: $db,
+            $table: $db.inventory,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableOrderingComposer
+    extends Composer<_$AppDatabase, $StockMovementsTable> {
+  $$StockMovementsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemName => $composableBuilder(
+    column: $table.itemName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get changeQty => $composableBuilder(
+    column: $table.changeQty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get extraData => $composableBuilder(
+    column: $table.extraData,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$InventoryTableOrderingComposer get inventoryId {
+    final $$InventoryTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventory,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryTableOrderingComposer(
+            $db: $db,
+            $table: $db.inventory,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StockMovementsTable> {
+  $$StockMovementsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get itemName =>
+      $composableBuilder(column: $table.itemName, builder: (column) => column);
+
+  GeneratedColumn<double> get changeQty =>
+      $composableBuilder(column: $table.changeQty, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get extraData =>
+      $composableBuilder(column: $table.extraData, builder: (column) => column);
+
+  GeneratedColumn<String> get userEmail =>
+      $composableBuilder(column: $table.userEmail, builder: (column) => column);
+
+  GeneratedColumn<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => column,
+  );
+
+  $$InventoryTableAnnotationComposer get inventoryId {
+    final $$InventoryTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventory,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoryTableAnnotationComposer(
+            $db: $db,
+            $table: $db.inventory,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StockMovementsTable,
+          StockMovement,
+          $$StockMovementsTableFilterComposer,
+          $$StockMovementsTableOrderingComposer,
+          $$StockMovementsTableAnnotationComposer,
+          $$StockMovementsTableCreateCompanionBuilder,
+          $$StockMovementsTableUpdateCompanionBuilder,
+          (StockMovement, $$StockMovementsTableReferences),
+          StockMovement,
+          PrefetchHooks Function({bool inventoryId})
+        > {
+  $$StockMovementsTableTableManager(
+    _$AppDatabase db,
+    $StockMovementsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StockMovementsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StockMovementsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StockMovementsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> firebaseId = const Value.absent(),
+                Value<int> inventoryId = const Value.absent(),
+                Value<String> itemName = const Value.absent(),
+                Value<double> changeQty = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> extraData = const Value.absent(),
+                Value<String> userEmail = const Value.absent(),
+                Value<String> companyCode = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isUploaded = const Value.absent(),
+              }) => StockMovementsCompanion(
+                id: id,
+                firebaseId: firebaseId,
+                inventoryId: inventoryId,
+                itemName: itemName,
+                changeQty: changeQty,
+                type: type,
+                extraData: extraData,
+                userEmail: userEmail,
+                companyCode: companyCode,
+                createdAt: createdAt,
+                isUploaded: isUploaded,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> firebaseId = const Value.absent(),
+                required int inventoryId,
+                required String itemName,
+                required double changeQty,
+                required String type,
+                Value<String> extraData = const Value.absent(),
+                required String userEmail,
+                required String companyCode,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isUploaded = const Value.absent(),
+              }) => StockMovementsCompanion.insert(
+                id: id,
+                firebaseId: firebaseId,
+                inventoryId: inventoryId,
+                itemName: itemName,
+                changeQty: changeQty,
+                type: type,
+                extraData: extraData,
+                userEmail: userEmail,
+                companyCode: companyCode,
+                createdAt: createdAt,
+                isUploaded: isUploaded,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StockMovementsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({inventoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (inventoryId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.inventoryId,
+                                referencedTable: $$StockMovementsTableReferences
+                                    ._inventoryIdTable(db),
+                                referencedColumn:
+                                    $$StockMovementsTableReferences
+                                        ._inventoryIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$StockMovementsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StockMovementsTable,
+      StockMovement,
+      $$StockMovementsTableFilterComposer,
+      $$StockMovementsTableOrderingComposer,
+      $$StockMovementsTableAnnotationComposer,
+      $$StockMovementsTableCreateCompanionBuilder,
+      $$StockMovementsTableUpdateCompanionBuilder,
+      (StockMovement, $$StockMovementsTableReferences),
+      StockMovement,
+      PrefetchHooks Function({bool inventoryId})
     >;
 typedef $$PhotosTableCreateCompanionBuilder =
     PhotosCompanion Function({
@@ -4341,6 +6533,10 @@ class $AppDatabaseManager {
       $$UsersTableTableManager(_db, _db.users);
   $$AssetsTableTableManager get assets =>
       $$AssetsTableTableManager(_db, _db.assets);
+  $$InventoryTableTableManager get inventory =>
+      $$InventoryTableTableManager(_db, _db.inventory);
+  $$StockMovementsTableTableManager get stockMovements =>
+      $$StockMovementsTableTableManager(_db, _db.stockMovements);
   $$PhotosTableTableManager get photos =>
       $$PhotosTableTableManager(_db, _db.photos);
   $$AudiosTableTableManager get audios =>

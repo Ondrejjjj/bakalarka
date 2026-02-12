@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:convert'; // Pridané pre spracovanie JSON (techSpecs, history)
+import 'dart:convert'; // Pre spracovanie JSON (techSpecs, history, extraData)
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
 import 'package:sqlite3/open.dart';
+// PRIDANÉ: Potrebné pre metódu syncMovementToFirebase
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 part 'database.g.dart';
 
@@ -48,25 +50,57 @@ class Users extends Table {
   TextColumn get companyCode => text()(); // companyId z Firebase
 }
 
-// *** NOVÁ TABUĽKA PRE EVIDENCIU MAJETKU ***
+// Tabuľka pre EVIDENCIU MAJETKU
 class Assets extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get firebaseId => text().nullable().unique()(); // UID z Firebase pre synchro
+  TextColumn get firebaseId => text().nullable().unique()();
   TextColumn get name => text()();
-  TextColumn get sn => text()(); // Sériové číslo (unikátne číslo pre vyhľadávanie)
+  TextColumn get sn => text()();
   TextColumn get model => text()();
   TextColumn get url => text().nullable()();
-  TextColumn get status => text()(); // V prevádzke, Vyžaduje servis, atď.
-
-  // Dynamické polia ukladané ako JSON String
-  TextColumn get techSpecs => text()();
-  TextColumn get history => text()();
-
-  TextColumn get userEmail => text()(); // Kto zariadenie pridal/upravil
-  TextColumn get companyCode => text()(); // Príslušnosť k firme
-
-  BoolColumn get isUploaded => boolean().withDefault(const Constant(false))(); // Stav synchronizácie
+  TextColumn get status => text()();
+  TextColumn get techSpecs => text()(); // JSON
+  TextColumn get history => text()(); // JSON
+  TextColumn get userEmail => text()();
+  TextColumn get companyCode => text()();
+  BoolColumn get isUploaded => boolean().withDefault(const Constant(false))();
   DateTimeColumn get lastModified => dateTime().withDefault(currentDateAndTime)();
+}
+
+// *** NOVÁ TABUĽKA PRE EVIDENCIU SKLADU (INVENTORY) ***
+class Inventory extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get firebaseId => text().nullable()(); // ID z Firestore
+  TextColumn get name => text().withLength(min: 1, max: 100)();
+  TextColumn get sku => text().withLength(min: 1, max: 50)(); // Skladové označenie
+  TextColumn get ean => text().withLength(min: 1, max: 50)(); // Čiarový kód / Unikátne ID
+  RealColumn get qty => real().withDefault(const Constant(0.0))(); // Množstvo
+  TextColumn get unit => text().withLength(min: 1, max: 10)(); // ks, m, kg...
+
+  // Priradenie k firme a používateľovi
+  TextColumn get userEmail => text()();
+  TextColumn get companyCode => text()();
+
+  DateTimeColumn get lastModified => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isUploaded => boolean().withDefault(const Constant(false))();
+}
+
+// *** NOVÁ TABUĽKA PRE HISTÓRIU POHYBOV (STOCK MOVEMENTS) ***
+class StockMovements extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get firebaseId => text().nullable()();
+  IntColumn get inventoryId => integer().references(Inventory, #id)(); // Väzba na položku
+  TextColumn get itemName => text()(); // Meno v čase pohybu (pre históriu)
+  RealColumn get changeQty => real()(); // Napr. +5.0 alebo -2.0
+  TextColumn get type => text()(); // "income" alebo "outcome"
+
+  // Dynamické dáta uložené ako JSON (Zákazka, poznámka, dodávateľ...)
+  TextColumn get extraData => text().withLength(max: 1000).withDefault(const Constant('{}'))();
+
+  TextColumn get userEmail => text()();
+  TextColumn get companyCode => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isUploaded => boolean().withDefault(const Constant(false))();
 }
 
 class Photos extends Table {
@@ -110,16 +144,101 @@ class Videos extends Table {
 
 // --------------- Drift Database ----------------
 
-@DriftDatabase(tables: [Users, Assets, Photos, Audios, Videos])
+@DriftDatabase(tables: [Users, Assets, Inventory, StockMovements, Photos, Audios, Videos])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 8; // Zvýšené na 8 kvôli pridaniu tabuľky Assets
+  int get schemaVersion => 9; // Zvýšené na 9 (Pridaný sklad a pohyby)
 
-  // ---------------- ASSETS CRUD (Majetok) - NOVÉ ----------------
+  // ---------------- SKLAD (INVENTORY) - NOVÉ ----------------
 
-  // Sledovanie majetku pre celú firmu (aby kolegovia videli zmeny po synchre)
+  // Sledovanie zásob pre konkrétnu firmu
+  Stream<List<InventoryData>> watchCompanyInventory(String companyCode) {
+    return (select(inventory)..where((t) => t.companyCode.equals(companyCode))).watch();
+  }
+
+  // Pridanie alebo aktualizácia položky (pri synchre z Firebase)
+  Future<int> upsertInventoryItem(InventoryCompanion item) async {
+    return into(inventory).insertOnConflictUpdate(item);
+  }
+
+  // --- POHYBY (MOVEMENTS) ---
+
+  // Vykonanie skladového pohybu (Atomická operácia)
+  Future<void> registerMovement(InventoryData item, StockMovementsCompanion movement) async {
+    await transaction(() async {
+      // 1. Zapíšeme pohyb do histórie
+      await into(stockMovements).insert(movement);
+
+      // 2. Aktualizujeme stav na hlavnom sklade
+      final newQty = item.qty + movement.changeQty.value;
+      await (update(inventory)..where((t) => t.id.equals(item.id))).write(
+        InventoryCompanion(
+          qty: Value(newQty),
+          lastModified: Value(DateTime.now()),
+          isUploaded: const Value(false), // Musí sa znova synchnúť
+        ),
+      );
+    });
+  }
+
+  // Sledovanie histórie pohybov
+  Stream<List<StockMovement>> watchMovementHistory(String companyCode) {
+    return (select(stockMovements)
+      ..where((t) => t.companyCode.equals(companyCode))
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .watch();
+  }
+
+  // ---------------- FIREBASE SYNC - NOVÉ ----------------
+  Future<void> syncMovementToFirebase(StockMovement move, InventoryData item) async {
+    final firestore = FirebaseFirestore.instance;
+
+    try {
+      // 1. Pošleme pohyb do kolekcie 'movements'
+      final moveRef = await firestore.collection('movements').add({
+        'itemName': move.itemName,
+        'changeQty': move.changeQty,
+        'type': move.type,
+        'extraData': jsonDecode(move.extraData),
+        'companyCode': move.companyCode,
+        'userEmail': move.userEmail,
+        'createdAt': move.createdAt.toIso8601String(),
+      });
+
+      // 2. Aktualizujeme stav položky na Firebase (aby ostatní videli nový stav zásob)
+      // Hľadáme podľa EAN/SKU v rámci firmy
+      final itemQuery = await firestore.collection('inventory')
+          .where('companyCode', isEqualTo: item.companyCode)
+          .where('ean', isEqualTo: item.ean)
+          .limit(1)
+          .get();
+
+      if (itemQuery.docs.isNotEmpty) {
+        await itemQuery.docs.first.reference.update({
+          'qty': item.qty, // Nové vypočítané množstvo
+          'lastModified': DateTime.now().toIso8601String(),
+        });
+      } else {
+        // Ak položka na Firebase ešte nie je, vytvoríme ju
+        await firestore.collection('inventory').add({
+          'name': item.name,
+          'ean': item.ean,
+          'sku': item.sku,
+          'qty': item.qty,
+          'unit': item.unit,
+          'companyCode': item.companyCode,
+          'lastModified': DateTime.now().toIso8601String(),
+        });
+      }
+    } catch (e) {
+      print("Chyba synchronizácie skladu: $e");
+    }
+  }
+
+  // ---------------- ASSETS CRUD (Majetok) ----------------
+
   Stream<List<Asset>> watchCompanyAssets(String companyCode) {
     return (select(assets)
       ..where((a) => a.companyCode.equals(companyCode))
@@ -127,7 +246,6 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
-  // Vyhľadávanie majetku podľa SN alebo názvu v rámci firmy
   Future<List<Asset>> searchAssets(String query, String companyCode) {
     return (select(assets)
       ..where((a) => a.companyCode.equals(companyCode) &
@@ -135,17 +253,14 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  // Pridanie alebo aktualizácia majetku (používa sa pri lokálnom zápise aj pri sťahovaní z Firebase)
   Future<int> upsertAsset(AssetsCompanion asset) {
     return into(assets).insertOnConflictUpdate(asset);
   }
 
-  // Zmazanie majetku (v UI je potrebné skontrolovať rolu admina)
   Future<void> deleteAsset(int id) {
     return (delete(assets)..where((a) => a.id.equals(id))).go();
   }
 
-  // Označenie majetku ako synchronizovaného po úspešnom odoslaní na Firebase
   Future<void> markAssetAsSynced(int localId, String firebaseId) {
     return (update(assets)..where((a) => a.id.equals(localId))).write(
       AssetsCompanion(
@@ -165,140 +280,35 @@ class AppDatabase extends _$AppDatabase {
     return (select(users)..where((u) => u.uid.equals(uid))).getSingleOrNull();
   }
 
-  // ---------------- FILTROVANÉ STREAMY (Pôvodné) ----------------
+  // ---------------- Pôvodné metódy (Photos, Videos, Audios) ----------------
 
-  Stream<List<Photo>> watchUserPhotos(String email) {
-    return (select(photos)..where((p) => p.userEmail.equals(email))).watch();
+  Stream<List<Photo>> watchUserPhotos(String email) => (select(photos)..where((p) => p.userEmail.equals(email))).watch();
+  Stream<List<Video>> watchUserVideos(String email) => (select(videos)..where((v) => v.userEmail.equals(email))).watch();
+  Stream<List<Audio>> watchUserAudios(String email) => (select(audios)..where((a) => a.userEmail.equals(email))).watch();
+
+  Stream<List<Photo>> watchCompanyPhotos(String companyCode) => (select(photos)..where((p) => p.companyCode.equals(companyCode))).watch();
+  Stream<List<Video>> watchCompanyVideos(String companyCode) => (select(videos)..where((v) => v.companyCode.equals(companyCode))).watch();
+  Stream<List<Audio>> watchCompanyAudios(String companyCode) => (select(audios)..where((a) => a.companyCode.equals(companyCode))).watch();
+
+  Future<void> markPhotoAsUploaded(String filePath) => (update(photos)..where((p) => p.filePath.equals(filePath))).write(const PhotosCompanion(uploaded: Value(true)));
+  Future<void> markVideoAsUploaded(String filePath) => (update(videos)..where((v) => v.filePath.equals(filePath))).write(const VideosCompanion(uploaded: Value(true)));
+  Future<void> markAudioAsUploaded(String filePath) => (update(audios)..where((a) => a.filePath.equals(filePath))).write(const AudiosCompanion(uploaded: Value(true)));
+
+  Future<int> insertPhoto({required String filePath, required String deviceId, required String userEmail, required String companyCode, String? ownerName, bool uploaded = false, double? latitude, double? longitude}) {
+    return into(photos).insert(PhotosCompanion(filePath: Value(filePath), deviceId: Value(deviceId), userEmail: Value(userEmail), companyCode: Value(companyCode), ownerName: Value(ownerName), uploaded: Value(uploaded), latitude: Value(latitude), longitude: Value(longitude)));
   }
+  Future<void> deletePhoto(String filePath) => (delete(photos)..where((p) => p.filePath.equals(filePath))).go();
+  Future<void> toggleFavorite(String filePath, bool value) => (update(photos)..where((p) => p.filePath.equals(filePath))).write(PhotosCompanion(favorite: Value(value)));
 
-  Stream<List<Video>> watchUserVideos(String email) {
-    return (select(videos)..where((v) => v.userEmail.equals(email))).watch();
+  Future<int> insertAudio({required String filePath, required String deviceId, required String userEmail, required String companyCode, String? ownerName, int? duration, bool uploaded = false}) {
+    return into(audios).insert(AudiosCompanion(filePath: Value(filePath), deviceId: Value(deviceId), userEmail: Value(userEmail), companyCode: Value(companyCode), ownerName: Value(ownerName), durationSeconds: Value(duration), uploaded: Value(uploaded)));
   }
+  Future<void> deleteAudio(String filePath) => (delete(audios)..where((a) => a.filePath.equals(filePath))).go();
 
-  Stream<List<Audio>> watchUserAudios(String email) {
-    return (select(audios)..where((a) => a.userEmail.equals(email))).watch();
+  Future<int> insertVideo({required String filePath, required String deviceId, required String userEmail, required String companyCode, String? ownerName, bool uploaded = false, int? duration}) {
+    return into(videos).insert(VideosCompanion(filePath: Value(filePath), deviceId: Value(deviceId), userEmail: Value(userEmail), companyCode: Value(companyCode), ownerName: Value(ownerName), uploaded: Value(uploaded), durationSeconds: Value(duration)));
   }
-
-  Stream<List<Photo>> watchCompanyPhotos(String companyCode) {
-    return (select(photos)..where((p) => p.companyCode.equals(companyCode))).watch();
-  }
-
-  Stream<List<Video>> watchCompanyVideos(String companyCode) {
-    return (select(videos)..where((v) => v.companyCode.equals(companyCode))).watch();
-  }
-
-  Stream<List<Audio>> watchCompanyAudios(String companyCode) {
-    return (select(audios)..where((a) => a.companyCode.equals(companyCode))).watch();
-  }
-
-  // ---------------- SYNC LOGIKA (Pôvodné) ----------------
-
-  Future<void> markPhotoAsUploaded(String filePath) {
-    return (update(photos)..where((p) => p.filePath.equals(filePath))).write(
-      const PhotosCompanion(uploaded: Value(true)),
-    );
-  }
-
-  Future<void> markVideoAsUploaded(String filePath) {
-    return (update(videos)..where((v) => v.filePath.equals(filePath))).write(
-      const VideosCompanion(uploaded: Value(true)),
-    );
-  }
-
-  Future<void> markAudioAsUploaded(String filePath) {
-    return (update(audios)..where((a) => a.filePath.equals(filePath))).write(
-      const AudiosCompanion(uploaded: Value(true)),
-    );
-  }
-
-  // ---------------- PHOTOS CRUD (Pôvodné) ----------------
-  Future<int> insertPhoto({
-    required String filePath,
-    required String deviceId,
-    required String userEmail,
-    required String companyCode,
-    String? ownerName,
-    bool uploaded = false,
-    double? latitude,
-    double? longitude,
-  }) async {
-    return await into(photos).insert(
-      PhotosCompanion(
-        filePath: Value(filePath),
-        deviceId: Value(deviceId),
-        userEmail: Value(userEmail),
-        companyCode: Value(companyCode),
-        ownerName: Value(ownerName),
-        uploaded: Value(uploaded),
-        latitude: Value(latitude),
-        longitude: Value(longitude),
-      ),
-    );
-  }
-
-  Future<void> deletePhoto(String filePath) async {
-    await (delete(photos)..where((p) => p.filePath.equals(filePath))).go();
-  }
-
-  Future<void> toggleFavorite(String filePath, bool value) {
-    return (update(photos)..where((p) => p.filePath.equals(filePath))).write(
-      PhotosCompanion(favorite: Value(value)),
-    );
-  }
-
-  // ---------------- AUDIOS CRUD (Pôvodné) ----------------
-  Future<int> insertAudio({
-    required String filePath,
-    required String deviceId,
-    required String userEmail,
-    required String companyCode,
-    String? ownerName,
-    int? duration,
-    bool uploaded = false,
-  }) {
-    return into(audios).insert(
-      AudiosCompanion(
-        filePath: Value(filePath),
-        deviceId: Value(deviceId),
-        userEmail: Value(userEmail),
-        companyCode: Value(companyCode),
-        ownerName: Value(ownerName),
-        durationSeconds: Value(duration),
-        uploaded: Value(uploaded),
-      ),
-    );
-  }
-
-  Future<void> deleteAudio(String filePath) async {
-    await (delete(audios)..where((a) => a.filePath.equals(filePath))).go();
-  }
-
-  // ---------------- VIDEOS CRUD (Pôvodné) ----------------
-  Future<int> insertVideo({
-    required String filePath,
-    required String deviceId,
-    required String userEmail,
-    required String companyCode,
-    String? ownerName,
-    bool uploaded = false,
-    int? duration,
-  }) {
-    return into(videos).insert(
-      VideosCompanion(
-        filePath: Value(filePath),
-        deviceId: Value(deviceId),
-        userEmail: Value(userEmail),
-        companyCode: Value(companyCode),
-        ownerName: Value(ownerName),
-        uploaded: Value(uploaded),
-        durationSeconds: Value(duration),
-      ),
-    );
-  }
-
-  Future<void> deleteVideo(String filePath) async {
-    await (delete(videos)..where((v) => v.filePath.equals(filePath))).go();
-  }
+  Future<void> deleteVideo(String filePath) => (delete(videos)..where((v) => v.filePath.equals(filePath))).go();
 
   // ---------------- MIGRATION STRATEGY ----------------
   @override
@@ -324,8 +334,12 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(users);
       }
       if (from < 8) {
-        // Vytvorenie novej tabuľky pre majetok
         await m.createTable(assets);
+      }
+      if (from < 9) {
+        // Migrácia na verziu 9: Pridanie tabuliek pre sklad
+        await m.createTable(inventory);
+        await m.createTable(stockMovements);
       }
     },
     beforeOpen: (details) async {

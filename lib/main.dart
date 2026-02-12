@@ -309,17 +309,14 @@ class MyHomePage extends StatelessWidget {
 class SettingsDrawer extends StatelessWidget {
   const SettingsDrawer({super.key});
 
-  // ⭐ POMOCNÁ METÓDA PRE BEZPEČNÚ NAVIGÁCIU S DÁTAMI
+  // ⭐ POMOCNÁ METÓDA PRE BEZPEČNÚ NAVIGÁCIU S DÁTAMI (MAJETOK)
   Future<void> _navigateToAssets(BuildContext context, int index) async {
     final database = context.read<AppDatabase>();
     final fbUser = fb.FirebaseAuth.instance.currentUser;
 
     if (fbUser == null) return;
 
-    // Skúsime vytiahnuť používateľa z lokálnej databázy, aby sme získali companyCode
     final localUser = await database.getUser(fbUser.uid);
-
-    // Ak by v lokálnej DB ešte nebol (napr. prvý login), použijeme fallback
     final email = fbUser.email ?? 'host@system.sk';
     final company = localUser?.companyCode ?? 'GENERAL';
 
@@ -331,6 +328,28 @@ class SettingsDrawer extends StatelessWidget {
             userEmail: email,
             companyCode: company,
             database: database,
+          )
+      ));
+    }
+  }
+
+  // ⭐ NOVÁ POMOCNÁ METÓDA PRE SKLAD (INVENTORY)
+  Future<void> _navigateToInventory(BuildContext context) async {
+    final database = context.read<AppDatabase>();
+    final fbUser = fb.FirebaseAuth.instance.currentUser;
+
+    if (fbUser == null) return;
+
+    final localUser = await database.getUser(fbUser.uid);
+    final email = fbUser.email ?? 'host@system.sk';
+    final company = localUser?.companyCode ?? 'GENERAL';
+
+    if (context.mounted) {
+      Navigator.pop(context); // Zatvoriť Drawer
+      Navigator.push(context, MaterialPageRoute(
+          builder: (_) => InventoryPage(
+            userEmail: email,
+            companyCode: company,
           )
       ));
     }
@@ -362,30 +381,24 @@ class SettingsDrawer extends StatelessWidget {
                 _drawerItem(
                   icon: Icons.inventory_2_outlined,
                   label: 'Zariadenia',
-                  onTap: () => _navigateToAssets(context, 0), // Volá pomocnú metódu
+                  onTap: () => _navigateToAssets(context, 0),
                 ),
                 _drawerItem(
                   icon: Icons.history_outlined,
                   label: 'História kontrol',
-                  onTap: () => _navigateToAssets(context, 1), // Volá pomocnú metódu
+                  onTap: () => _navigateToAssets(context, 1),
                 ),
                 const Divider(indent: 16, endIndent: 16),
                 _drawerSectionTitle(context, 'Sklad'),
                 _drawerItem(
                   icon: Icons.warehouse_outlined,
                   label: 'Stav zásob',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryPage()));
-                  },
+                  onTap: () => _navigateToInventory(context), // OPRAVENÉ VOLANIE
                 ),
                 _drawerItem(
                   icon: Icons.swap_vert_rounded,
                   label: 'Príjem / Výdaj',
-                  onTap: () {
-                    Navigator.pop(context);
-                    // Navigator.push(context, MaterialPageRoute(builder: (_) => const StockMovementsPage()));
-                  },
+                  onTap: () => _navigateToInventory(context), // OPRAVENÉ VOLANIE
                 ),
                 const Divider(indent: 16, endIndent: 16),
                 _drawerSectionTitle(context, 'Systém'),
