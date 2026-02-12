@@ -348,6 +348,748 @@ class UsersCompanion extends UpdateCompanion<User> {
   }
 }
 
+class $AssetsTable extends Assets with TableInfo<$AssetsTable, Asset> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AssetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _firebaseIdMeta = const VerificationMeta(
+    'firebaseId',
+  );
+  @override
+  late final GeneratedColumn<String> firebaseId = GeneratedColumn<String>(
+    'firebase_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _snMeta = const VerificationMeta('sn');
+  @override
+  late final GeneratedColumn<String> sn = GeneratedColumn<String>(
+    'sn',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _techSpecsMeta = const VerificationMeta(
+    'techSpecs',
+  );
+  @override
+  late final GeneratedColumn<String> techSpecs = GeneratedColumn<String>(
+    'tech_specs',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _historyMeta = const VerificationMeta(
+    'history',
+  );
+  @override
+  late final GeneratedColumn<String> history = GeneratedColumn<String>(
+    'history',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userEmailMeta = const VerificationMeta(
+    'userEmail',
+  );
+  @override
+  late final GeneratedColumn<String> userEmail = GeneratedColumn<String>(
+    'user_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyCodeMeta = const VerificationMeta(
+    'companyCode',
+  );
+  @override
+  late final GeneratedColumn<String> companyCode = GeneratedColumn<String>(
+    'company_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isUploadedMeta = const VerificationMeta(
+    'isUploaded',
+  );
+  @override
+  late final GeneratedColumn<bool> isUploaded = GeneratedColumn<bool>(
+    'is_uploaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_uploaded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastModified = GeneratedColumn<DateTime>(
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    firebaseId,
+    name,
+    sn,
+    model,
+    url,
+    status,
+    techSpecs,
+    history,
+    userEmail,
+    companyCode,
+    isUploaded,
+    lastModified,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'assets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Asset> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('firebase_id')) {
+      context.handle(
+        _firebaseIdMeta,
+        firebaseId.isAcceptableOrUnknown(data['firebase_id']!, _firebaseIdMeta),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sn')) {
+      context.handle(_snMeta, sn.isAcceptableOrUnknown(data['sn']!, _snMeta));
+    } else if (isInserting) {
+      context.missing(_snMeta);
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modelMeta);
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('tech_specs')) {
+      context.handle(
+        _techSpecsMeta,
+        techSpecs.isAcceptableOrUnknown(data['tech_specs']!, _techSpecsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_techSpecsMeta);
+    }
+    if (data.containsKey('history')) {
+      context.handle(
+        _historyMeta,
+        history.isAcceptableOrUnknown(data['history']!, _historyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_historyMeta);
+    }
+    if (data.containsKey('user_email')) {
+      context.handle(
+        _userEmailMeta,
+        userEmail.isAcceptableOrUnknown(data['user_email']!, _userEmailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userEmailMeta);
+    }
+    if (data.containsKey('company_code')) {
+      context.handle(
+        _companyCodeMeta,
+        companyCode.isAcceptableOrUnknown(
+          data['company_code']!,
+          _companyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_companyCodeMeta);
+    }
+    if (data.containsKey('is_uploaded')) {
+      context.handle(
+        _isUploadedMeta,
+        isUploaded.isAcceptableOrUnknown(data['is_uploaded']!, _isUploadedMeta),
+      );
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
+          _lastModifiedMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Asset map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Asset(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      firebaseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}firebase_id'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      sn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sn'],
+      )!,
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      )!,
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      techSpecs: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tech_specs'],
+      )!,
+      history: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}history'],
+      )!,
+      userEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_email'],
+      )!,
+      companyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_code'],
+      )!,
+      isUploaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_uploaded'],
+      )!,
+      lastModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_modified'],
+      )!,
+    );
+  }
+
+  @override
+  $AssetsTable createAlias(String alias) {
+    return $AssetsTable(attachedDatabase, alias);
+  }
+}
+
+class Asset extends DataClass implements Insertable<Asset> {
+  final int id;
+  final String? firebaseId;
+  final String name;
+  final String sn;
+  final String model;
+  final String? url;
+  final String status;
+  final String techSpecs;
+  final String history;
+  final String userEmail;
+  final String companyCode;
+  final bool isUploaded;
+  final DateTime lastModified;
+  const Asset({
+    required this.id,
+    this.firebaseId,
+    required this.name,
+    required this.sn,
+    required this.model,
+    this.url,
+    required this.status,
+    required this.techSpecs,
+    required this.history,
+    required this.userEmail,
+    required this.companyCode,
+    required this.isUploaded,
+    required this.lastModified,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || firebaseId != null) {
+      map['firebase_id'] = Variable<String>(firebaseId);
+    }
+    map['name'] = Variable<String>(name);
+    map['sn'] = Variable<String>(sn);
+    map['model'] = Variable<String>(model);
+    if (!nullToAbsent || url != null) {
+      map['url'] = Variable<String>(url);
+    }
+    map['status'] = Variable<String>(status);
+    map['tech_specs'] = Variable<String>(techSpecs);
+    map['history'] = Variable<String>(history);
+    map['user_email'] = Variable<String>(userEmail);
+    map['company_code'] = Variable<String>(companyCode);
+    map['is_uploaded'] = Variable<bool>(isUploaded);
+    map['last_modified'] = Variable<DateTime>(lastModified);
+    return map;
+  }
+
+  AssetsCompanion toCompanion(bool nullToAbsent) {
+    return AssetsCompanion(
+      id: Value(id),
+      firebaseId: firebaseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(firebaseId),
+      name: Value(name),
+      sn: Value(sn),
+      model: Value(model),
+      url: url == null && nullToAbsent ? const Value.absent() : Value(url),
+      status: Value(status),
+      techSpecs: Value(techSpecs),
+      history: Value(history),
+      userEmail: Value(userEmail),
+      companyCode: Value(companyCode),
+      isUploaded: Value(isUploaded),
+      lastModified: Value(lastModified),
+    );
+  }
+
+  factory Asset.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Asset(
+      id: serializer.fromJson<int>(json['id']),
+      firebaseId: serializer.fromJson<String?>(json['firebaseId']),
+      name: serializer.fromJson<String>(json['name']),
+      sn: serializer.fromJson<String>(json['sn']),
+      model: serializer.fromJson<String>(json['model']),
+      url: serializer.fromJson<String?>(json['url']),
+      status: serializer.fromJson<String>(json['status']),
+      techSpecs: serializer.fromJson<String>(json['techSpecs']),
+      history: serializer.fromJson<String>(json['history']),
+      userEmail: serializer.fromJson<String>(json['userEmail']),
+      companyCode: serializer.fromJson<String>(json['companyCode']),
+      isUploaded: serializer.fromJson<bool>(json['isUploaded']),
+      lastModified: serializer.fromJson<DateTime>(json['lastModified']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'firebaseId': serializer.toJson<String?>(firebaseId),
+      'name': serializer.toJson<String>(name),
+      'sn': serializer.toJson<String>(sn),
+      'model': serializer.toJson<String>(model),
+      'url': serializer.toJson<String?>(url),
+      'status': serializer.toJson<String>(status),
+      'techSpecs': serializer.toJson<String>(techSpecs),
+      'history': serializer.toJson<String>(history),
+      'userEmail': serializer.toJson<String>(userEmail),
+      'companyCode': serializer.toJson<String>(companyCode),
+      'isUploaded': serializer.toJson<bool>(isUploaded),
+      'lastModified': serializer.toJson<DateTime>(lastModified),
+    };
+  }
+
+  Asset copyWith({
+    int? id,
+    Value<String?> firebaseId = const Value.absent(),
+    String? name,
+    String? sn,
+    String? model,
+    Value<String?> url = const Value.absent(),
+    String? status,
+    String? techSpecs,
+    String? history,
+    String? userEmail,
+    String? companyCode,
+    bool? isUploaded,
+    DateTime? lastModified,
+  }) => Asset(
+    id: id ?? this.id,
+    firebaseId: firebaseId.present ? firebaseId.value : this.firebaseId,
+    name: name ?? this.name,
+    sn: sn ?? this.sn,
+    model: model ?? this.model,
+    url: url.present ? url.value : this.url,
+    status: status ?? this.status,
+    techSpecs: techSpecs ?? this.techSpecs,
+    history: history ?? this.history,
+    userEmail: userEmail ?? this.userEmail,
+    companyCode: companyCode ?? this.companyCode,
+    isUploaded: isUploaded ?? this.isUploaded,
+    lastModified: lastModified ?? this.lastModified,
+  );
+  Asset copyWithCompanion(AssetsCompanion data) {
+    return Asset(
+      id: data.id.present ? data.id.value : this.id,
+      firebaseId: data.firebaseId.present
+          ? data.firebaseId.value
+          : this.firebaseId,
+      name: data.name.present ? data.name.value : this.name,
+      sn: data.sn.present ? data.sn.value : this.sn,
+      model: data.model.present ? data.model.value : this.model,
+      url: data.url.present ? data.url.value : this.url,
+      status: data.status.present ? data.status.value : this.status,
+      techSpecs: data.techSpecs.present ? data.techSpecs.value : this.techSpecs,
+      history: data.history.present ? data.history.value : this.history,
+      userEmail: data.userEmail.present ? data.userEmail.value : this.userEmail,
+      companyCode: data.companyCode.present
+          ? data.companyCode.value
+          : this.companyCode,
+      isUploaded: data.isUploaded.present
+          ? data.isUploaded.value
+          : this.isUploaded,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Asset(')
+          ..write('id: $id, ')
+          ..write('firebaseId: $firebaseId, ')
+          ..write('name: $name, ')
+          ..write('sn: $sn, ')
+          ..write('model: $model, ')
+          ..write('url: $url, ')
+          ..write('status: $status, ')
+          ..write('techSpecs: $techSpecs, ')
+          ..write('history: $history, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
+          ..write('isUploaded: $isUploaded, ')
+          ..write('lastModified: $lastModified')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    firebaseId,
+    name,
+    sn,
+    model,
+    url,
+    status,
+    techSpecs,
+    history,
+    userEmail,
+    companyCode,
+    isUploaded,
+    lastModified,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Asset &&
+          other.id == this.id &&
+          other.firebaseId == this.firebaseId &&
+          other.name == this.name &&
+          other.sn == this.sn &&
+          other.model == this.model &&
+          other.url == this.url &&
+          other.status == this.status &&
+          other.techSpecs == this.techSpecs &&
+          other.history == this.history &&
+          other.userEmail == this.userEmail &&
+          other.companyCode == this.companyCode &&
+          other.isUploaded == this.isUploaded &&
+          other.lastModified == this.lastModified);
+}
+
+class AssetsCompanion extends UpdateCompanion<Asset> {
+  final Value<int> id;
+  final Value<String?> firebaseId;
+  final Value<String> name;
+  final Value<String> sn;
+  final Value<String> model;
+  final Value<String?> url;
+  final Value<String> status;
+  final Value<String> techSpecs;
+  final Value<String> history;
+  final Value<String> userEmail;
+  final Value<String> companyCode;
+  final Value<bool> isUploaded;
+  final Value<DateTime> lastModified;
+  const AssetsCompanion({
+    this.id = const Value.absent(),
+    this.firebaseId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sn = const Value.absent(),
+    this.model = const Value.absent(),
+    this.url = const Value.absent(),
+    this.status = const Value.absent(),
+    this.techSpecs = const Value.absent(),
+    this.history = const Value.absent(),
+    this.userEmail = const Value.absent(),
+    this.companyCode = const Value.absent(),
+    this.isUploaded = const Value.absent(),
+    this.lastModified = const Value.absent(),
+  });
+  AssetsCompanion.insert({
+    this.id = const Value.absent(),
+    this.firebaseId = const Value.absent(),
+    required String name,
+    required String sn,
+    required String model,
+    this.url = const Value.absent(),
+    required String status,
+    required String techSpecs,
+    required String history,
+    required String userEmail,
+    required String companyCode,
+    this.isUploaded = const Value.absent(),
+    this.lastModified = const Value.absent(),
+  }) : name = Value(name),
+       sn = Value(sn),
+       model = Value(model),
+       status = Value(status),
+       techSpecs = Value(techSpecs),
+       history = Value(history),
+       userEmail = Value(userEmail),
+       companyCode = Value(companyCode);
+  static Insertable<Asset> custom({
+    Expression<int>? id,
+    Expression<String>? firebaseId,
+    Expression<String>? name,
+    Expression<String>? sn,
+    Expression<String>? model,
+    Expression<String>? url,
+    Expression<String>? status,
+    Expression<String>? techSpecs,
+    Expression<String>? history,
+    Expression<String>? userEmail,
+    Expression<String>? companyCode,
+    Expression<bool>? isUploaded,
+    Expression<DateTime>? lastModified,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (firebaseId != null) 'firebase_id': firebaseId,
+      if (name != null) 'name': name,
+      if (sn != null) 'sn': sn,
+      if (model != null) 'model': model,
+      if (url != null) 'url': url,
+      if (status != null) 'status': status,
+      if (techSpecs != null) 'tech_specs': techSpecs,
+      if (history != null) 'history': history,
+      if (userEmail != null) 'user_email': userEmail,
+      if (companyCode != null) 'company_code': companyCode,
+      if (isUploaded != null) 'is_uploaded': isUploaded,
+      if (lastModified != null) 'last_modified': lastModified,
+    });
+  }
+
+  AssetsCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? firebaseId,
+    Value<String>? name,
+    Value<String>? sn,
+    Value<String>? model,
+    Value<String?>? url,
+    Value<String>? status,
+    Value<String>? techSpecs,
+    Value<String>? history,
+    Value<String>? userEmail,
+    Value<String>? companyCode,
+    Value<bool>? isUploaded,
+    Value<DateTime>? lastModified,
+  }) {
+    return AssetsCompanion(
+      id: id ?? this.id,
+      firebaseId: firebaseId ?? this.firebaseId,
+      name: name ?? this.name,
+      sn: sn ?? this.sn,
+      model: model ?? this.model,
+      url: url ?? this.url,
+      status: status ?? this.status,
+      techSpecs: techSpecs ?? this.techSpecs,
+      history: history ?? this.history,
+      userEmail: userEmail ?? this.userEmail,
+      companyCode: companyCode ?? this.companyCode,
+      isUploaded: isUploaded ?? this.isUploaded,
+      lastModified: lastModified ?? this.lastModified,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (firebaseId.present) {
+      map['firebase_id'] = Variable<String>(firebaseId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sn.present) {
+      map['sn'] = Variable<String>(sn.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (techSpecs.present) {
+      map['tech_specs'] = Variable<String>(techSpecs.value);
+    }
+    if (history.present) {
+      map['history'] = Variable<String>(history.value);
+    }
+    if (userEmail.present) {
+      map['user_email'] = Variable<String>(userEmail.value);
+    }
+    if (companyCode.present) {
+      map['company_code'] = Variable<String>(companyCode.value);
+    }
+    if (isUploaded.present) {
+      map['is_uploaded'] = Variable<bool>(isUploaded.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<DateTime>(lastModified.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssetsCompanion(')
+          ..write('id: $id, ')
+          ..write('firebaseId: $firebaseId, ')
+          ..write('name: $name, ')
+          ..write('sn: $sn, ')
+          ..write('model: $model, ')
+          ..write('url: $url, ')
+          ..write('status: $status, ')
+          ..write('techSpecs: $techSpecs, ')
+          ..write('history: $history, ')
+          ..write('userEmail: $userEmail, ')
+          ..write('companyCode: $companyCode, ')
+          ..write('isUploaded: $isUploaded, ')
+          ..write('lastModified: $lastModified')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -2178,6 +2920,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $UsersTable users = $UsersTable(this);
+  late final $AssetsTable assets = $AssetsTable(this);
   late final $PhotosTable photos = $PhotosTable(this);
   late final $AudiosTable audios = $AudiosTable(this);
   late final $VideosTable videos = $VideosTable(this);
@@ -2187,6 +2930,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     users,
+    assets,
     photos,
     audios,
     videos,
@@ -2380,6 +3124,354 @@ typedef $$UsersTableProcessedTableManager =
       $$UsersTableUpdateCompanionBuilder,
       (User, BaseReferences<_$AppDatabase, $UsersTable, User>),
       User,
+      PrefetchHooks Function()
+    >;
+typedef $$AssetsTableCreateCompanionBuilder =
+    AssetsCompanion Function({
+      Value<int> id,
+      Value<String?> firebaseId,
+      required String name,
+      required String sn,
+      required String model,
+      Value<String?> url,
+      required String status,
+      required String techSpecs,
+      required String history,
+      required String userEmail,
+      required String companyCode,
+      Value<bool> isUploaded,
+      Value<DateTime> lastModified,
+    });
+typedef $$AssetsTableUpdateCompanionBuilder =
+    AssetsCompanion Function({
+      Value<int> id,
+      Value<String?> firebaseId,
+      Value<String> name,
+      Value<String> sn,
+      Value<String> model,
+      Value<String?> url,
+      Value<String> status,
+      Value<String> techSpecs,
+      Value<String> history,
+      Value<String> userEmail,
+      Value<String> companyCode,
+      Value<bool> isUploaded,
+      Value<DateTime> lastModified,
+    });
+
+class $$AssetsTableFilterComposer
+    extends Composer<_$AppDatabase, $AssetsTable> {
+  $$AssetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sn => $composableBuilder(
+    column: $table.sn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get techSpecs => $composableBuilder(
+    column: $table.techSpecs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get history => $composableBuilder(
+    column: $table.history,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AssetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AssetsTable> {
+  $$AssetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sn => $composableBuilder(
+    column: $table.sn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get techSpecs => $composableBuilder(
+    column: $table.techSpecs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get history => $composableBuilder(
+    column: $table.history,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userEmail => $composableBuilder(
+    column: $table.userEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AssetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AssetsTable> {
+  $$AssetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get firebaseId => $composableBuilder(
+    column: $table.firebaseId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get sn =>
+      $composableBuilder(column: $table.sn, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get techSpecs =>
+      $composableBuilder(column: $table.techSpecs, builder: (column) => column);
+
+  GeneratedColumn<String> get history =>
+      $composableBuilder(column: $table.history, builder: (column) => column);
+
+  GeneratedColumn<String> get userEmail =>
+      $composableBuilder(column: $table.userEmail, builder: (column) => column);
+
+  GeneratedColumn<String> get companyCode => $composableBuilder(
+    column: $table.companyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isUploaded => $composableBuilder(
+    column: $table.isUploaded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
+}
+
+class $$AssetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AssetsTable,
+          Asset,
+          $$AssetsTableFilterComposer,
+          $$AssetsTableOrderingComposer,
+          $$AssetsTableAnnotationComposer,
+          $$AssetsTableCreateCompanionBuilder,
+          $$AssetsTableUpdateCompanionBuilder,
+          (Asset, BaseReferences<_$AppDatabase, $AssetsTable, Asset>),
+          Asset,
+          PrefetchHooks Function()
+        > {
+  $$AssetsTableTableManager(_$AppDatabase db, $AssetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AssetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AssetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AssetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> firebaseId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> sn = const Value.absent(),
+                Value<String> model = const Value.absent(),
+                Value<String?> url = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> techSpecs = const Value.absent(),
+                Value<String> history = const Value.absent(),
+                Value<String> userEmail = const Value.absent(),
+                Value<String> companyCode = const Value.absent(),
+                Value<bool> isUploaded = const Value.absent(),
+                Value<DateTime> lastModified = const Value.absent(),
+              }) => AssetsCompanion(
+                id: id,
+                firebaseId: firebaseId,
+                name: name,
+                sn: sn,
+                model: model,
+                url: url,
+                status: status,
+                techSpecs: techSpecs,
+                history: history,
+                userEmail: userEmail,
+                companyCode: companyCode,
+                isUploaded: isUploaded,
+                lastModified: lastModified,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> firebaseId = const Value.absent(),
+                required String name,
+                required String sn,
+                required String model,
+                Value<String?> url = const Value.absent(),
+                required String status,
+                required String techSpecs,
+                required String history,
+                required String userEmail,
+                required String companyCode,
+                Value<bool> isUploaded = const Value.absent(),
+                Value<DateTime> lastModified = const Value.absent(),
+              }) => AssetsCompanion.insert(
+                id: id,
+                firebaseId: firebaseId,
+                name: name,
+                sn: sn,
+                model: model,
+                url: url,
+                status: status,
+                techSpecs: techSpecs,
+                history: history,
+                userEmail: userEmail,
+                companyCode: companyCode,
+                isUploaded: isUploaded,
+                lastModified: lastModified,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AssetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AssetsTable,
+      Asset,
+      $$AssetsTableFilterComposer,
+      $$AssetsTableOrderingComposer,
+      $$AssetsTableAnnotationComposer,
+      $$AssetsTableCreateCompanionBuilder,
+      $$AssetsTableUpdateCompanionBuilder,
+      (Asset, BaseReferences<_$AppDatabase, $AssetsTable, Asset>),
+      Asset,
       PrefetchHooks Function()
     >;
 typedef $$PhotosTableCreateCompanionBuilder =
@@ -3247,6 +4339,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$UsersTableTableManager get users =>
       $$UsersTableTableManager(_db, _db.users);
+  $$AssetsTableTableManager get assets =>
+      $$AssetsTableTableManager(_db, _db.assets);
   $$PhotosTableTableManager get photos =>
       $$PhotosTableTableManager(_db, _db.photos);
   $$AudiosTableTableManager get audios =>

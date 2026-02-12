@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert'; // Pridané pre spracovanie JSON (techSpecs, history)
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
@@ -39,13 +40,33 @@ LazyDatabase _openConnection() {
 
 // --------------- TABUĽKY ----------------
 
-// Upravená tabuľka Users pre synchronizáciu s Firebase
 class Users extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uid => text().unique()(); // Firebase UID
   TextColumn get email => text()();
   TextColumn get role => text()(); // admin / technician
   TextColumn get companyCode => text()(); // companyId z Firebase
+}
+
+// *** NOVÁ TABUĽKA PRE EVIDENCIU MAJETKU ***
+class Assets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get firebaseId => text().nullable().unique()(); // UID z Firebase pre synchro
+  TextColumn get name => text()();
+  TextColumn get sn => text()(); // Sériové číslo (unikátne číslo pre vyhľadávanie)
+  TextColumn get model => text()();
+  TextColumn get url => text().nullable()();
+  TextColumn get status => text()(); // V prevádzke, Vyžaduje servis, atď.
+
+  // Dynamické polia ukladané ako JSON String
+  TextColumn get techSpecs => text()();
+  TextColumn get history => text()();
+
+  TextColumn get userEmail => text()(); // Kto zariadenie pridal/upravil
+  TextColumn get companyCode => text()(); // Príslušnosť k firme
+
+  BoolColumn get isUploaded => boolean().withDefault(const Constant(false))(); // Stav synchronizácie
+  DateTimeColumn get lastModified => dateTime().withDefault(currentDateAndTime)();
 }
 
 class Photos extends Table {
@@ -89,14 +110,52 @@ class Videos extends Table {
 
 // --------------- Drift Database ----------------
 
-@DriftDatabase(tables: [Users, Photos, Audios, Videos])
+@DriftDatabase(tables: [Users, Assets, Photos, Audios, Videos])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7; // Zvýšené na 7 kvôli zmene tabuľky Users
+  int get schemaVersion => 8; // Zvýšené na 8 kvôli pridaniu tabuľky Assets
 
-  // ---------------- USER CRUD (Nové) ----------------
+  // ---------------- ASSETS CRUD (Majetok) - NOVÉ ----------------
+
+  // Sledovanie majetku pre celú firmu (aby kolegovia videli zmeny po synchre)
+  Stream<List<Asset>> watchCompanyAssets(String companyCode) {
+    return (select(assets)
+      ..where((a) => a.companyCode.equals(companyCode))
+      ..orderBy([(a) => OrderingTerm(expression: a.lastModified, mode: OrderingMode.desc)]))
+        .watch();
+  }
+
+  // Vyhľadávanie majetku podľa SN alebo názvu v rámci firmy
+  Future<List<Asset>> searchAssets(String query, String companyCode) {
+    return (select(assets)
+      ..where((a) => a.companyCode.equals(companyCode) &
+      (a.sn.like('%$query%') | a.name.like('%$query%'))))
+        .get();
+  }
+
+  // Pridanie alebo aktualizácia majetku (používa sa pri lokálnom zápise aj pri sťahovaní z Firebase)
+  Future<int> upsertAsset(AssetsCompanion asset) {
+    return into(assets).insertOnConflictUpdate(asset);
+  }
+
+  // Zmazanie majetku (v UI je potrebné skontrolovať rolu admina)
+  Future<void> deleteAsset(int id) {
+    return (delete(assets)..where((a) => a.id.equals(id))).go();
+  }
+
+  // Označenie majetku ako synchronizovaného po úspešnom odoslaní na Firebase
+  Future<void> markAssetAsSynced(int localId, String firebaseId) {
+    return (update(assets)..where((a) => a.id.equals(localId))).write(
+      AssetsCompanion(
+        firebaseId: Value(firebaseId),
+        isUploaded: Value(true),
+      ),
+    );
+  }
+
+  // ---------------- USER CRUD ----------------
 
   Future<int> upsertUser(UsersCompanion user) {
     return into(users).insertOnConflictUpdate(user);
@@ -106,7 +165,7 @@ class AppDatabase extends _$AppDatabase {
     return (select(users)..where((u) => u.uid.equals(uid))).getSingleOrNull();
   }
 
-  // ---------------- FILTROVANÉ STREAMY PRE POUŽÍVATEĽA (Technik) ----------------
+  // ---------------- FILTROVANÉ STREAMY (Pôvodné) ----------------
 
   Stream<List<Photo>> watchUserPhotos(String email) {
     return (select(photos)..where((p) => p.userEmail.equals(email))).watch();
@@ -120,8 +179,6 @@ class AppDatabase extends _$AppDatabase {
     return (select(audios)..where((a) => a.userEmail.equals(email))).watch();
   }
 
-  // ---------------- FILTROVANÉ STREAMY PRE FIRMU (Admin) ----------------
-
   Stream<List<Photo>> watchCompanyPhotos(String companyCode) {
     return (select(photos)..where((p) => p.companyCode.equals(companyCode))).watch();
   }
@@ -134,7 +191,7 @@ class AppDatabase extends _$AppDatabase {
     return (select(audios)..where((a) => a.companyCode.equals(companyCode))).watch();
   }
 
-  // ---------------- SYNC LOGIKA ----------------
+  // ---------------- SYNC LOGIKA (Pôvodné) ----------------
 
   Future<void> markPhotoAsUploaded(String filePath) {
     return (update(photos)..where((p) => p.filePath.equals(filePath))).write(
@@ -154,7 +211,7 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  // ---------------- PHOTOS CRUD ----------------
+  // ---------------- PHOTOS CRUD (Pôvodné) ----------------
   Future<int> insertPhoto({
     required String filePath,
     required String deviceId,
@@ -189,7 +246,7 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  // ---------------- AUDIOS CRUD ----------------
+  // ---------------- AUDIOS CRUD (Pôvodné) ----------------
   Future<int> insertAudio({
     required String filePath,
     required String deviceId,
@@ -216,7 +273,7 @@ class AppDatabase extends _$AppDatabase {
     await (delete(audios)..where((a) => a.filePath.equals(filePath))).go();
   }
 
-  // ---------------- VIDEOS CRUD ----------------
+  // ---------------- VIDEOS CRUD (Pôvodné) ----------------
   Future<int> insertVideo({
     required String filePath,
     required String deviceId,
@@ -263,9 +320,12 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(videos, videos.companyCode);
       }
       if (from < 7) {
-        // Pri zmene štruktúry Users je najbezpečnejšie tabuľku dropnúť a vytvoriť znova
         await m.deleteTable('users');
         await m.createTable(users);
+      }
+      if (from < 8) {
+        // Vytvorenie novej tabuľky pre majetok
+        await m.createTable(assets);
       }
     },
     beforeOpen: (details) async {

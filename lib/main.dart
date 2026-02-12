@@ -3,12 +3,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'as fb;
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
 import 'package:sqlite3/open.dart';
 
-// Importy tvojich súborov (Skontroluj, či názvy priečinkov sedia)
+// Importy tvojich súborov
 import 'package:bakalarka/database.dart';
 import 'package:bakalarka/pages/media_vault_page.dart';
 import 'package:bakalarka/theme.dart';
@@ -16,14 +16,12 @@ import 'package:bakalarka/settings.dart';
 import 'package:bakalarka/camera/camera_page.dart';
 import 'package:bakalarka/microphone.dart';
 import 'package:bakalarka/pages/actions/action_report_pages.dart';
-import 'package:bakalarka/pages/login_page.dart'; // Tvoja nová prihlasovacia stránka
+import 'package:bakalarka/pages/login_page.dart';
 import 'generated/l10n.dart';
 import 'package:bakalarka/pages/inventory_page.dart';
 import 'package:bakalarka/pages/assets_management_page.dart';
 
-
-
-// Ignorujeme varovania pre schovanie ThemeProvider, ak ho máš v theme.dart
+// Ignorujeme varovania pre schovanie ThemeProvider
 import 'theme.dart' hide ThemeProvider, AppTheme;
 
 void main() async {
@@ -54,7 +52,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        Provider<AppDatabase>.value(value: database),
+        Provider<AppDatabase>.value(value: database), // Databáza je dostupná v celej appke
       ],
       child: const MyApp(),
     ),
@@ -98,14 +96,12 @@ class MyApp extends StatelessWidget {
             );
           },
 
-          // ⭐ DYNAMICKÉ SMEROVANIE (Vrátnik)
           home: StreamBuilder<fb.User?>(
             stream: fb.FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
               }
-              // Ak je prihlásený, ide na domov, inak na login
               if (snapshot.hasData) {
                 return const MyHomePage();
               }
@@ -188,21 +184,14 @@ class MyHomePage extends StatelessWidget {
               ),
               const Divider(height: 32, thickness: 0.5),
 
-              // ⭐ REÁLNE ODHLÁSENIE
               _buildSheetAction(
                 context,
                 icon: Icons.logout_rounded,
                 label: 'Odhlásiť sa',
                 isDestructive: true,
                 onTap: () async {
-                  // 1. Zatvoríme BottomSheet
                   Navigator.pop(context);
-
-                  // 2. Samotné odhlásenie z Firebase
                   await fb.FirebaseAuth.instance.signOut();
-
-                  // 3. Poistka: Ak by StreamBuilder v MyApp nezareagoval hneď,
-                  // vnútime navigáciu na Login.
                   if (context.mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -320,6 +309,33 @@ class MyHomePage extends StatelessWidget {
 class SettingsDrawer extends StatelessWidget {
   const SettingsDrawer({super.key});
 
+  // ⭐ POMOCNÁ METÓDA PRE BEZPEČNÚ NAVIGÁCIU S DÁTAMI
+  Future<void> _navigateToAssets(BuildContext context, int index) async {
+    final database = context.read<AppDatabase>();
+    final fbUser = fb.FirebaseAuth.instance.currentUser;
+
+    if (fbUser == null) return;
+
+    // Skúsime vytiahnuť používateľa z lokálnej databázy, aby sme získali companyCode
+    final localUser = await database.getUser(fbUser.uid);
+
+    // Ak by v lokálnej DB ešte nebol (napr. prvý login), použijeme fallback
+    final email = fbUser.email ?? 'host@system.sk';
+    final company = localUser?.companyCode ?? 'GENERAL';
+
+    if (context.mounted) {
+      Navigator.pop(context); // Zatvoriť Drawer
+      Navigator.push(context, MaterialPageRoute(
+          builder: (_) => AssetsManagementPage(
+            initialIndex: index,
+            userEmail: email,
+            companyCode: company,
+            database: database,
+          )
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -328,26 +344,16 @@ class SettingsDrawer extends StatelessWidget {
     return Drawer(
       child: Column(
         children: [
-          // HLAVIČKA DRAWERU (Info o firme/aplikácii)
           UserAccountsDrawerHeader(
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-            ),
+            decoration: BoxDecoration(color: colorScheme.primaryContainer),
             currentAccountPicture: CircleAvatar(
               backgroundColor: colorScheme.primary,
               child: Icon(Icons.business_center, color: colorScheme.onPrimary, size: 30),
             ),
-            accountName: Text(
-              "Trezor System",
-              style: TextStyle(color: colorScheme.onPrimaryContainer, fontWeight: FontWeight.bold),
-            ),
-            accountEmail: Text(
-              "Správa majetku a skladu",
-              style: TextStyle(color: colorScheme.onPrimaryContainer.withOpacity(0.8)),
-            ),
+            accountName: const Text("Trezor System", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+            accountEmail: const Text("Správa majetku a skladu", style: TextStyle(color: Colors.black54)),
           ),
 
-          // TELO DRAWERU (Navigácia)
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -356,22 +362,12 @@ class SettingsDrawer extends StatelessWidget {
                 _drawerItem(
                   icon: Icons.inventory_2_outlined,
                   label: 'Zariadenia',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => const AssetsManagementPage(initialIndex: 0) // Otvorí prvú kartu
-                    ));
-                  },
+                  onTap: () => _navigateToAssets(context, 0), // Volá pomocnú metódu
                 ),
                 _drawerItem(
                   icon: Icons.history_outlined,
                   label: 'História kontrol',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => const AssetsManagementPage(initialIndex: 1) // Otvorí druhú kartu
-                    ));
-                  },
+                  onTap: () => _navigateToAssets(context, 1), // Volá pomocnú metódu
                 ),
                 const Divider(indent: 16, endIndent: 16),
                 _drawerSectionTitle(context, 'Sklad'),
@@ -380,7 +376,7 @@ class SettingsDrawer extends StatelessWidget {
                   label: 'Stav zásob',
                   onTap: () {
                     Navigator.pop(context);
-                     Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryPage()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryPage()));
                   },
                 ),
                 _drawerItem(
@@ -391,7 +387,6 @@ class SettingsDrawer extends StatelessWidget {
                     // Navigator.push(context, MaterialPageRoute(builder: (_) => const StockMovementsPage()));
                   },
                 ),
-
                 const Divider(indent: 16, endIndent: 16),
                 _drawerSectionTitle(context, 'Systém'),
                 _drawerItem(
@@ -406,7 +401,6 @@ class SettingsDrawer extends StatelessWidget {
             ),
           ),
 
-          // SPODNÁ ČASŤ (Verzia alebo Logout poistka)
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
@@ -419,7 +413,6 @@ class SettingsDrawer extends StatelessWidget {
     );
   }
 
-  // Pomocný widget pre nadpisy sekcií
   Widget _drawerSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -434,12 +427,7 @@ class SettingsDrawer extends StatelessWidget {
     );
   }
 
-  // Pomocný widget pre položku v zozname
-  Widget _drawerItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
+  Widget _drawerItem({required IconData icon, required String label, required VoidCallback onTap}) {
     return ListTile(
       leading: Icon(icon),
       title: Text(label),
@@ -453,37 +441,25 @@ class SettingsDrawer extends StatelessWidget {
 
 class _BottomToolbar extends StatelessWidget {
   final VoidCallback onActionPressed;
-
   const _BottomToolbar({required this.onActionPressed});
 
   @override
   Widget build(BuildContext context) {
-    // V M3 používame farby zo schémy, ktoré reagujú na svetlý/tmavý režim
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Center(
-        child: ClipRRect( // ClipRRect je nutný, aby blur nepretekal mimo zaoblenia
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(40),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Efekt rozmazania
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
-                // Použitie priesvitnej farby povrchu pre efekt skla
                 color: colorScheme.surface.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(40),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withOpacity(0.3), // Jemný okraj
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -493,7 +469,7 @@ class _BottomToolbar extends StatelessWidget {
                     label: 'Kamera',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CameraPage())),
                   ),
-                  _buildDivider(colorScheme), // Pridal som oddelovač
+                  _buildDivider(colorScheme),
                   _ToolbarItem(
                     icon: Icons.mic_rounded,
                     label: 'Mikrofón',
@@ -514,7 +490,6 @@ class _BottomToolbar extends StatelessWidget {
     );
   }
 
-  // Pomocná metóda pre jemný vertikálny oddelovač
   Widget _buildDivider(ColorScheme colorScheme) {
     return Container(
       height: 24,
@@ -530,36 +505,21 @@ class _ToolbarItem extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _ToolbarItem({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _ToolbarItem({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(20), // Aby ripple efekt sedel
+      borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 26,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(icon, size: 26, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ),
       ),
@@ -572,11 +532,7 @@ class _ActionItem extends StatelessWidget {
   final String title;
   final Widget page;
 
-  const _ActionItem({
-    required this.icon,
-    required this.title,
-    required this.page,
-  });
+  const _ActionItem({required this.icon, required this.title, required this.page});
 
   @override
   Widget build(BuildContext context) {
@@ -585,12 +541,8 @@ class _ActionItem extends StatelessWidget {
       title: Text(title),
       onTap: () {
         Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => page),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => page));
       },
     );
   }
 }
-
