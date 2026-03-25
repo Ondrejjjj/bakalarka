@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:provider/provider.dart';
 import 'package:bakalarka/database.dart';
+import 'package:bakalarka/services/sync_service.dart'; // PRIDANÉ: Import tvojho SyncService
 
 class InventoryPage extends StatefulWidget {
   final String userEmail;
@@ -23,6 +24,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _itemSearchController = TextEditingController();
   String _searchQuery = '';
+  bool _isSyncing = false; // PRIDANÉ: Sledovanie stavu synchronizácie
 
   @override
   void initState() {
@@ -30,6 +32,11 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
     _tabController = TabController(length: 2, vsync: this);
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.toLowerCase());
+    });
+
+    // PRIDANÉ: Automatické spustenie obnovy dát po načítaní stránky
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshDataFromCloud();
     });
   }
 
@@ -39,6 +46,22 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
     _searchController.dispose();
     _itemSearchController.dispose();
     super.dispose();
+  }
+
+  // --- PRIDANÉ: Metóda na sťahovanie dát z cloudu ---
+  Future<void> _refreshDataFromCloud() async {
+    if (_isSyncing) return;
+
+    setState(() => _isSyncing = true);
+    try {
+      final db = Provider.of<AppDatabase>(context, listen: false);
+      final syncService = SyncService(db);
+      await syncService.restoreAllUserData(); // Zavolá tvoju metódu v SyncService
+    } catch (e) {
+      debugPrint("❌ Chyba pri synchronizácii: $e");
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
   }
 
   // --- Logika ukladania pohybu ---
@@ -84,7 +107,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
     db.syncMovementToFirebase(movementData, updatedItem);
   }
 
-  // --- UI Dialóg pre pohyb ---
+  // --- UI Dialóg pre pohyb --- (Ponechaný bez zmien, funkčný)
   void _showStockMovementSheet(BuildContext context, {InventoryData? preselectedItem, required String userEmail, required String companyCode}) {
     final db = Provider.of<AppDatabase>(context, listen: false);
     bool isIncome = preselectedItem == null ? true : false;
@@ -112,7 +135,6 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                 const SizedBox(height: 20),
                 Text('Skladový pohyb', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
-
                 Row(
                   children: [
                     Expanded(
@@ -135,7 +157,6 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                   ],
                 ),
                 const SizedBox(height: 20),
-
                 StreamBuilder<List<InventoryData>>(
                   stream: db.watchCompanyInventory(companyCode),
                   builder: (context, snapshot) {
@@ -173,7 +194,6 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                     );
                   },
                 ),
-
                 if (selectedItem == null) ...[
                   const SizedBox(height: 12),
                   Row(
@@ -184,14 +204,12 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                     ],
                   ),
                 ],
-
                 const SizedBox(height: 12),
                 TextField(
                   controller: qtyController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(labelText: 'Množstvo', border: OutlineInputBorder(), suffixIcon: Icon(Icons.numbers)),
                 ),
-
                 const Divider(height: 40),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -215,7 +233,6 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                     ],
                   ),
                 )),
-
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -287,7 +304,6 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
-    // Používame reálne dáta z widgetu, nie mocky
     final String currentEmail = widget.userEmail;
     final String currentCompany = widget.companyCode;
 
@@ -302,11 +318,18 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column( // PRIDANÉ: Column, aby sme hore mohli ukázať ProgressBar
         children: [
-          _buildStockList(currentCompany, currentEmail),
-          _buildMovementHistory(currentCompany),
+          if (_isSyncing) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildStockList(currentCompany, currentEmail),
+                _buildMovementHistory(currentCompany),
+              ],
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -319,75 +342,88 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
 
   Widget _buildStockList(String companyCode, String userEmail) {
     final db = Provider.of<AppDatabase>(context);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Hľadať v sklade...',
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+
+    // PRIDANÉ: RefreshIndicator pre manuálnu obnovu potiahnutím dole
+    return RefreshIndicator(
+      onRefresh: _refreshDataFromCloud,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Hľadať v sklade...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
             ),
           ),
-        ),
-        Expanded(
-          child: StreamBuilder<List<InventoryData>>(
-            stream: db.watchCompanyInventory(companyCode),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-              if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text('Sklad je prázdny.'));
+          Expanded(
+            child: StreamBuilder<List<InventoryData>>(
+              stream: db.watchCompanyInventory(companyCode),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  // Aby Pull-to-refresh fungoval aj na prázdnej obrazovke, musí tam byť scrollable widget
+                  return ListView(
+                    children: const [SizedBox(height: 200), Center(child: Text('Sklad je prázdny.'))],
+                  );
+                }
 
-              final filtered = snapshot.data!.where((item) {
-                return item.name.toLowerCase().contains(_searchQuery) ||
-                    item.ean.toLowerCase().contains(_searchQuery) ||
-                    item.sku.toLowerCase().contains(_searchQuery);
-              }).toList();
+                final filtered = snapshot.data!.where((item) {
+                  return item.name.toLowerCase().contains(_searchQuery) ||
+                      item.ean.toLowerCase().contains(_searchQuery) ||
+                      item.sku.toLowerCase().contains(_searchQuery);
+                }).toList();
 
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: filtered.length,
-                itemBuilder: (context, index) {
-                  final item = filtered[index];
-                  return Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: InkWell(
-                      onTap: () => _showStockMovementSheet(context, preselectedItem: item, userEmail: userEmail, companyCode: companyCode),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.inventory, color: Colors.blue, size: 30),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  Text('ID: ${item.ean} | SKU: ${item.sku}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                ],
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  physics: const AlwaysScrollableScrollPhysics(), // Dôležité pre RefreshIndicator
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final item = filtered[index];
+                    return Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: InkWell(
+                        onTap: () => _showStockMovementSheet(context, preselectedItem: item, userEmail: userEmail, companyCode: companyCode),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.inventory, color: Colors.blue, size: 30),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text('ID: ${item.ean} | SKU: ${item.sku}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                  ],
+                                ),
                               ),
-                            ),
-                            Text('${item.qty} ${item.unit}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-                          ],
+                              Text('${item.qty} ${item.unit}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
-              );
-            },
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -401,29 +437,33 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
 
         final movements = snapshot.data!;
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: movements.length,
-          itemBuilder: (context, index) {
-            final move = movements[index];
-            final isIncome = move.type == 'income';
+        return RefreshIndicator( // PRIDANÉ aj do histórie
+          onRefresh: _refreshDataFromCloud,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(12),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: movements.length,
+            itemBuilder: (context, index) {
+              final move = movements[index];
+              final isIncome = move.type == 'income';
 
-            return Card(
-              elevation: 0,
-              color: isIncome ? Colors.green.withOpacity(0.05) : Colors.red.withOpacity(0.05),
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: Icon(isIncome ? Icons.add_circle : Icons.remove_circle, color: isIncome ? Colors.green : Colors.red),
-                title: Text(move.itemName),
-                subtitle: Text('${move.userEmail}\n${move.createdAt.day}.${move.createdAt.month}. ${move.createdAt.hour}:${move.createdAt.minute.toString().padLeft(2, '0')}'),
-                isThreeLine: true,
-                trailing: Text(
-                  '${isIncome ? "+" : ""}${move.changeQty}',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: isIncome ? Colors.green[800] : Colors.red[800], fontSize: 16),
+              return Card(
+                elevation: 0,
+                color: isIncome ? Colors.green.withOpacity(0.05) : Colors.red.withOpacity(0.05),
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: Icon(isIncome ? Icons.add_circle : Icons.remove_circle, color: isIncome ? Colors.green : Colors.red),
+                  title: Text(move.itemName),
+                  subtitle: Text('${move.userEmail}\n${move.createdAt.day}.${move.createdAt.month}. ${move.createdAt.hour}:${move.createdAt.minute.toString().padLeft(2, '0')}'),
+                  isThreeLine: true,
+                  trailing: Text(
+                    '${isIncome ? "+" : ""}${move.changeQty}',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: isIncome ? Colors.green[800] : Colors.red[800], fontSize: 16),
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );

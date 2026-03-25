@@ -11,7 +11,8 @@ import 'package:bakalarka/security/crypto_service.dart';
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
 import 'package:native_exif/native_exif.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // PRIDANÉ
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:drift/drift.dart' as drift; // Potrebné pre drift.Value
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -26,7 +27,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   bool _isFlashOn = false;
   bool _isReady = false;
 
-  // Secure Storage pre offline prístup k identite
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -36,43 +36,40 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   String _cachedCompany = 'unknown_company';
   String _cachedOwnerName = 'Technik';
 
-  // Zoom
   double _minZoom = 1.0;
   double _maxZoom = 1.0;
   double _currentZoom = 1.0;
 
-  // Video & Modes
   bool _isVideoMode = false;
   bool _isRecording = false;
   Duration _videoDuration = Duration.zero;
   Timer? _videoTimer;
-
-  // UI Animation
   bool _isCapturing = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadOfflineCredentials(); // Načítame identitu hneď pri štarte
+    _loadOfflineCredentials();
     _initCamera();
   }
 
-  // Načítanie údajov zo Secure Storage (funguje aj offline)
+  // ZJEDNOTENÉ: Načítavame 'company_id', aby to sedelo s Galériou
   Future<void> _loadOfflineCredentials() async {
     try {
       final email = await _storage.read(key: 'user_email');
-      final company = await _storage.read(key: 'company_code');
-      // Meno môžeme držať v storage alebo ho odvodiť z emailu
+      final company = await _storage.read(key: 'company_id'); // Opravený kľúč
+      final name = await _storage.read(key: 'user_name');
 
       if (mounted) {
         setState(() {
-          _cachedEmail = email ?? 'offline_user';
-          _cachedCompany = company ?? 'offline_company';
+          _cachedEmail = email ?? 'unknown_user';
+          _cachedCompany = company ?? 'unknown_company';
+          _cachedOwnerName = name ?? 'Technik';
         });
       }
     } catch (e) {
-      debugPrint("Chyba načítania offline údajov: $e");
+      debugPrint("❌ Chyba načítania offline údajov: $e");
     }
   }
 
@@ -86,11 +83,9 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final CameraController? cameraController = _controller;
-    if (cameraController == null || !cameraController.value.isInitialized) return;
-
+    if (_controller == null || !_controller!.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
-      cameraController.dispose();
+      _controller?.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _initCamera();
     }
@@ -122,7 +117,7 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
       if (mounted) setState(() => _isReady = true);
     } catch (e) {
-      debugPrint("Camera init error: $e");
+      debugPrint("❌ Camera init error: $e");
     }
   }
 
@@ -138,6 +133,7 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       final XFile photo = await _controller!.takePicture();
       await _stripExif(photo.path);
 
+      // Šifrovanie
       final bytes = await File(photo.path).readAsBytes();
       final encryptedBytes = await CryptoService.encryptBytes(bytes);
 
@@ -145,50 +141,60 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       final file = await ImageStorage.createEncryptedFile(imageId);
       await file.writeAsBytes(encryptedBytes, flush: true);
 
-      double? latitude;
-      double? longitude;
+      // Poloha
+      double? lat;
+      double? lon;
       try {
         Location location = Location();
-        // Pri polohe používame krátky timeout, aby sme offline nečakali večne
         final locData = await location.getLocation().timeout(const Duration(seconds: 3));
-        latitude = locData.latitude;
-        longitude = locData.longitude;
-      } catch (e) {
-        debugPrint('Location error (možno offline): $e');
-      }
+        lat = locData.latitude;
+        lon = locData.longitude;
+      } catch (_) {}
 
       if (!mounted) return;
-
       final db = context.read<AppDatabase>();
 
-      // ✅ ZÁPIS DO DB S OFFLINE ÚDAJMI
+      // ZÁPIS DO DB (Stĺpec companyCode v DB dostane hodnotu _cachedCompany, čo je naše company_id)
       await db.insertPhoto(
-        ownerName: _cachedOwnerName,
+        filePath: file.path,
+        deviceId: '90',
         userEmail: _cachedEmail,
         companyCode: _cachedCompany,
-        filePath: file.path,
-        latitude: latitude,
-        longitude: longitude,
+        ownerName: _cachedOwnerName,
         uploaded: false,
-        deviceId: '90',
+        latitude: lat,
+        longitude: lon,
       );
 
-      final tempFile = File(photo.path);
-      if (await tempFile.exists()) await tempFile.delete();
-
+      await File(photo.path).delete();
+      debugPrint("✅ Foto uložené: ${file.path}");
     } catch (e) {
-      debugPrint("Photo capture error: $e");
+      debugPrint("❌ Photo capture error: $e");
+    }
+  }
+
+  Future<void> _startVideo() async {
+    if (_controller == null || !_controller!.value.isInitialized || _isRecording) return;
+    try {
+      await _controller!.startVideoRecording();
+      setState(() {
+        _isRecording = true;
+        _videoDuration = Duration.zero;
+      });
+      _videoTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted) setState(() => _videoDuration += const Duration(seconds: 1));
+      });
+    } catch (e) {
+      debugPrint("❌ Video start error: $e");
     }
   }
 
   Future<void> _stopVideo() async {
     if (!_isRecording) return;
-
     try {
       final XFile video = await _controller!.stopVideoRecording();
       _videoTimer?.cancel();
-
-      final int finalDuration = _videoDuration.inSeconds;
+      final int duration = _videoDuration.inSeconds;
 
       setState(() => _isRecording = false);
 
@@ -197,49 +203,29 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
       final videoId = "vid_${DateTime.now().millisecondsSinceEpoch}";
       final file = await ImageStorage.createEncryptedFile(videoId);
-
       await file.writeAsBytes(encryptedBytes, flush: true);
 
       if (!mounted) return;
-
       final db = context.read<AppDatabase>();
 
-      // ✅ ZÁPIS DO DB S OFFLINE ÚDAJMI
+      // ZÁPIS VIDEA DO DB
       await db.insertVideo(
         filePath: file.path,
         deviceId: '90',
-        ownerName: _cachedOwnerName,
         userEmail: _cachedEmail,
         companyCode: _cachedCompany,
+        ownerName: _cachedOwnerName,
         uploaded: false,
-        duration: finalDuration,
+        duration: duration,
       );
 
-      final tempFile = File(video.path);
-      if (await tempFile.exists()) await tempFile.delete();
-
+      await File(video.path).delete();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🎥 Video zašifrované a uložené do trezoru')),
+        const SnackBar(content: Text('🎥 Video zašifrované a uložené')),
       );
     } catch (e) {
-      debugPrint("Video stop error: $e");
+      debugPrint("❌ Video stop error: $e");
     }
-  }
-
-  Future<void> _startVideo() async {
-    if (!_controller!.value.isInitialized || _isRecording) return;
-
-    await _controller!.startVideoRecording();
-    setState(() {
-      _isRecording = true;
-      _videoDuration = Duration.zero;
-    });
-
-    _videoTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() => _videoDuration += const Duration(seconds: 1));
-      }
-    });
   }
 
   Future<void> _stripExif(String path) async {
@@ -247,36 +233,25 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       final exif = await Exif.fromPath(path);
       await exif.writeAttributes({});
       await exif.close();
-    } catch (e) {
-      debugPrint("EXIF error: $e");
-    }
+    } catch (_) {}
   }
 
   void _toggleFlash() async {
     if (_controller == null) return;
     setState(() => _isFlashOn = !_isFlashOn);
-    try {
-      await _controller!.setFlashMode(
-        _isFlashOn ? FlashMode.torch : FlashMode.off,
-      );
-    } catch (e) {
-      debugPrint("Flash error: $e");
-    }
+    await _controller!.setFlashMode(_isFlashOn ? FlashMode.torch : FlashMode.off);
   }
 
   String _formatDuration(Duration d) {
-    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_isReady || _controller == null) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
-      );
+      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator(color: Colors.white)));
     }
 
     return Scaffold(
@@ -285,106 +260,55 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
         fit: StackFit.expand,
         children: [
           Center(child: CameraPreview(_controller!)),
-
           if (_isCapturing) Container(color: Colors.black.withOpacity(0.5)),
 
           // Horná lišta
           Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
+            top: 0, left: 0, right: 0,
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 50, 16, 20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.black54, Colors.transparent],
-                ),
-              ),
+              decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black54, Colors.transparent])),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  IconButton(icon: const Icon(Icons.close, color: Colors.white, size: 28), onPressed: () => Navigator.pop(context)),
                   if (_isRecording)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _formatDuration(_videoDuration),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+                      decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.8), borderRadius: BorderRadius.circular(20)),
+                      child: Text(_formatDuration(_videoDuration), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
-                  IconButton(
-                    icon: Icon(
-                      _isFlashOn ? Icons.flash_on : Icons.flash_off,
-                      color: _isFlashOn ? Colors.yellow : Colors.white,
-                      size: 28,
-                    ),
-                    onPressed: _toggleFlash,
-                  ),
+                  IconButton(icon: Icon(_isFlashOn ? Icons.flash_on : Icons.flash_off, color: _isFlashOn ? Colors.yellow : Colors.white, size: 28), onPressed: _toggleFlash),
                 ],
               ),
             ),
           ),
 
-          // Spodný panel
+          // Spodný panel (Zoom + Módy + Spúšť)
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
+            bottom: 0, left: 0, right: 0,
             child: Container(
               padding: const EdgeInsets.only(bottom: 40, top: 20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [Colors.black, Colors.transparent],
-                  stops: [0.4, 1.0],
-                ),
-              ),
+              decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black, Colors.transparent], stops: [0.4, 1.0])),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Zoom Slider
+                  // Zoom
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Row(
                       children: [
                         const Text('1x', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                        Expanded(
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              activeTrackColor: Colors.white,
-                              inactiveTrackColor: Colors.white24,
-                              thumbColor: Colors.white,
-                              trackHeight: 2,
-                            ),
-                            child: Slider(
-                              value: _currentZoom,
-                              min: _minZoom,
-                              max: _maxZoom,
-                              onChanged: (val) async {
-                                setState(() => _currentZoom = val);
-                                await _controller!.setZoomLevel(val);
-                              },
-                            ),
-                          ),
-                        ),
+                        Expanded(child: Slider(
+                          value: _currentZoom, min: _minZoom, max: _maxZoom,
+                          activeColor: Colors.white, inactiveColor: Colors.white24,
+                          onChanged: (val) { setState(() => _currentZoom = val); _controller!.setZoomLevel(val); },
+                        )),
                         Text('${_maxZoom.toStringAsFixed(0)}x', style: const TextStyle(color: Colors.white70, fontSize: 12)),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
-                  // Prepínač režimov
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -393,37 +317,17 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
                       _buildModeText('VIDEO', _isVideoMode),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Spúšť
                   GestureDetector(
-                    onTap: () {
-                      if (_isVideoMode) {
-                        _isRecording ? _stopVideo() : _startVideo();
-                      } else {
-                        _takePhoto();
-                      }
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      height: 80,
-                      width: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
-                      ),
-                      child: Center(
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          height: _isVideoMode ? (_isRecording ? 30 : 60) : 68,
-                          width: _isVideoMode ? (_isRecording ? 30 : 60) : 68,
-                          decoration: BoxDecoration(
-                            color: _isVideoMode ? Colors.red : Colors.white,
-                            borderRadius: BorderRadius.circular(_isVideoMode && _isRecording ? 4 : 50),
-                          ),
-                        ),
-                      ),
+                    onTap: () => _isVideoMode ? (_isRecording ? _stopVideo() : _startVideo()) : _takePhoto(),
+                    child: Container(
+                      height: 80, width: 80,
+                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
+                      child: Center(child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        height: _isRecording ? 30 : 65, width: _isRecording ? 30 : 65,
+                        decoration: BoxDecoration(color: _isVideoMode ? Colors.red : Colors.white, borderRadius: BorderRadius.circular(_isRecording ? 4 : 50)),
+                      )),
                     ),
                   ),
                 ],
@@ -437,20 +341,8 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
   Widget _buildModeText(String text, bool isActive) {
     return GestureDetector(
-      onTap: () {
-        if (_isRecording) return;
-        setState(() => _isVideoMode = (text == 'VIDEO'));
-      },
-      child: AnimatedDefaultTextStyle(
-        duration: const Duration(milliseconds: 200),
-        style: TextStyle(
-          color: isActive ? Colors.yellowAccent : Colors.white54,
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
-        ),
-        child: Text(text),
-      ),
+      onTap: () { if (!_isRecording) setState(() => _isVideoMode = (text == 'VIDEO')); },
+      child: Text(text, style: TextStyle(color: isActive ? Colors.yellowAccent : Colors.white54, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
     );
   }
 }

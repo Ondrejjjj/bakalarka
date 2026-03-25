@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:bakalarka/database.dart';
 import 'theme.dart';
+import 'generated/l10n.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -16,7 +18,9 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final AuthService _auth = AuthService();
+  // OPRAVA: AuthService vyžaduje databázu, ktorú získame neskôr
+  late AuthService _auth;
+
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -29,14 +33,17 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    // Inicializácia AuthService pomocou databázy z Providera
+    final database = Provider.of<AppDatabase>(context, listen: false);
+    _auth = AuthService(database);
+
     _loadInitialData();
   }
 
-  // --- LOGIKA NAČÍTANIA DÁT (SecureStorage + Firebase) ---
+  // --- LOGIKA NAČÍTANIA DÁT ---
   void _loadInitialData() async {
-    // 1. Najprv načítame dáta z lokálnej pamäte (okamžitá odozva)
     final savedRole = await _storage.read(key: 'user_role');
-    final savedCompanyId = await _storage.read(key: 'company_code');
+    final savedCompanyId = await _storage.read(key: 'company_id'); // Opravený kľúč na company_id
 
     if (mounted) {
       setState(() {
@@ -46,7 +53,6 @@ class _SettingsPageState extends State<SettingsPage> {
       });
     }
 
-    // 2. Následne aktualizujeme dáta z Firebase (online synchronizácia)
     final user = _auth.currentUser;
     if (user != null) {
       try {
@@ -75,7 +81,7 @@ class _SettingsPageState extends State<SettingsPage> {
         title: const Text("Pregenerovať kód?"),
         content: const Text("Starý kód prestane okamžite fungovať pre nových technikov."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Zrušiť")),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.of(context).zrusitB)),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Áno, zmeniť")),
         ],
       ),
@@ -95,19 +101,19 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nastavenia'), centerTitle: true),
+      appBar: AppBar(title: Text(S.of(context).nastaveniaH), centerTitle: true),
       body: _isInitialLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // --- ADMIN SEKCIU (KÓD A ZAMESTNANCI) ---
+          // --- ADMIN SEKCIU ---
           if (_isAdmin) ...[
-            _sectionTitle(context, 'Firemný prístup (Admin)'),
+            _sectionTitle(context, S.of(context).firemPris),
             _card(
               child: Column(
                 children: [
-                  const Text("Vstupný kód pre technikov:", style: TextStyle(fontSize: 12)),
+                  Text(S.of(context).kodPreT, style: const TextStyle(fontSize: 12)),
                   const SizedBox(height: 8),
                   Text(
                     _currentCode ?? "---",
@@ -117,18 +123,18 @@ class _SettingsPageState extends State<SettingsPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _actionIcon(Icons.copy, "Kopírovať", () {
+                      _actionIcon(Icons.copy, S.of(context).kopy, () {
                         if (_currentCode != null) {
                           Clipboard.setData(ClipboardData(text: _currentCode!));
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Skopírované do schránky")));
                         }
                       }),
-                      _actionIcon(Icons.share, "Zdieľať", () {
+                      _actionIcon(Icons.share, S.of(context).zdielatT, () {
                         if (_currentCode != null) {
                           Share.share("Ahoj, prihlás sa do našej appky Trezor pomocou kódu: $_currentCode");
                         }
                       }),
-                      _actionIcon(Icons.refresh, "Zmeniť", _regenerateCode),
+                      _actionIcon(Icons.refresh, S.of(context).zmenitT, _regenerateCode),
                     ],
                   ),
                 ],
@@ -136,7 +142,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
 
             const SizedBox(height: 24),
-            _sectionTitle(context, 'Moji technici'),
+            _sectionTitle(context, S.of(context).mojiT),
             _card(
               child: _companyId == null
                   ? const Center(child: CircularProgressIndicator())
@@ -182,42 +188,43 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
 
           // --- OSTATNÉ NASTAVENIA ---
-          _sectionTitle(context, 'Profil'),
+          _sectionTitle(context, S.of(context).profilT),
           _card(
             child: TextField(
               decoration: InputDecoration(
-                labelText: 'Meno používateľa',
+                labelText: 'Email používateľa',
                 hintText: _auth.currentUser?.email ?? '',
                 prefixIcon: const Icon(Icons.person),
                 border: const OutlineInputBorder(),
+                enabled: false, // Email by sa nemal meniť len tak
               ),
             ),
           ),
 
           const SizedBox(height: 24),
-          _sectionTitle(context, 'Pripojenie'),
+          _sectionTitle(context, S.of(context).pripojenieT),
           _card(
             child: Column(
               children: [
-                _settingsButton(context, title: 'Wi-Fi Nastavenia', icon: Icons.wifi_rounded, onTap: () => AppSettings.openAppSettings(type: AppSettingsType.wifi)),
+                _settingsButton(context, title: S.of(context).wifiT, icon: Icons.wifi_rounded, onTap: () => AppSettings.openAppSettings(type: AppSettingsType.wifi)),
                 const Divider(),
-                _settingsButton(context, title: 'Mobilné dáta', icon: Icons.network_cell_rounded, onTap: () => AppSettings.openAppSettings(type: AppSettingsType.dataRoaming)),
+                _settingsButton(context, title: S.of(context).mobilDH, icon: Icons.network_cell_rounded, onTap: () => AppSettings.openAppSettings(type: AppSettingsType.dataRoaming)),
               ],
             ),
           ),
 
           const SizedBox(height: 24),
-          _sectionTitle(context, 'Vzhľad'),
+          _sectionTitle(context, S.of(context).vzhladT),
           _card(
             child: Column(
               children: [
-                const Text('Téma aplikácie'),
+                Text(S.of(context).temaT, style: const TextStyle(fontSize: 12)),
                 const SizedBox(height: 12),
                 SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment(value: ThemeMode.system, label: Text('Systém'), icon: Icon(Icons.settings_suggest)),
-                    ButtonSegment(value: ThemeMode.light, label: Text('Svetlá'), icon: Icon(Icons.light_mode)),
-                    ButtonSegment(value: ThemeMode.dark, label: Text('Tmavá'), icon: Icon(Icons.dark_mode)),
+                  segments: [
+                    ButtonSegment(value: ThemeMode.system, label: Text(S.of(context).systemV), icon: const Icon(Icons.settings_suggest)),
+                    ButtonSegment(value: ThemeMode.light, label: Text(S.of(context).setloV), icon: const Icon(Icons.light_mode)),
+                    ButtonSegment(value: ThemeMode.dark, label: Text(S.of(context).tmavoV), icon: const Icon(Icons.dark_mode)),
                   ],
                   selected: {context.watch<ThemeProvider>().themeMode},
                   onSelectionChanged: (newSelection) => context.read<ThemeProvider>().setThemeMode(newSelection.first),
@@ -233,14 +240,16 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: OutlinedButton.icon(
               onPressed: () async {
+                // Odhlásime používateľa
                 await _auth.signOut();
+
                 if (mounted) {
-                  // Vráti nás na prihlasovaciu obrazovku a vymaže históriu navigácie
+                  // VRÁTENIE NA LOGIN: Vymaže celú históriu a vloží Login ako root
                   Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
                 }
               },
               icon: const Icon(Icons.logout),
-              label: const Text("Odhlásiť sa"),
+              label: Text(S.of(context).odhlasV),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
                 side: const BorderSide(color: Colors.red),

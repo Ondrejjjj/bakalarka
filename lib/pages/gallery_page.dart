@@ -19,14 +19,21 @@ class GalleryPage extends StatefulWidget {
 class _GalleryPageState extends State<GalleryPage> {
   late AppDatabase db;
   bool _showOnlyFavorites = false;
-  final Set<File> _selectedFiles = {};
+  final Set<String> _selectedPaths = {};
   bool _selectionMode = false;
   bool _isSyncing = false;
 
-  // Cache pre filtrovanie
   String? _currentUserEmail;
   String? _currentUserRole;
-  String? _currentCompanyCode; // PRIDANÉ
+  String? _currentCompanyId;
+
+  // Cache pre dešifrované obrázky – zabraňuje blikaniu pri rebuildoch
+  final Map<String, Uint8List> _cache = {};
+  // Sledovanie prebiehajúcich dešifrovaní
+  final Set<String> _loading = {};
+
+  List<_PhotoItem> _currentItems = [];
+  StreamSubscription<List<_PhotoItem>>? _streamSub;
 
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -38,43 +45,46 @@ class _GalleryPageState extends State<GalleryPage> {
     _loadUserIdentity();
   }
 
-  Future<void> _loadUserIdentity() async {
-    final email = await _storage.read(key: 'user_email');
-    final role = await _storage.read(key: 'user_role');
-    final company = await _storage.read(key: 'company_code'); // PRIDANÉ
-
-    if (mounted) {
-      setState(() {
-        _currentUserEmail = email;
-        _currentUserRole = role;
-        _currentCompanyCode = company;
-      });
-    }
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     db = Provider.of<AppDatabase>(context);
   }
 
-  // --- UPRAVENÝ STREAM POUŽÍVAJÚCI NOVÉ METÓDY Z DATABASE.DART ---
-  Stream<List<_PhotoItem>> _watchPhotos() {
-    if (_currentUserEmail == null || _currentCompanyCode == null) {
-      return Stream.value([]);
+  Future<void> _loadUserIdentity() async {
+    // ZJEDNOTENIE: Používame 'company_id' ako hlavný identifikátor firmy
+    final email = await _storage.read(key: 'user_email');
+    final role = await _storage.read(key: 'user_role');
+    final company = await _storage.read(key: 'company_id');
+
+    if (mounted) {
+      debugPrint("📸 Gallery Identity: Email: $email, Rola: $role, Firma (ID): $company");
+      setState(() {
+        _currentUserEmail = email;
+        _currentUserRole = role;
+        _currentCompanyId = company;
+      });
+      _subscribeToPhotos();
+    }
+  }
+
+  void _subscribeToPhotos() {
+    _streamSub?.cancel();
+
+    // Ak nemáme dáta o firme alebo používateľovi, nemôžeme filtrovať
+    if (_currentUserEmail == null || _currentCompanyId == null) {
+      debugPrint("⚠️ Gallery: Čakám na načítanie identity...");
+      return;
     }
 
-    // Výber správneho streamu podľa roly
-    final Stream<List<Photo>> photoStream;
-    if (_currentUserRole == 'admin') {
-      photoStream = db.watchCompanyPhotos(_currentCompanyCode!);
-    } else {
-      photoStream = db.watchUserPhotos(_currentUserEmail!);
-    }
+    // Stream podľa roly: Admin vidí firmu, Technik svoje
+    final Stream<List<Photo>> photoStream = (_currentUserRole == 'admin')
+        ? db.watchCompanyPhotos(_currentCompanyId!)
+        : db.watchUserPhotos(_currentUserEmail!);
 
-    return photoStream.asyncMap((rows) async {
+    final itemStream = photoStream.asyncMap((rows) async {
       final List<_PhotoItem> items = [];
-      for (var row in rows) {
+      for (final row in rows) {
         final file = File(row.filePath);
         if (await file.exists()) {
           items.add(_PhotoItem(
@@ -92,25 +102,54 @@ class _GalleryPageState extends State<GalleryPage> {
       }
       return items;
     });
+
+    _streamSub = itemStream.listen((items) {
+      if (!mounted) return;
+
+      // Spustíme dešifrovanie pre nové súbory
+      for (final item in items) {
+        final path = item.file.path;
+        if (!_cache.containsKey(path) && !_loading.contains(path)) {
+          _loading.add(path);
+          _decryptAndCache(item.file);
+        }
+      }
+
+      setState(() {
+        _currentItems = items;
+      });
+    });
   }
 
-  Future<Uint8List> _decryptForDisplay(File file) async {
+  Future<void> _decryptAndCache(File file) async {
     try {
       final bytes = await file.readAsBytes();
-      return await CryptoService.decryptBytes(bytes);
+      final decrypted = await CryptoService.decryptBytes(bytes);
+      if (mounted) {
+        setState(() {
+          _cache[file.path] = decrypted;
+          _loading.remove(file.path);
+        });
+      }
     } catch (e) {
-      debugPrint("Chyba dešifrovania: $e");
-      rethrow;
+      _loading.remove(file.path);
+      debugPrint('❌ Chyba dešifrovania: $e');
     }
   }
 
-  void _toggleSelection(File file) {
+  @override
+  void dispose() {
+    _streamSub?.cancel();
+    super.dispose();
+  }
+
+  void _toggleSelection(String path) {
     setState(() {
-      if (_selectedFiles.contains(file)) {
-        _selectedFiles.remove(file);
-        if (_selectedFiles.isEmpty) _selectionMode = false;
+      if (_selectedPaths.contains(path)) {
+        _selectedPaths.remove(path);
+        if (_selectedPaths.isEmpty) _selectionMode = false;
       } else {
-        _selectedFiles.add(file);
+        _selectedPaths.add(path);
         _selectionMode = true;
       }
     });
@@ -120,19 +159,17 @@ class _GalleryPageState extends State<GalleryPage> {
     setState(() => _isSyncing = true);
     final syncService = SyncService(db);
     int successCount = 0;
-
-    for (var file in _selectedFiles) {
-      bool ok = await syncService.syncMedia(file, 'image');
+    for (final path in _selectedPaths) {
+      final ok = await syncService.syncMedia(File(path), 'image');
       if (ok) successCount++;
     }
-
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Úspešne nahraných $successCount fotiek.')),
       );
       setState(() {
         _isSyncing = false;
-        _selectedFiles.clear();
+        _selectedPaths.clear();
         _selectionMode = false;
       });
     }
@@ -143,23 +180,25 @@ class _GalleryPageState extends State<GalleryPage> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Vymazať výber?'),
-        content: Text('Naozaj chcete vymazať ${_selectedFiles.length} položiek?'),
+        content: Text('Naozaj chcete vymazať ${_selectedPaths.length} položiek?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zrušiť')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Vymazať', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Vymazať', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
-
     if (confirm == true) {
-      for (var file in _selectedFiles) {
-        if (await file.exists()) {
-          await file.delete();
-          await db.deletePhoto(file.path);
-        }
+      for (final path in _selectedPaths) {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+        _cache.remove(path);
+        await db.deletePhoto(path);
       }
       setState(() {
-        _selectedFiles.clear();
+        _selectedPaths.clear();
         _selectionMode = false;
       });
     }
@@ -169,116 +208,82 @@ class _GalleryPageState extends State<GalleryPage> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        if (_selectionMode)
-          Container(
-            color: Theme.of(context).colorScheme.secondaryContainer,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Text('${_selectedFiles.length} vybrané', style: const TextStyle(fontWeight: FontWeight.bold)),
-                const Spacer(),
-                if (_isSyncing)
-                  const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                else
-                  IconButton(
-                    icon: const Icon(Icons.cloud_upload, color: Colors.blue),
-                    onPressed: _syncSelected,
-                    tooltip: 'Nahrať do cloudu',
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: _isSyncing ? null : _deleteSelected,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => setState(() {
-                    _selectedFiles.clear();
-                    _selectionMode = false;
-                  }),
-                ),
-              ],
-            ),
-          ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          child: _selectionMode ? _buildSelectionBar() : const SizedBox.shrink(),
+        ),
 
         Expanded(
-          child: StreamBuilder<List<_PhotoItem>>(
-            stream: _watchPhotos(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-              final items = snapshot.data ?? [];
-              if (items.isEmpty) return const Center(child: Text('Trezor fotiek je prázdny'));
+          child: _currentItems.isEmpty
+              ? const Center(child: Text('Trezor fotiek je prázdny'))
+              : GridView.builder(
+            padding: const EdgeInsets.all(8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+            ),
+            itemCount: _currentItems.length,
+            itemBuilder: (context, index) {
+              final item = _currentItems[index];
+              final path = item.file.path;
+              final isSelected = _selectedPaths.contains(path);
+              final imageBytes = _cache[path];
 
-              return GridView.builder(
-                padding: const EdgeInsets.all(4),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3, mainAxisSpacing: 4, crossAxisSpacing: 4,
-                ),
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  final isSelected = _selectedFiles.contains(item.file);
-
-                  return GestureDetector(
-                    onLongPress: () => _toggleSelection(item.file),
-                    onTap: () async {
-                      if (_selectionMode) {
-                        _toggleSelection(item.file);
-                      } else {
-                        final bytes = await _decryptForDisplay(item.file);
-                        if (!mounted) return;
-                        Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => FullscreenImagePage(
-                            imageBytes: bytes, photoName: item.ownerName ?? 'Neznámy',
-                            latitude: item.latitude, longitude: item.longitude,
-                          ),
-                        ));
-                      }
-                    },
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        FutureBuilder<Uint8List>(
-                          future: _decryptForDisplay(item.file),
-                          builder: (context, thumbSnapshot) {
-                            if (!thumbSnapshot.hasData) return Container(color: Colors.black12);
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: Image.memory(thumbSnapshot.data!, fit: BoxFit.cover),
-                            );
-                          },
+              return GestureDetector(
+                onLongPress: () => _toggleSelection(path),
+                onTap: () {
+                  if (_selectionMode) {
+                    _toggleSelection(path);
+                  } else if (imageBytes != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FullscreenImagePage(
+                          imageBytes: imageBytes,
+                          photoName: item.ownerName ?? 'Neznámy',
+                          latitude: item.latitude,
+                          longitude: item.longitude,
                         ),
-                        if (isSelected) Container(color: Colors.black54, child: const Icon(Icons.check_circle, color: Colors.blue, size: 32)),
-
-                        Positioned(
-                          top: 4, left: 4,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(4)),
-                            child: Icon(
-                              item.isUploaded ? Icons.cloud_done : Icons.cloud_off,
-                              color: item.isUploaded ? Colors.greenAccent : Colors.white70,
-                              size: 16,
-                            ),
-                          ),
-                        ),
-
-                        Positioned(
-                          bottom: -4, right: -4,
-                          child: IconButton(
-                            icon: Icon(item.isFavorite ? Icons.favorite : Icons.favorite_border, color: item.isFavorite ? Colors.red : Colors.white, size: 20),
-                            onPressed: () => db.toggleFavorite(item.file.path, !item.isFavorite),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                      ),
+                    );
+                  }
                 },
+                child: _PhotoTile(
+                  imageBytes: imageBytes,
+                  isSelected: isSelected,
+                  isFavorite: item.isFavorite,
+                  isUploaded: item.isUploaded,
+                  selectionMode: _selectionMode,
+                  onFavoriteToggle: () => db.toggleFavorite(path, !item.isFavorite),
+                ),
               );
             },
           ),
         ),
+
         _buildBottomFilterBar(),
       ],
+    );
+  }
+
+  Widget _buildSelectionBar() {
+    return Container(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Text('${_selectedPaths.length} vybrané', style: const TextStyle(fontWeight: FontWeight.bold)),
+          const Spacer(),
+          if (_isSyncing)
+            const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            IconButton(icon: const Icon(Icons.cloud_upload, color: Colors.blue), onPressed: _syncSelected),
+          IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: _isSyncing ? null : _deleteSelected),
+          IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() { _selectedPaths.clear(); _selectionMode = false; })),
+        ],
+      ),
     );
   }
 
@@ -292,7 +297,91 @@ class _GalleryPageState extends State<GalleryPage> {
             ButtonSegment(value: true, label: Text('Obľúbené'), icon: Icon(Icons.favorite)),
           ],
           selected: {_showOnlyFavorites},
-          onSelectionChanged: (value) => setState(() => _showOnlyFavorites = value.first),
+          onSelectionChanged: (value) {
+            setState(() => _showOnlyFavorites = value.first);
+            _subscribeToPhotos();
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoTile extends StatelessWidget {
+  final Uint8List? imageBytes;
+  final bool isSelected;
+  final bool isFavorite;
+  final bool isUploaded;
+  final bool selectionMode;
+  final VoidCallback onFavoriteToggle;
+
+  const _PhotoTile({
+    required this.imageBytes,
+    required this.isSelected,
+    required this.isFavorite,
+    required this.isUploaded,
+    required this.selectionMode,
+    required this.onFavoriteToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isSelected ? Colors.blue : Colors.transparent, width: 3),
+        boxShadow: isSelected ? [BoxShadow(color: Colors.blue.withOpacity(0.5), blurRadius: 12, spreadRadius: 2)] : [],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            imageBytes != null
+                ? Image.memory(imageBytes!, fit: BoxFit.cover, gaplessPlayback: true)
+                : Container(color: Colors.black12, child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))),
+
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 180),
+              opacity: isSelected ? 1.0 : 0.0,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Colors.blue.withOpacity(0.50), Colors.blue.withOpacity(0.25)],
+                  ),
+                ),
+                child: const Center(child: Icon(Icons.check_circle_rounded, color: Colors.white, size: 38)),
+              ),
+            ),
+
+            Positioned(
+              top: 4,
+              left: 4,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(4)),
+                child: Icon(
+                  isUploaded ? Icons.cloud_done : Icons.cloud_off,
+                  color: isUploaded ? Colors.greenAccent : Colors.white70,
+                  size: 14,
+                ),
+              ),
+            ),
+
+            if (!selectionMode)
+              Positioned(
+                bottom: -4,
+                right: -4,
+                child: IconButton(
+                  icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : Colors.white, size: 18),
+                  onPressed: onFavoriteToggle,
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -308,7 +397,11 @@ class _PhotoItem {
   final double? longitude;
 
   _PhotoItem({
-    required this.file, required this.isFavorite, required this.isUploaded,
-    this.ownerName, this.latitude, this.longitude,
+    required this.file,
+    required this.isFavorite,
+    required this.isUploaded,
+    this.ownerName,
+    this.latitude,
+    this.longitude,
   });
 }

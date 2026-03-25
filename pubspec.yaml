@@ -69,6 +69,7 @@ dependencies:
   share_plus: ^10.1.1
   firebase_storage: ^12.4.10
   url_launcher: ^6.3.2
+  device_info_plus: ^12.3.0
 
 
 dev_dependencies:

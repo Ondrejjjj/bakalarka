@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:bakalarka/database.dart';
 import 'dart:typed_data';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class ImageStorage {
   final AppDatabase db;
@@ -32,6 +33,18 @@ class ImageStorage {
     return File(p.join(dir.path, '$id.enc'));
   }
 
+  Future<String> getDeviceId() async {
+    var deviceInfo = DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      var androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id; // Unikátne ID pre Android (napr. SSAID)
+    } else if (Platform.isIOS) {
+      var iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? 'unknown_ios'; // ID pre iOS
+    }
+    return 'unknown_device';
+  }
+
   // --- UPRAVENÁ METÓDA NA UKLADANIE ---
   Future<void> saveSecurePhoto({
     required Uint8List originalBytes,
@@ -51,10 +64,12 @@ class ImageStorage {
     // 3. Zapíšeme zašifrované dáta na disk
     await file.writeAsBytes(encryptedBytes);
 
+    String realId = await getDeviceId();
+
     // 4. Uložíme záznam do Drift databázy so všetkými novými stĺpcami
     await db.insertPhoto(
       filePath: file.path,
-      deviceId: "mobile_1", // Tu môžeš neskôr doplniť reálne ID zariadenia
+      deviceId: realId, // Tu môžeš neskôr doplniť reálne ID zariadenia
       userEmail: userEmail,
       companyCode: companyCode,
       ownerName: ownerName,

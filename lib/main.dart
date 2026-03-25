@@ -7,9 +7,11 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
 import 'package:sqlite3/open.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // Importy tvojich súborov
 import 'package:bakalarka/database.dart';
+import 'package:bakalarka/services/sync_service.dart'; // Uisti sa, že máš správny import
 import 'package:bakalarka/pages/media_vault_page.dart';
 import 'package:bakalarka/theme.dart';
 import 'package:bakalarka/settings.dart';
@@ -52,15 +54,64 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        Provider<AppDatabase>.value(value: database), // Databáza je dostupná v celej appke
+        Provider<AppDatabase>.value(value: database),
       ],
       child: const MyApp(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
+// Zmena na StatefulWidget kvôli initState kontrole syncu
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+
+  @override
+  void initState() {
+    super.initState();
+    // Spustí kontrolu synchronizácie na pozadí hneď po štarte
+    _handleInitialSync();
+  }
+
+  Future<void> _handleInitialSync() async {
+    // 1. Počkáme na inicializáciu (2 sekundy sú v poriadku)
+    await Future.delayed(const Duration(seconds: 2));
+
+    final currentUser = fb.FirebaseAuth.instance.currentUser;
+
+    // 2. Musíme mať prihláseného používateľa a musíme poznať jeho email
+    if (currentUser != null && currentUser.email != null) {
+      final database = Provider.of<AppDatabase>(context, listen: false);
+      final syncService = SyncService(database);
+      final userEmail = currentUser.email!;
+
+      // 3. Kontrola viazaná priamo na konkrétny EMAIL
+      // Týmto zabezpečíme, že každý používateľ si prejde syncom presne RAZ na tomto zariadení
+      bool needsSync = await syncService.isInitialSyncRequired(userEmail);
+
+      if (needsSync) {
+        print("🚀 Detegované PRVÉ spustenie pre používateľa: $userEmail. Spúšťam restore...");
+
+        // Spustíme obnovu dát
+        await syncService.restoreAllUserData();
+
+        // 4. AŽ PO ÚSPEŠNOM DOKONČENÍ zapíšeme, že je hotovo
+        // Ak by sync spadol uprostred, pri ďalšom zapnutí sa spustí znova (čo je správne)
+        await syncService.markInitialSyncAsDone(userEmail);
+
+        print("✅ Úvodný sync pre $userEmail bol úspešne dokončený a uzamknutý.");
+      } else {
+        print("🏠 Používateľ $userEmail už má dáta zosynchronizované. Preskakujem.");
+      }
+    } else {
+      print("ℹ️ Žiaden používateľ nie je prihlásený, sync sa nespúšťa.");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +123,6 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
-
           localizationsDelegates: const [
             S.delegate,
             GlobalMaterialLocalizations.delegate,
@@ -80,7 +130,6 @@ class MyApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: S.delegate.supportedLocales,
-
           initialRoute: '/',
           onGenerateRoute: (settings) {
             if (settings.name == '/settings') {
@@ -88,14 +137,12 @@ class MyApp extends StatelessWidget {
             }
             return null;
           },
-
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.0)),
               child: child!,
             );
           },
-
           home: StreamBuilder<fb.User?>(
             stream: fb.FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
@@ -187,10 +234,15 @@ class MyHomePage extends StatelessWidget {
               _buildSheetAction(
                 context,
                 icon: Icons.logout_rounded,
-                label: 'Odhlásiť sa',
+                label: S.of(context).odhlasV,
                 isDestructive: true,
                 onTap: () async {
                   Navigator.pop(context);
+
+                  // ⭐ DÔLEŽITÉ: Vymazať príznak synchronizácie pri odhlásení
+                  const storage = FlutterSecureStorage();
+                  await storage.delete(key: 'initial_sync_completed');
+
                   await fb.FirebaseAuth.instance.signOut();
                   if (context.mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
@@ -271,9 +323,9 @@ class MyHomePage extends StatelessWidget {
         children: [
           Column(
             children: [
-              const Expanded(
+              Expanded(
                 child: Center(
-                  child: Text('Domovská obrazovka', style: TextStyle(fontSize: 18)),
+                  child: Text(S.of(context).homeText, style: TextStyle(fontSize: 18)),
                 ),
               ),
               _BottomToolbar(onActionPressed: () {}),
@@ -306,6 +358,7 @@ class MyHomePage extends StatelessWidget {
   }
 }
 
+// Zvyšok tvojho kódu (SettingsDrawer, _BottomToolbar, atď.) zostáva rovnaký...
 class SettingsDrawer extends StatelessWidget {
   const SettingsDrawer({super.key});
 
@@ -370,41 +423,41 @@ class SettingsDrawer extends StatelessWidget {
               child: Icon(Icons.business_center, color: colorScheme.onPrimary, size: 30),
             ),
             accountName: const Text("Trezor System", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-            accountEmail: const Text("Správa majetku a skladu", style: TextStyle(color: Colors.black54)),
+            accountEmail:  Text(S.of(context).panelText, style: TextStyle(color: Colors.black54)),
           ),
 
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _drawerSectionTitle(context, 'Evidencia'),
+                _drawerSectionTitle(context, S.of(context).evidenciaText),
                 _drawerItem(
                   icon: Icons.inventory_2_outlined,
-                  label: 'Zariadenia',
+                  label: S.of(context).zariadeniaText,
                   onTap: () => _navigateToAssets(context, 0),
                 ),
                 _drawerItem(
                   icon: Icons.history_outlined,
-                  label: 'História kontrol',
+                  label: S.of(context).historiaKText,
                   onTap: () => _navigateToAssets(context, 1),
                 ),
                 const Divider(indent: 16, endIndent: 16),
-                _drawerSectionTitle(context, 'Sklad'),
+                _drawerSectionTitle(context, S.of(context).skladText),
                 _drawerItem(
                   icon: Icons.warehouse_outlined,
-                  label: 'Stav zásob',
+                  label: S.of(context).stavZText,
                   onTap: () => _navigateToInventory(context), // OPRAVENÉ VOLANIE
                 ),
                 _drawerItem(
                   icon: Icons.swap_vert_rounded,
-                  label: 'Príjem / Výdaj',
+                  label: S.of(context).pohybyText,
                   onTap: () => _navigateToInventory(context), // OPRAVENÉ VOLANIE
                 ),
                 const Divider(indent: 16, endIndent: 16),
-                _drawerSectionTitle(context, 'Systém'),
+                _drawerSectionTitle(context, S.of(context).systemText),
                 _drawerItem(
                   icon: Icons.settings_outlined,
-                  label: 'Nastavenia',
+                  label: S.of(context).nastaveniaH,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/settings');
@@ -479,19 +532,19 @@ class _BottomToolbar extends StatelessWidget {
                 children: [
                   _ToolbarItem(
                     icon: Icons.photo_camera_rounded,
-                    label: 'Kamera',
+                    label: S.of(context).cameraIcon,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CameraPage())),
                   ),
                   _buildDivider(colorScheme),
                   _ToolbarItem(
                     icon: Icons.mic_rounded,
-                    label: 'Mikrofón',
+                    label: S.of(context).audioIcon,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MicrophonePage())),
                   ),
                   _buildDivider(colorScheme),
                   _ToolbarItem(
                     icon: Icons.photo_library_rounded,
-                    label: 'Galéria',
+                    label: S.of(context).galleryIcon,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MediaVaultPage())),
                   ),
                 ],

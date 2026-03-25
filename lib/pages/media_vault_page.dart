@@ -2,6 +2,7 @@ import 'package:bakalarka/pages/video_gallery_page.dart';
 import 'package:flutter/material.dart';
 import 'gallery_page.dart';
 import 'audio_gallery_page.dart';
+import 'package:bakalarka/generated/l10n.dart';
 
 class MediaVaultPage extends StatefulWidget {
   const MediaVaultPage({super.key});
@@ -76,10 +77,10 @@ class _MediaVaultPageState extends State<MediaVaultPage> {
                                   borderRadius: BorderRadius.circular(28),
                                 ),
                               ),
-                              segments: const [
-                                ButtonSegment(value: 0, icon: Icon(Icons.image_rounded), label: Text('Foto')),
-                                ButtonSegment(value: 1, icon: Icon(Icons.videocam_rounded), label: Text('Video')),
-                                ButtonSegment(value: 2, icon: Icon(Icons.mic_rounded), label: Text('Audio')),
+                              segments: [
+                                ButtonSegment(value: 0, icon: Icon(Icons.image_rounded), label: Text(S.of(context).foto)),
+                                ButtonSegment(value: 1, icon: Icon(Icons.videocam_rounded), label: Text(S.of(context).video)),
+                                ButtonSegment(value: 2, icon: Icon(Icons.mic_rounded), label: Text(S.of(context).audio)),
                               ],
                               selected: {_selectedIndex},
                               onSelectionChanged: (newSelection) {

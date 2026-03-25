@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:provider/provider.dart'; // PRIDANÉ: Potrebné pre Provider
 import '../services/auth_service.dart';
 import '../services/biometric_service.dart';
 import 'package:bakalarka/main.dart';
+import '../database.dart'; // PRIDANÉ: Import tvojej databázy
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,7 +14,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final AuthService _auth = AuthService();
+  // OPRAVA: AuthService už nedefinujeme tu ako "final AuthService _auth = AuthService();"
+  // pretože konštruktor teraz vyžaduje databázu, ktorú v tomto momente ešte nemáme.
+  late AuthService _auth;
   final BiometricService _biometricService = BiometricService();
 
   final _storage = const FlutterSecureStorage(
@@ -42,6 +46,15 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _checkBiometrics();
+    // Inicializujeme AuthService s databázou z kontextu
+    // Musíme to urobiť neskôr alebo priamo v handleAuth, lebo v initState
+    // ešte nie je kontext plne pripravený pre Provider.of
+  }
+
+  // Pomocná metóda na získanie AuthService
+  AuthService _getAuthService() {
+    final database = Provider.of<AppDatabase>(context, listen: false);
+    return AuthService(database);
   }
 
   void _checkBiometrics() async {
@@ -65,7 +78,6 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  // --- OPRAVENÁ LOGIKA AUTENTIFIKÁCIE ---
   void _handleAuth() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -74,17 +86,18 @@ class _LoginPageState extends State<LoginPage> {
       String email = _emailController.text.trim();
       String password = _passwordController.text.trim();
 
+      // Získame inštanciu AuthService so správnou databázou
+      final authService = _getAuthService();
+
       if (_isRegistering) {
         if (_isTechnician) {
-          // Registrácia technika - AuthService sa postará o sync do SecureStorage
-          await _auth.registerTechnician(
+          await authService.registerTechnician(
             email: email,
             password: password,
             inviteCode: _inviteCodeController.text.trim(),
           );
         } else {
-          // Registrácia admina - AuthService sa postará o sync do SecureStorage
-          await _auth.registerAdminAndCompany(
+          await authService.registerAdminAndCompany(
             email: email,
             password: password,
             companyName: _companyNameController.text.trim(),
@@ -92,11 +105,9 @@ class _LoginPageState extends State<LoginPage> {
           );
         }
       } else {
-        // PRIHLÁSENIE - Používame novú metódu signIn, ktorá v sebe volá syncUserToSecureStorage
-        await _auth.signIn(email, password);
+        await authService.signIn(email, password);
       }
 
-      // Heslo ukladáme manuálne len pre potreby biometrie (AuthService ho nesťahuje z DB)
       await _storage.write(key: 'user_password', value: password);
 
       if (_isRegistering && _canCheckBiometrics) {
@@ -121,8 +132,8 @@ class _LoginPageState extends State<LoginPage> {
         bool authenticated = await _biometricService.authenticate();
         if (authenticated) {
           setState(() => _isLoading = true);
-          // Opäť používame AuthService.signIn, aby sa obnovili dáta v SecureStorage
-          await _auth.signIn(savedEmail, savedPassword);
+          final authService = _getAuthService();
+          await authService.signIn(savedEmail, savedPassword);
           _goToHome();
         }
       } else {

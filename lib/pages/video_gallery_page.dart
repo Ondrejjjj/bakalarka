@@ -8,6 +8,7 @@ import 'package:bakalarka/security/crypto_service.dart';
 import 'package:bakalarka/services/sync_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:bakalarka/generated/l10n.dart';
 
 class VideoGalleryPage extends StatefulWidget {
   const VideoGalleryPage({super.key});
@@ -52,6 +53,9 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
   }
 
   void _toggleSelection(Video video) {
+    // Ak už video je nahrané (uploaded), nedovolíme ho vybrať na opätovné nahranie
+    if (video.uploaded) return;
+
     setState(() {
       if (_selectedVideos.contains(video)) {
         _selectedVideos.remove(video);
@@ -281,7 +285,7 @@ class _VideoCard extends StatelessWidget {
         title: const Text('Zmazať video?'),
         content: const Text('Tento súbor bude natrvalo odstránený z lokálneho úložiska.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zrušiť')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.of(context).zrusitB)),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Zmazať', style: TextStyle(color: Colors.red))),
         ],
       ),

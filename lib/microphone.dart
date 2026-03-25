@@ -63,9 +63,9 @@ class _MicrophonePageState extends State<MicrophonePage> {
     }
   }
 
+  // --- ZMENA V METÓDE _toggleRecording ---
   Future<void> _toggleRecording() async {
     if (_isRecording) {
-      // --- ZASTAVENIE NAHRÁVANIA ---
       await _recorder.stopRecorder();
       _timer?.cancel();
       _isRecording = false;
@@ -76,7 +76,7 @@ class _MicrophonePageState extends State<MicrophonePage> {
 
         final bytes = await tempFile.readAsBytes();
 
-        // 1. Šifrovanie bajtov (AES-256)
+        // 1. Šifrovanie bajtov
         final encryptedBytes = await CryptoService.encryptBytes(bytes);
 
         // 2. Vytvorenie bezpečného názvu
@@ -86,18 +86,20 @@ class _MicrophonePageState extends State<MicrophonePage> {
         // 3. Zápis šifrovaných dát
         await secureFile.writeAsBytes(encryptedBytes, flush: true);
 
-        // 4. Zápis do SQLCipher databázy (s pridanými údajmi o užívateľovi)
+        // 4. Zápis do SQLCipher databázy (DYNAMICKÉ ÚDAJE)
         final db = context.read<AppDatabase>();
 
-        // POUŽÍVAME CACHOVANÉ ÚDAJE
+        // OPRAVENÁ ČASŤ:
         await db.insertAudio(
           filePath: secureFile.path,
-          deviceId: '90',
-          ownerName: "Technik",     // Alebo si pridaj cachedOwnerName
-          userEmail: _cachedEmail,    // PRIDANÉ
-          companyCode: _cachedCompany, // PRIDANÉ
+          // deviceId už nie je 90, ale ID nahrávky alebo ID stroja, ak ho máš
+          deviceId: audioId,
+          // ownerName načítame z e-mailu (odstránime časť za zavináčom pre krajšie meno)
+          ownerName: _cachedEmail.split('@')[0],
+          userEmail: _cachedEmail,
+          companyCode: _cachedCompany,
           duration: _recordDuration.inSeconds,
-          uploaded: false,            // Nezabudni na tento príznak pre Sync
+          uploaded: false,
         );
 
         // 5. Vymazanie nezašifrovaného súboru
@@ -105,8 +107,8 @@ class _MicrophonePageState extends State<MicrophonePage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🔐 Nahrávka zašifrovaná a uložená do trezoru'),
+            SnackBar(
+              content: Text(S.of(context).spravaAudioV),
               behavior: SnackBarBehavior.floating,
               backgroundColor: Colors.green,
             ),
@@ -121,7 +123,7 @@ class _MicrophonePageState extends State<MicrophonePage> {
         }
       }
     } else {
-      // --- ŠTART NAHRÁVANIA ---
+      // --- ŠTART NAHRÁVANIA (Ostáva rovnaký) ---
       final dir = await getTemporaryDirectory();
       _tempPath = '${dir.path}/temp_rec_${DateTime.now().millisecondsSinceEpoch}.aac';
 
@@ -134,9 +136,11 @@ class _MicrophonePageState extends State<MicrophonePage> {
       _recordDuration = Duration.zero;
 
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        setState(() {
-          _recordDuration += const Duration(seconds: 1);
-        });
+        if (mounted) {
+          setState(() {
+            _recordDuration += const Duration(seconds: 1);
+          });
+        }
       });
     }
     setState(() {});
