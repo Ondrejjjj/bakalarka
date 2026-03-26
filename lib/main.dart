@@ -24,6 +24,7 @@ import 'package:bakalarka/pages/login_page.dart';
 import 'generated/l10n.dart';
 import 'package:bakalarka/pages/inventory_page.dart';
 import 'package:bakalarka/pages/assets_management_page.dart';
+import 'firebase_options.dart';
 
 import 'theme.dart' hide ThemeProvider, AppTheme;
 
@@ -31,7 +32,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
     debugPrint('✅ Firebase inicializovaný');
   } catch (e) {
     debugPrint('❌ Chyba Firebase: $e');
