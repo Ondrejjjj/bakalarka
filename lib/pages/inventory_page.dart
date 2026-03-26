@@ -437,7 +437,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
 
         final movements = snapshot.data!;
 
-        return RefreshIndicator( // PRIDANÉ aj do histórie
+        return RefreshIndicator(
           onRefresh: _refreshDataFromCloud,
           child: ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -447,19 +447,73 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
               final move = movements[index];
               final isIncome = move.type == 'income';
 
+              // --- DEKÓDOVANIE EXTRA DÁT ---
+              Map<String, dynamic> extra = {};
+              try {
+                if (move.extraData != null && move.extraData!.isNotEmpty) {
+                  extra = jsonDecode(move.extraData!);
+                }
+              } catch (e) {
+                debugPrint("Chyba dekódovania extraData: $e");
+              }
+
               return Card(
                 elevation: 0,
                 color: isIncome ? Colors.green.withOpacity(0.05) : Colors.red.withOpacity(0.05),
                 margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: Icon(isIncome ? Icons.add_circle : Icons.remove_circle, color: isIncome ? Colors.green : Colors.red),
-                  title: Text(move.itemName),
-                  subtitle: Text('${move.userEmail}\n${move.createdAt.day}.${move.createdAt.month}. ${move.createdAt.hour}:${move.createdAt.minute.toString().padLeft(2, '0')}'),
-                  isThreeLine: true,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: isIncome ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2)),
+                ),
+                child: ExpansionTile( // Zmenené na ExpansionTile pre "rozkliknutie"
+                  leading: Icon(
+                    isIncome ? Icons.add_circle : Icons.remove_circle,
+                    color: isIncome ? Colors.green : Colors.red,
+                    size: 32,
+                  ),
+                  title: Text(move.itemName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    '${move.userEmail}\n${move.createdAt.day}.${move.createdAt.month}. ${move.createdAt.hour}:${move.createdAt.minute.toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                   trailing: Text(
                     '${isIncome ? "+" : ""}${move.changeQty}',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: isIncome ? Colors.green[800] : Colors.red[800], fontSize: 16),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isIncome ? Colors.green[800] : Colors.red[800],
+                        fontSize: 18
+                    ),
                   ),
+                  children: [
+                    if (extra.isNotEmpty) ...[
+                      const Divider(indent: 16, endIndent: 16),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Doplnkové údaje:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const SizedBox(height: 4),
+                            // Vygenerovanie zoznamu kľúč-hodnota
+                            ...extra.entries.map((e) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                children: [
+                                  Text("${e.key}: ", style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                  Expanded(child: Text("${e.value}", style: const TextStyle(fontSize: 13))),
+                                ],
+                              ),
+                            )),
+                          ],
+                        ),
+                      )
+                    ] else ...[
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: Text("Žiadne doplnkové údaje", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      )
+                    ]
+                  ],
                 ),
               );
             },
