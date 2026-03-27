@@ -11,6 +11,16 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    // 1. DEFINÍCIA PODPISOVANIA
+    signingConfigs {
+        create("release") {
+            keyAlias = "moj-alias"
+            keyPassword = "Mojasestra1@"
+            storeFile = file("C:/Users/janas/moj-kluc.jks")
+            storePassword = "Mojasestra1@"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -21,21 +31,32 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.bakalarka"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    // 2. NASTAVENIE BUILDOV
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+
+            // TOTO SÚ TIE DVA RIADKY, KTORÉ MUSIA BYŤ ROVNAKO (false/false)
+            isMinifyEnabled = false
+            isShrinkResources = false
+
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+
+        getByName("debug") {
+            // Tu to zvyčajne nie je nastavené, ale ak by bolo, daj tiež false
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
