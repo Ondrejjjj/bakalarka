@@ -74,22 +74,44 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _handleInitialSync() async {
+    // Krátky delay, aby sa stihli inicializovať všetky systémové služby
     await Future.delayed(const Duration(seconds: 2));
+
     final currentUser = fb.FirebaseAuth.instance.currentUser;
-    if (currentUser?.email == null) return;
+
+    // Ak nikto nie je prihlásený, končíme (Sync potrebuje identitu používateľa)
+    if (currentUser?.email == null) {
+      debugPrint('ℹ️ Žiadny prihlásený používateľ. Synchronizácia sa nespúšťa.');
+      return;
+    }
+
     final database = Provider.of<AppDatabase>(context, listen: false);
     final syncService = SyncService(database);
     final userEmail = currentUser!.email!;
-    if (await syncService.isInitialSyncRequired(userEmail)) {
-      debugPrint('🚀 Prvé spustenie pre $userEmail, spúšťam restore...');
-      await syncService.restoreAllUserData();
-      await syncService.markInitialSyncAsDone(userEmail);
-      debugPrint('✅ Sync pre $userEmail dokončený.');
-    } else {
-      debugPrint('🏠 Používateľ $userEmail má dáta. Preskakujem.');
+
+    try {
+      // 1. KROK: JEDNORAZOVÁ OBNOVA (RESTORE)
+      // Spustí sa len raz pri úplne prvej inštalácii alebo po prehlásení
+      if (await syncService.isInitialSyncRequired(userEmail)) {
+        debugPrint('🚀 Prvé spustenie pre $userEmail, spúšťam kompletný restore...');
+        await syncService.restoreAllUserData();
+        // markInitialSyncAsDone je už vo vnútri restoreAllUserData, ale pre istotu:
+        await syncService.markInitialSyncAsDone(userEmail);
+        debugPrint('✅ Prvotná synchronizácia pre $userEmail dokončená.');
+      } else {
+        debugPrint('🏠 Dáta pre $userEmail sú už v lokálnej databáze. Preskakujem restore.');
+      }
+
+      // 2. KROK: SPUSTENIE ŽIVÉHO PRENOSU (LIVE SYNC)
+      // Toto sa musí spustiť VŽDY pri zapnutí apky, aby Admin videl zmeny od technikov v reálnom čase
+      debugPrint('📡 Aktivujem Live Sync (počúvanie zmien na pozadí)...');
+      await syncService.startLiveSync();
+      debugPrint('✅ Live Sync je aktívny.');
+
+    } catch (e) {
+      debugPrint('❌ Chyba počas inicializácie synchronizácie: $e');
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(

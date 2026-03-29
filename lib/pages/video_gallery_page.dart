@@ -22,10 +22,10 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
   bool _selectionMode = false;
   bool _isSyncing = false;
 
-  // Cache pre filtrovanie podla identity
+  // Identity pre Live Sync filtrovanie
   String? _currentUserEmail;
   String? _currentUserRole;
-  String? _currentCompanyCode; // PRIDANÉ
+  String? _currentCompanyCode;
 
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -37,13 +37,14 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
     _loadUserIdentity();
   }
 
-  // Načítanie identity a kódu firmy zo Secure Storage
   Future<void> _loadUserIdentity() async {
+    // ZJEDNOTENIE KĽÚČA: Používame company_code pre konzistenciu s AuthService
     final email = await _storage.read(key: 'user_email');
     final role = await _storage.read(key: 'user_role');
-    final company = await _storage.read(key: 'company_code'); // PRIDANÉ
+    final company = await _storage.read(key: 'company_code');
 
     if (mounted) {
+      debugPrint("📹 Video Gallery Identity: $email, $role, $company");
       setState(() {
         _currentUserEmail = email;
         _currentUserRole = role;
@@ -53,8 +54,8 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
   }
 
   void _toggleSelection(Video video) {
-    // Ak už video je nahrané (uploaded), nedovolíme ho vybrať na opätovné nahranie
-    if (video.uploaded) return;
+    // Ak je video už na cloude, nenecháme ho znova vyberať pre upload
+    if (video.uploaded && !_selectionMode) return;
 
     setState(() {
       if (_selectedVideos.contains(video)) {
@@ -74,8 +75,11 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
 
     for (var video in _selectedVideos) {
       final file = File(video.filePath);
-      bool ok = await syncService.syncMedia(file, 'video');
-      if (ok) successCount++;
+      if (await file.exists()) {
+        // syncMedia automaticky nahrá súbor a zmení stav v SQLite na 'uploaded = true'
+        bool ok = await syncService.syncMedia(file, 'video');
+        if (ok) successCount++;
+      }
     }
 
     if (mounted) {
@@ -95,7 +99,7 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
     final db = Provider.of<AppDatabase>(context);
     final theme = Theme.of(context);
 
-    // Čakáme na načítanie identity, inak by StreamBuilder nemal parametre
+    // Kým nemáme identitu, nevieme čo zobraziť (Admin vs Technik)
     if (_currentUserEmail == null || _currentCompanyCode == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -130,7 +134,7 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
 
         Expanded(
           child: StreamBuilder<List<Video>>(
-            // LOGIKA: Admin vidí celú firmu, Technik len seba
+            // LIVE SYNC: Drift automaticky aktualizuje zoznam pri pridaní videa cez SyncService
             stream: _currentUserRole == 'admin'
                 ? db.watchCompanyVideos(_currentCompanyCode!)
                 : db.watchUserVideos(_currentUserEmail!),
@@ -144,7 +148,10 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
               return GridView.builder(
                 padding: const EdgeInsets.all(12),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.85,
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.85,
                 ),
                 itemCount: videos.length,
                 itemBuilder: (context, index) {
@@ -182,7 +189,7 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
         children: [
           Icon(Icons.video_library_outlined, size: 64, color: theme.colorScheme.outlineVariant),
           const SizedBox(height: 16),
-          Text('Žiadne videá v trezore', style: theme.textTheme.bodyLarge),
+          const Text('V trezore zatiaľ nie sú žiadne videá.'),
         ],
       ),
     );
@@ -231,7 +238,7 @@ class _VideoCard extends StatelessWidget {
                 child: Container(
                   width: double.infinity,
                   color: theme.colorScheme.secondaryContainer,
-                  child: Icon(Icons.play_circle_outline, size: 48, color: theme.colorScheme.onSecondaryContainer),
+                  child: const Icon(Icons.play_circle_outline, size: 48, color: Colors.black38),
                 ),
               ),
               Padding(
@@ -243,7 +250,6 @@ class _VideoCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Ak je to admin, zobrazíme aj meno majiteľa videa
                           Text(video.ownerName ?? 'Neznámy',
                               style: const TextStyle(fontWeight: FontWeight.bold),
                               overflow: TextOverflow.ellipsis),
@@ -265,10 +271,14 @@ class _VideoCard extends StatelessWidget {
           Positioned(
             top: 8,
             left: 8,
-            child: Icon(
-              video.uploaded ? Icons.cloud_done : Icons.cloud_off,
-              color: video.uploaded ? Colors.greenAccent : Colors.white70,
-              size: 20,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(6)),
+              child: Icon(
+                video.uploaded ? Icons.cloud_done : Icons.cloud_off,
+                color: video.uploaded ? Colors.greenAccent : Colors.white70,
+                size: 16,
+              ),
             ),
           ),
           if (isSelected)
@@ -283,9 +293,9 @@ class _VideoCard extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Zmazať video?'),
-        content: const Text('Tento súbor bude natrvalo odstránený z lokálneho úložiska.'),
+        content: const Text('Tento súbor bude natrvalo odstránený.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.of(context).zrusitB)),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zrušiť')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Zmazať', style: TextStyle(color: Colors.red))),
         ],
       ),
@@ -325,13 +335,16 @@ class _EncryptedVideoPlayerState extends State<EncryptedVideoPlayer> {
       final encryptedFile = File(widget.video.filePath);
       if (!await encryptedFile.exists()) throw Exception("Súbor neexistuje");
 
+      // 1. Dešifrovanie do RAM
       final encryptedBytes = await encryptedFile.readAsBytes();
       final decryptedBytes = await CryptoService.decryptBytes(encryptedBytes);
 
+      // 2. Dočasný zápis na disk (VideoPlayer nevie čítať priamo z bajtov v pamäti)
       final tempDir = await getTemporaryDirectory();
-      _tempFile = File('${tempDir.path}/temp_preview_${DateTime.now().millisecondsSinceEpoch}.mp4');
+      _tempFile = File('${tempDir.path}/temp_vid_${DateTime.now().millisecondsSinceEpoch}.mp4');
       await _tempFile!.writeAsBytes(decryptedBytes);
 
+      // 3. Inicializácia controllera
       _controller = VideoPlayerController.file(_tempFile!)
         ..initialize().then((_) {
           if (mounted) {
@@ -344,17 +357,16 @@ class _EncryptedVideoPlayerState extends State<EncryptedVideoPlayer> {
         });
     } catch (e) {
       debugPrint("Chyba pri dešifrovaní videa: $e");
-      if (mounted) {
-        setState(() => _isDecrypting = false);
-      }
+      if (mounted) setState(() => _isDecrypting = false);
     }
   }
 
   @override
   void dispose() {
     _controller?.dispose();
+    // BEZPEČNOSŤ: Vymažeme dešifrovaný súbor hneď po zatvorení prehrávača
     if (_tempFile != null && _tempFile!.existsSync()) {
-      _tempFile!.deleteSync();
+      try { _tempFile!.deleteSync(); } catch (e) { debugPrint("Chyba pri mazaní temp: $e"); }
     }
     super.dispose();
   }
@@ -383,7 +395,7 @@ class _EncryptedVideoPlayerState extends State<EncryptedVideoPlayer> {
             ],
           ),
         )
-            : const Text("Chyba pri načítaní videa", style: TextStyle(color: Colors.white)),
+            : const Text("Nepodarilo sa prehrať video", style: TextStyle(color: Colors.white)),
       ),
     );
   }

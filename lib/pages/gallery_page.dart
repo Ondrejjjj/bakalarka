@@ -52,10 +52,10 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 
   Future<void> _loadUserIdentity() async {
-    // ZJEDNOTENIE: Používame 'company_id' ako hlavný identifikátor firmy
+    // ZJEDNOTENIE: Používame 'company_code' pre konzistenciu s AuthService a SyncService
     final email = await _storage.read(key: 'user_email');
     final role = await _storage.read(key: 'user_role');
-    final company = await _storage.read(key: 'company_id');
+    final company = await _storage.read(key: 'company_code');
 
     if (mounted) {
       debugPrint("📸 Gallery Identity: Email: $email, Rola: $role, Firma (ID): $company");
@@ -71,13 +71,14 @@ class _GalleryPageState extends State<GalleryPage> {
   void _subscribeToPhotos() {
     _streamSub?.cancel();
 
-    // Ak nemáme dáta o firme alebo používateľovi, nemôžeme filtrovať
+    // Ak nemáme dáta o firme alebo používateľovi, čakáme na initState
     if (_currentUserEmail == null || _currentCompanyId == null) {
       debugPrint("⚠️ Gallery: Čakám na načítanie identity...");
       return;
     }
 
-    // Stream podľa roly: Admin vidí firmu, Technik svoje
+    // Stream podľa roly: Admin vidí celú firmu, Technik len svoje nahlásené veci
+    // Drift databáza automaticky vyvolá event, keď SyncService pridá novú fotku do SQLite
     final Stream<List<Photo>> photoStream = (_currentUserRole == 'admin')
         ? db.watchCompanyPhotos(_currentCompanyId!)
         : db.watchUserPhotos(_currentUserEmail!);
@@ -86,6 +87,7 @@ class _GalleryPageState extends State<GalleryPage> {
       final List<_PhotoItem> items = [];
       for (final row in rows) {
         final file = File(row.filePath);
+        // Pri Live Sync kontrolujeme, či už súbor fyzicky existuje na disku
         if (await file.exists()) {
           items.add(_PhotoItem(
             file: file,
@@ -106,7 +108,7 @@ class _GalleryPageState extends State<GalleryPage> {
     _streamSub = itemStream.listen((items) {
       if (!mounted) return;
 
-      // Spustíme dešifrovanie pre nové súbory
+      // Spustíme dešifrovanie pre nové súbory, ktoré ešte nie sú v cache
       for (final item in items) {
         final path = item.file.path;
         if (!_cache.containsKey(path) && !_loading.contains(path)) {
@@ -132,7 +134,9 @@ class _GalleryPageState extends State<GalleryPage> {
         });
       }
     } catch (e) {
-      _loading.remove(file.path);
+      if (mounted) {
+        setState(() => _loading.remove(file.path));
+      }
       debugPrint('❌ Chyba dešifrovania: $e');
     }
   }
@@ -159,13 +163,17 @@ class _GalleryPageState extends State<GalleryPage> {
     setState(() => _isSyncing = true);
     final syncService = SyncService(db);
     int successCount = 0;
+
     for (final path in _selectedPaths) {
+      // syncMedia nahrá súbor a aktualizuje SQLite príznak 'uploaded'
+      // Drift stream v _subscribeToPhotos to zachytí a ikona sa sama zmení
       final ok = await syncService.syncMedia(File(path), 'image');
       if (ok) successCount++;
     }
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Úspešne nahraných $successCount fotiek.')),
+        SnackBar(content: Text('Úspešne spracovaných $successCount fotiek.')),
       );
       setState(() {
         _isSyncing = false;
@@ -341,7 +349,10 @@ class _PhotoTile extends StatelessWidget {
           children: [
             imageBytes != null
                 ? Image.memory(imageBytes!, fit: BoxFit.cover, gaplessPlayback: true)
-                : Container(color: Colors.black12, child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))),
+                : Container(
+                color: Colors.black12,
+                child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+            ),
 
             AnimatedOpacity(
               duration: const Duration(milliseconds: 180),

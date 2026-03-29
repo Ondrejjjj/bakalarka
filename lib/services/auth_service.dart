@@ -3,23 +3,27 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:math';
 import 'package:drift/drift.dart';
-import '../database.dart'; // Uisti sa, že cesta je správna
+import 'package:bakalarka/database.dart'; // Odporúčam package import kvôli Case Sensitivity
 
 class AuthService {
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // OPRAVA DRIFT: Databázu už nevytvárame tu, ale dostaneme ju zvonku
+  // Drift databáza dostávaná cez konštruktor z Providera
   final AppDatabase _localDb;
 
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
 
-  // KONŠTRUKTOR: Musíš ho zavolať s inštanciou databázy
   AuthService(this._localDb);
 
-  // --- SYNCHRONIZÁCIA ---
+  // ---------------------------------------------------------------------------
+  // SYNCHRONIZÁCIA IDENTITY (Dôležité pre SyncService)
+  // ---------------------------------------------------------------------------
+
+  /// Načíta profil používateľa z Firestore a uloží ho do lokálneho úložiska,
+  /// aby k nemu mal SyncService okamžitý prístup bez neustáleho pýtania sa Firebase.
   Future<void> syncUserToSecureStorage(String uid) async {
     try {
       DocumentSnapshot userDoc = await _db.collection('users').doc(uid).get();
@@ -29,11 +33,12 @@ class AuthService {
         final String role = data['role'] ?? '';
         final String companyId = data['companyId'] ?? '';
 
+        // ZJEDNOTENIE KĽÚČOV: SyncService vyžaduje presne tieto názvy
         await _storage.write(key: 'user_email', value: email);
         await _storage.write(key: 'user_role', value: role);
-        await _storage.write(key: 'company_id', value: companyId);
+        await _storage.write(key: 'company_code', value: companyId); // Zmenené z company_id
 
-        // Zápis do Drift (SQLite)
+        // Zápis aj do lokálnej SQLite pre offline prístup k profilu
         await _localDb.upsertUser(UsersCompanion(
           uid: Value(uid),
           email: Value(email),
@@ -41,14 +46,17 @@ class AuthService {
           companyCode: Value(companyId),
         ));
 
-        print("✅ Synchronizácia úspešná");
+
       }
     } catch (e) {
-      print("❌ Chyba pri synchronizácii: $e");
+
     }
   }
 
-  // --- 1. REGISTRÁCIA ADMINA ---
+  // ---------------------------------------------------------------------------
+  // 1. REGISTRÁCIA ADMINA
+  // ---------------------------------------------------------------------------
+
   Future<String?> registerAdminAndCompany({
     required String email,
     required String password,
@@ -63,6 +71,7 @@ class AuthService {
       if (user != null) {
         String inviteCode = _generateInviteCode();
 
+        // Vytvorenie dokumentu firmy
         DocumentReference companyRef = await _db.collection('companies').add({
           'name': companyName,
           'ico': ico,
@@ -71,6 +80,7 @@ class AuthService {
           'createdAt': FieldValue.serverTimestamp(),
         });
 
+        // Vytvorenie profilu admina
         await _db.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'email': email,
@@ -84,19 +94,23 @@ class AuthService {
         return inviteCode;
       }
     } catch (e) {
-      print("❌ Chyba admin registrácie: $e");
+
       rethrow;
     }
     return null;
   }
 
-  // --- 2. PRIHLÁSENIE ---
+  // ---------------------------------------------------------------------------
+  // 2. PRIHLÁSENIE
+  // ---------------------------------------------------------------------------
+
   Future<fb.UserCredential> signIn(String email, String password) async {
     try {
       fb.UserCredential res = await _auth.signInWithEmailAndPassword(
           email: email, password: password);
 
       if (res.user != null) {
+        // Hneď po prihlásení aktualizujeme SecureStorage, aby LiveSync vedel čo robiť
         await syncUserToSecureStorage(res.user!.uid);
       }
       return res;
@@ -105,7 +119,10 @@ class AuthService {
     }
   }
 
-  // --- 3. REGISTRÁCIA TECHNIKA (OPRAVENÁ LOGIKA) ---
+  // ---------------------------------------------------------------------------
+  // 3. REGISTRÁCIA TECHNIKA
+  // ---------------------------------------------------------------------------
+
   Future<void> registerTechnician({
     required String email,
     required String password,
@@ -113,19 +130,17 @@ class AuthService {
   }) async {
     fb.UserCredential? res;
     try {
-      // KROK A: Najprv vytvoríme Auth účet (tým sa user prihlási a Rules ho pustia)
       res = await _auth.createUserWithEmailAndPassword(
           email: email, password: password);
 
       if (res.user != null) {
-        // KROK B: Teraz, keď je prihlásený, skontrolujeme kód vo Firestore
+        // Kontrola pozývacieho kódu
         var companyQuery = await _db
             .collection('companies')
             .where('inviteCode', isEqualTo: inviteCode)
             .limit(1)
             .get();
 
-        // KROK C: Ak kód neexistuje, zmažeme čerstvo vytvorený Auth účet
         if (companyQuery.docs.isEmpty) {
           await res.user!.delete();
           throw Exception("Tento pozývací kód je neplatný.");
@@ -135,7 +150,6 @@ class AuthService {
         String companyId = companyDoc.id;
         String companyName = companyDoc.get('name');
 
-        // KROK D: Všetko OK, zapíšeme profil do Firestore
         await _db.collection('users').doc(res.user!.uid).set({
           'uid': res.user!.uid,
           'email': email,
@@ -145,7 +159,7 @@ class AuthService {
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        // Kód sa "spotrebuje" (zmaže sa z firmy)
+        // Spotrebovanie kódu
         await _db.collection('companies').doc(companyId).update({
           'inviteCode': FieldValue.delete(),
         });
@@ -153,7 +167,6 @@ class AuthService {
         await syncUserToSecureStorage(res.user!.uid);
       }
     } catch (e) {
-      // Ak nastala chyba pri hľadaní kódu alebo zápise, a user už bol vytvorený, zmažeme ho
       if (res?.user != null) {
         try { await res!.user!.delete(); } catch (_) {}
       }
@@ -161,13 +174,17 @@ class AuthService {
     }
   }
 
-  // --- OSTATNÉ METÓDY ---
+  // ---------------------------------------------------------------------------
+  // OSTATNÉ POMOCNÉ METÓDY
+  // ---------------------------------------------------------------------------
 
   Future<void> signOut() async {
     await _auth.signOut();
+    // Kompletné vyčistenie citlivých údajov pri odhlásení
     await _storage.delete(key: 'user_email');
     await _storage.delete(key: 'user_role');
-    await _storage.delete(key: 'company_id');
+    await _storage.delete(key: 'company_code');
+    await _storage.delete(key: 'user_password');
   }
 
   String _generateInviteCode() {
@@ -202,9 +219,11 @@ class AuthService {
   }
 
   Future<String?> getUserRole(String uid) async {
-    final User? localUser = await _localDb.getUser(uid);
-    if (localUser != null) return localUser.role;
+    // Najprv skúsime lokálnu DB (rýchlejšie)
+    final user = await _localDb.getUser(uid);
+    if (user != null) return user.role;
 
+    // Ak nemáme lokálne, ideme na Firebase
     DocumentSnapshot doc = await _db.collection('users').doc(uid).get();
     if (doc.exists) {
       String role = doc.get('role');

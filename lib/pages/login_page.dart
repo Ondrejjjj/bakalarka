@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:provider/provider.dart'; // PRIDANÉ: Potrebné pre Provider
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/biometric_service.dart';
+import '../services/sync_service.dart'; // PRIDANÉ: Import SyncService
 import 'package:bakalarka/main.dart';
-import '../database.dart'; // PRIDANÉ: Import tvojej databázy
+import 'package:bakalarka/database.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,9 +15,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // OPRAVA: AuthService už nedefinujeme tu ako "final AuthService _auth = AuthService();"
-  // pretože konštruktor teraz vyžaduje databázu, ktorú v tomto momente ešte nemáme.
-  late AuthService _auth;
   final BiometricService _biometricService = BiometricService();
 
   final _storage = const FlutterSecureStorage(
@@ -46,15 +44,23 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _checkBiometrics();
-    // Inicializujeme AuthService s databázou z kontextu
-    // Musíme to urobiť neskôr alebo priamo v handleAuth, lebo v initState
-    // ešte nie je kontext plne pripravený pre Provider.of
   }
 
   // Pomocná metóda na získanie AuthService
   AuthService _getAuthService() {
     final database = Provider.of<AppDatabase>(context, listen: false);
     return AuthService(database);
+  }
+
+  // PRIDANÉ: Pomocná metóda na spustenie synchronizácie
+  Future<void> _startSyncProcess() async {
+    final database = Provider.of<AppDatabase>(context, listen: false);
+    final syncService = SyncService(database);
+
+    // 1. Najprv urobíme jednorazovú obnovu (ak je potrebná)
+    await syncService.restoreAllUserData();
+    // 2. Potom aktivujeme živé sledovanie zmien (Sklad, Majetok atď.)
+    await syncService.startLiveSync();
   }
 
   void _checkBiometrics() async {
@@ -86,7 +92,6 @@ class _LoginPageState extends State<LoginPage> {
       String email = _emailController.text.trim();
       String password = _passwordController.text.trim();
 
-      // Získame inštanciu AuthService so správnou databázou
       final authService = _getAuthService();
 
       if (_isRegistering) {
@@ -109,6 +114,9 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       await _storage.write(key: 'user_password', value: password);
+
+      // --- PRIDANÉ: Spustenie synchronizácie po úspešnom prihlásení ---
+      await _startSyncProcess();
 
       if (_isRegistering && _canCheckBiometrics) {
         await _showBiometricActivationDialog();
@@ -134,6 +142,10 @@ class _LoginPageState extends State<LoginPage> {
           setState(() => _isLoading = true);
           final authService = _getAuthService();
           await authService.signIn(savedEmail, savedPassword);
+
+          // --- PRIDANÉ: Spustenie synchronizácie po biometrickom prihlásení ---
+          await _startSyncProcess();
+
           _goToHome();
         }
       } else {

@@ -21,12 +21,12 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
   String? _currentlyPlayingPath;
   bool _isPlaying = false;
 
-  // LOGIKA VÝBERU A SYNCU
+  // Logika výberu a synchronizácie
   final Set<Audio> _selectedAudios = {};
   bool _selectionMode = false;
   bool _isSyncing = false;
 
-  // Cache pre filtrovanie
+  // Identity pre Live Sync filtrovanie
   String? _currentUserEmail;
   String? _currentUserRole;
   String? _currentCompanyCode;
@@ -39,15 +39,26 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
   void initState() {
     super.initState();
     _loadUserIdentity();
+
+    // Sledovanie konca prehrávania
+    _audioPlayer.onPlayerComplete.listen((event) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _currentlyPlayingPath = null;
+        });
+      }
+    });
   }
 
-  // Načítanie identity zo Secure Storage
+  // Zosúladenie identity so zvyškom aplikácie
   Future<void> _loadUserIdentity() async {
     final email = await _storage.read(key: 'user_email');
     final role = await _storage.read(key: 'user_role');
-    final company = await _storage.read(key: 'company_code');
+    final company = await _storage.read(key: 'company_code'); // OPRAVA KĽÚČA
 
     if (mounted) {
+      debugPrint("🎙️ Audio Gallery Identity: $email, $role, $company");
       setState(() {
         _currentUserEmail = email;
         _currentUserRole = role;
@@ -63,6 +74,9 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
   }
 
   void _toggleSelection(Audio audio) {
+    // Už nahrané súbory nedovoľujeme znova vyberať pre upload
+    if (audio.uploaded && !_selectionMode) return;
+
     setState(() {
       if (_selectedAudios.contains(audio)) {
         _selectedAudios.remove(audio);
@@ -81,8 +95,11 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
 
     for (var audio in _selectedAudios) {
       final file = File(audio.filePath);
-      bool ok = await syncService.syncMedia(file, 'audio');
-      if (ok) successCount++;
+      if (await file.exists()) {
+        // syncMedia nahrá nahrávku a v SQLite ju označí ako 'uploaded'
+        bool ok = await syncService.syncMedia(file, 'audio');
+        if (ok) successCount++;
+      }
     }
 
     if (mounted) {
@@ -104,30 +121,34 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
     }
 
     try {
+      // Ak už hrá toto isté audio, tak ho zastavíme (Toggle)
       if (_isPlaying && _currentlyPlayingPath == audio.filePath) {
-        await _audioPlayer.pause();
+        await _audioPlayer.stop();
         setState(() => _isPlaying = false);
         return;
       }
 
       final file = File(audio.filePath);
-      if (!await file.exists()) throw Exception("Súbor neexistuje");
+      if (!await file.exists()) throw Exception("Súbor nahrávky neexistuje");
 
+      // Dešifrovanie priamo do RAM pre maximálnu bezpečnosť
       final encryptedBytes = await file.readAsBytes();
       final decryptedBytes = await CryptoService.decryptBytes(encryptedBytes);
 
+      // Prehráme priamo z bytov (BytesSource)
       await _audioPlayer.play(BytesSource(Uint8List.fromList(decryptedBytes)));
 
       setState(() {
         _currentlyPlayingPath = audio.filePath;
         _isPlaying = true;
       });
-
-      _audioPlayer.onPlayerComplete.listen((event) {
-        if (mounted) setState(() => _isPlaying = false);
-      });
     } catch (e) {
-      debugPrint("Chyba pri prehrávaní: $e");
+      debugPrint("❌ Chyba pri prehrávaní audia: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nepodarilo sa dešifrovať alebo prehrať nahrávku.')),
+        );
+      }
     }
   }
 
@@ -136,7 +157,6 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
     final db = Provider.of<AppDatabase>(context);
     final theme = Theme.of(context);
 
-    // Čakanie na načítanie identity
     if (_currentUserEmail == null || _currentCompanyCode == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -171,7 +191,7 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
 
         Expanded(
           child: StreamBuilder<List<Audio>>(
-            // LOGIKA: Admin vidí nahrávky celej firmy, Technik len svoje
+            // LIVE SYNC: Admin vidí nahrávky od všetkých, technik len svoje
             stream: _currentUserRole == 'admin'
                 ? db.watchCompanyAudios(_currentCompanyCode!)
                 : db.watchUserAudios(_currentUserEmail!),
@@ -182,7 +202,7 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
 
               final audios = snapshot.data ?? [];
               if (audios.isEmpty) {
-                return const Center(child: Text('Žiadne nahrávky v trezore'));
+                return const Center(child: Text('Trezor nahrávok je prázdny.'));
               }
 
               return ListView.builder(
@@ -238,18 +258,11 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
                         ),
                         title: Text(
                             _currentUserRole == 'admin'
-                                ? (audio.ownerName ?? 'Neznámy technik')
-                                : 'Nahrávka č. ${audio.id}',
+                                ? (audio.ownerName ?? 'Technik: ${audio.ownerName}')
+                                : 'Hlasová nahrávka',
                             style: const TextStyle(fontWeight: FontWeight.bold)
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_formatDate(audio.createdAt)),
-                            if (_currentUserRole == 'admin')
-                              Text('ID: ${audio.id}', style: theme.textTheme.bodySmall),
-                          ],
-                        ),
+                        subtitle: Text(_formatDate(audio.createdAt)),
                         trailing: _selectionMode
                             ? Checkbox(
                             value: isSelected,
@@ -259,7 +272,7 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton.filledTonal(
-                              icon: Icon(isThisPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                              icon: Icon(isThisPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded),
                               onPressed: () => _playAudio(audio),
                             ),
                             IconButton(
@@ -281,18 +294,18 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
   }
 
   String _formatDate(DateTime date) {
-    return "${date.day}.${date.month}.${date.year} o ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+    return "${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
   }
 
   Future<void> _confirmDelete(BuildContext context, AppDatabase db, Audio audio) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Vymazať nahrávku?'),
-        content: const Text('Tento súbor bude natrvalo odstránený z lokálneho trezoru.'),
+        title: const Text('Zmazať nahrávku?'),
+        content: const Text('Súbor bude natrvalo odstránený.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zrušiť')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Vymazať', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Zmazať', style: TextStyle(color: Colors.red))),
         ],
       ),
     );

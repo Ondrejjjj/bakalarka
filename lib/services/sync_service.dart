@@ -7,30 +7,134 @@ import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide Query;
 
 class SyncService {
   final AppDatabase db;
   final CloudService cloud = CloudService();
-  final _storage = const FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   SyncService(this.db);
 
-  /// Kontrola, či už úvodná synchronizácia prebehla pre KONKRÉTNEHO používateľa
-  /// Používame email v kľúči, aby sa to pri prehlásení iného človeka nepobilo
+  // ---------------------------------------------------------------------------
+  // 1. STAV SYNCHRONIZÁCIE
+  //    Kľúč 'sync_done_<email>' sa zapíše do SecureStorage po úspešnom restore.
+  //    Keď používateľ odinštaluje app, SecureStorage sa vymaže → kľúč zmizne
+  //    → pri novej inštalácii sa restore spustí znova. Presne to chceme.
+  // ---------------------------------------------------------------------------
+
   Future<bool> isInitialSyncRequired(String email) async {
     if (email.isEmpty) return false;
-    String? status = await _storage.read(key: 'sync_done_$email');
-    return status == null;
+    final status = await _storage.read(key: 'sync_done_$email');
+    return status == null; // null = kľúč neexistuje = restore ešte neprebehol
   }
 
-  /// Označenie, že synchronizácia je pre daného používateľa navždy hotová
   Future<void> markInitialSyncAsDone(String email) async {
     if (email.isEmpty) return;
     await _storage.write(key: 'sync_done_$email', value: 'true');
   }
 
-  /// 1. UPLOAD: Nahrávanie na Firebase
+  // ---------------------------------------------------------------------------
+  // 2. POMOCNÉ METÓDY – BEZPEČNÉ VKLADANIE (bez duplikátov)
+  // ---------------------------------------------------------------------------
+
+  Future<void> _upsertPhoto({
+    required String filePath,
+    required String userEmail,
+    required String companyCode,
+    required String deviceId,
+    String? ownerName,
+    bool uploaded = false,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final existing = await (db.select(db.photos)
+      ..where((p) => p.filePath.equals(filePath)))
+        .getSingleOrNull();
+    if (existing != null) return;
+    await db.insertPhoto(
+      filePath: filePath,
+      userEmail: userEmail,
+      companyCode: companyCode,
+      deviceId: deviceId,
+      ownerName: ownerName,
+      uploaded: uploaded,
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
+
+  Future<void> _upsertVideo({
+    required String filePath,
+    required String userEmail,
+    required String companyCode,
+    required String deviceId,
+    String? ownerName,
+    bool uploaded = false,
+    int? duration,
+  }) async {
+    final existing = await (db.select(db.videos)
+      ..where((v) => v.filePath.equals(filePath)))
+        .getSingleOrNull();
+    if (existing != null) return;
+    await db.insertVideo(
+      filePath: filePath,
+      userEmail: userEmail,
+      companyCode: companyCode,
+      deviceId: deviceId,
+      ownerName: ownerName,
+      uploaded: uploaded,
+      duration: duration,
+    );
+  }
+
+  Future<void> _upsertAudio({
+    required String filePath,
+    required String userEmail,
+    required String companyCode,
+    required String deviceId,
+    String? ownerName,
+    bool uploaded = false,
+    int? duration,
+  }) async {
+    final existing = await (db.select(db.audios)
+      ..where((a) => a.filePath.equals(filePath)))
+        .getSingleOrNull();
+    if (existing != null) return;
+    await db.insertAudio(
+      filePath: filePath,
+      userEmail: userEmail,
+      companyCode: companyCode,
+      deviceId: deviceId,
+      ownerName: ownerName,
+      uploaded: uploaded,
+      duration: duration,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. STIAHNUTIE A ZAŠIFROVANIE MÉDIA
+  // ---------------------------------------------------------------------------
+
+  Future<void> _downloadAndEncryptMedia(String url, String localPath) async {
+    try {
+      final httpClient = HttpClient();
+      final request = await httpClient.getUrl(Uri.parse(url));
+      final response = await request.close();
+      final bytes = await consolidateHttpClientResponseBytes(response);
+      final encryptedBytes = await CryptoService.encryptBytes(bytes);
+      await File(localPath).writeAsBytes(encryptedBytes);
+    } catch (e) {
+      debugPrint('❌ Chyba sťahovania média: $e');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. UPLOAD: NAHRÁVANIE NA FIREBASE
+  // ---------------------------------------------------------------------------
+
   Future<bool> syncMedia(File encryptedFile, String type) async {
     File? tempFile;
     try {
@@ -40,10 +144,11 @@ class SyncService {
       final decryptedBytes = await CryptoService.decryptBytes(bytes);
 
       final tempDir = await getTemporaryDirectory();
-      tempFile = File('${tempDir.path}/temp_sync_${DateTime.now().millisecondsSinceEpoch}');
+      tempFile = File(
+          '${tempDir.path}/temp_sync_${DateTime.now().millisecondsSinceEpoch}');
       await tempFile.writeAsBytes(decryptedBytes);
 
-      bool success = await cloud.uploadMedia(tempFile, type);
+      final success = await cloud.uploadMedia(tempFile, type);
 
       if (success) {
         if (type == 'image') await db.markPhotoAsUploaded(encryptedFile.path);
@@ -53,152 +158,465 @@ class SyncService {
       }
       return false;
     } catch (e) {
-      debugPrint("❌ Chyba v syncMedia: $e");
+      debugPrint('❌ Chyba v syncMedia: $e');
       return false;
     } finally {
-      if (tempFile != null && await tempFile.exists()) await tempFile.delete();
+      if (tempFile != null && await tempFile.exists()) {
+        await tempFile.delete();
+      }
     }
   }
 
-  /// 2. RESTORE: Kompletná obnova (spustí sa len RAZ za život aplikácie/účtu)
+  // ---------------------------------------------------------------------------
+  // 5. RESTORE – JEDNORAZOVÁ OBNOVA PRI NOVEJ INŠTALÁCII / PREINŠTALOVANÍ
+  //
+  //  KDE SA VOLÁ: main.dart → _handleInitialSync(), hneď po prihlásení.
+  //  KEDY PREBEHNE: len raz za inštaláciu (kľúč v SecureStorage to stráži).
+  //               Ak používateľ odinštaluje app, SecureStorage sa vymaže,
+  //               takže pri novej inštalácii prebehne znova – presne to chceme.
+  //
+  //  ČO OBNOVÍ:
+  //    • Assets & Inventory – CELÁ firma (každý vidí firemný majetok/sklad)
+  //    • Médiá:
+  //        – Technik  → LEN vlastné (filtruje sa podľa e-mailu)
+  //        – Admin    → VŠETKY médiá celej firmy (žiadny filter)
+  //
+  //  BEŽNÝ CHOD RIADI startLiveSync() – nie táto metóda.
+  // ---------------------------------------------------------------------------
+
   Future<void> restoreAllUserData() async {
+    final currentEmail = await _storage.read(key: 'user_email') ?? '';
+
+    // Ak kľúč existuje → restore na tomto zariadení už prebehol, preskočíme.
+    // Toto zároveň zabezpečuje, že pri živej session sa nikdy nespustí znova.
+    if (!(await isInitialSyncRequired(currentEmail))) {
+      debugPrint('🏠 Restore pre $currentEmail už prebehol na tomto zariadení.');
+      return;
+    }
+
     try {
       final firestore = FirebaseFirestore.instance;
-
-      // Načítanie identity z pamäte
-      final currentEmail = await _storage.read(key: 'user_email') ?? '';
-
-      // EXTRA POISTKA: Ak už v pamäti svieti, že sync prebehol, okamžite končíme a ani nezačíname query
-      if (!(await isInitialSyncRequired(currentEmail))) {
-        debugPrint("Restore pre $currentEmail už bol v minulosti vykonaný. Preskakujem.");
-        return;
-      }
-
       final companyId = await _storage.read(key: 'company_code') ?? '';
       final userRole = await _storage.read(key: 'user_role') ?? 'user';
       final isAdmin = userRole == 'admin';
-
-      debugPrint(" Štart JEDNORAZOVEJ obnovy dát pre: $currentEmail");
-
       final directory = await getApplicationDocumentsDirectory();
 
-      // --- A. MÉDIÁ ---
-      final mediaQuery = await firestore.collection('media_reports')
-          .where('companyId', isEqualTo: companyId)
+      debugPrint(
+          '🚀 Restore – nová/čistá inštalácia pre: $currentEmail '
+              '(admin: $isAdmin, firma: $companyId)');
+
+      // ── A. ASSETS – celá firma (admin aj technik vidia firemný majetok) ───
+
+      final assetDocs = await firestore
+          .collection('assets')
+          .where('companyCode', isEqualTo: companyId)
           .get();
 
-      for (var doc in mediaQuery.docs) {
+      for (final doc in assetDocs.docs) {
+        try {
+          final data = doc.data();
+          final existing = await (db.select(db.assets)
+            ..where((t) =>
+            t.firebaseId.equals(doc.id) |
+            t.sn.equals(data['sn'] ?? '')))
+              .getSingleOrNull();
+
+          await db.into(db.assets).insertOnConflictUpdate(AssetsCompanion(
+            id: existing != null ? Value(existing.id) : const Value.absent(),
+            firebaseId: Value(doc.id),
+            name: Value(data['name'] ?? 'Obnovený majetok'),
+            sn: Value(data['sn'] ?? ''),
+            model: Value(data['model'] ?? ''),
+            status: Value(data['status'] ?? 'V prevádzke'),
+            techSpecs: Value(data['techSpecs'] is Map
+                ? jsonEncode(data['techSpecs'])
+                : (data['techSpecs'] ?? '{}')),
+            history: Value(data['history'] is List
+                ? jsonEncode(data['history'])
+                : (data['history'] ?? '[]')),
+            userEmail: Value(data['userEmail'] ?? currentEmail),
+            companyCode: Value(companyId),
+            isUploaded: const Value(true),
+          ));
+        } catch (e) {
+          debugPrint('⚠️ Restore Asset ${doc.id}: $e');
+        }
+      }
+
+      // ── B. INVENTORY – celá firma ─────────────────────────────────────────
+
+      final inventoryDocs = await firestore
+          .collection('inventory')
+          .where('companyCode', isEqualTo: companyId)
+          .get();
+
+      for (final doc in inventoryDocs.docs) {
+        try {
+          final data = doc.data();
+          final existing = await (db.select(db.inventory)
+            ..where((t) =>
+            t.firebaseId.equals(doc.id) |
+            t.ean.equals(data['ean'] ?? '')))
+              .getSingleOrNull();
+
+          await db.into(db.inventory).insertOnConflictUpdate(InventoryCompanion(
+            id: existing != null ? Value(existing.id) : const Value.absent(),
+            firebaseId: Value(doc.id),
+            name: Value(data['name'] ?? ''),
+            sku: Value(data['sku'] ?? ''),
+            ean: Value(data['ean'] ?? ''),
+            unit: Value(data['unit'] ?? 'ks'),
+            qty: Value((data['qty'] ?? 0.0).toDouble()),
+            userEmail: Value(data['userEmail'] ?? currentEmail),
+            companyCode: Value(companyId),
+            isUploaded: const Value(true),
+          ));
+        } catch (e) {
+          debugPrint('⚠️ Restore Inventory ${doc.id}: $e');
+        }
+      }
+
+      // ── C. POHYBY SKLADU ──────────────────────────────────────────────────
+
+      final moveDocs = await firestore
+          .collection('stock_movements')
+          .where('companyCode', isEqualTo: companyId)
+          .get();
+
+      for (final doc in moveDocs.docs) {
+        try {
+          final data = doc.data();
+          final existing = await (db.select(db.stockMovements)
+            ..where((t) => t.firebaseId.equals(doc.id)))
+              .getSingleOrNull();
+          if (existing != null) continue;
+
+          await db.into(db.stockMovements).insertOnConflictUpdate(
+            StockMovementsCompanion.insert(
+              firebaseId: Value(doc.id),
+              inventoryId: data['inventoryId'] ?? 0,
+              itemName: data['itemName'] ?? '',
+              changeQty: (data['changeQty'] ?? 0.0).toDouble(),
+              type: data['type'] ?? 'income',
+              extraData: Value(data['extraData'] is Map
+                  ? jsonEncode(data['extraData'])
+                  : (data['extraData'] ?? '{}')),
+              userEmail: data['userEmail'] ?? '',
+              companyCode: companyId,
+              createdAt: Value(data['createdAt'] != null
+                  ? DateTime.parse(data['createdAt'])
+                  : DateTime.now()),
+              isUploaded: const Value(true),
+            ),
+          );
+        } catch (e) {
+          debugPrint('⚠️ Restore Movement ${doc.id}: $e');
+        }
+      }
+
+      // ── D. MÉDIÁ ──────────────────────────────────────────────────────────
+      //  Technik: obnoví LEN vlastné fotky/videá/audia.
+      //  Admin:   obnoví VŠETKY médiá celej firmy (aj od zamestnancov).
+      //
+      //  Prečo? Admin ich potrebuje vidieť aj po reinštalácii. Technik vidí
+      //  len svoju prácu – cudzie médiá sú mimo jeho dosahu.
+
+      final mediaDocs = await firestore
+          .collection('media_reports')
+          .where('companyCode', isEqualTo: companyId)
+          .get();
+
+      debugPrint(
+          '📷 Restore médií: ${mediaDocs.docs.length} záznamov '
+              '(admin=$isAdmin)');
+
+      for (final doc in mediaDocs.docs) {
         try {
           final report = doc.data();
-          String ownerEmail = report['ownerEmail'] ?? '';
+          final ownerEmail = (report['userEmail'] as String?) ?? '';
 
+          // Technik preskočí médiá iných ľudí; admin obnoví všetko
           if (!isAdmin && ownerEmail != currentEmail) continue;
 
-          String type = report['type'] ?? 'image';
-          String url = report['url'] ?? '';
-          String storagePath = report['storagePath'] ?? '';
-          String deviceId = report['deviceId'] ?? 'unknown_device';
+          final url = (report['url'] as String?) ?? '';
+          if (url.isEmpty) continue;
 
+          final storagePath = (report['storagePath'] as String?) ?? '';
+          final type = (report['type'] as String?) ?? 'image';
+          final deviceId = (report['deviceId'] as String?) ?? 'restored';
+          final ownerName = (report['ownerName'] as String?) ??
+              (report['companyName'] as String?) ??
+              'Obnovené';
+
+          // Zostrojíme lokálnu cestu rovnako ako pri prvom snímaní
+          String fileName = storagePath.split('/').last;
+          if (fileName.isEmpty) fileName = '${doc.id}.enc';
+          final localPath = '${directory.path}/$fileName';
+
+          // Stiahneme a zašifrujeme len ak súbor fyzicky chýba
+          if (!await File(localPath).exists()) {
+            await _downloadAndEncryptMedia(url, localPath);
+          }
+
+          // Vložíme záznam do SQLite bez rizika duplikátu
+          switch (type) {
+            case 'image':
+              await _upsertPhoto(
+                filePath: localPath,
+                userEmail: ownerEmail,
+                companyCode: companyId,
+                deviceId: deviceId,
+                ownerName: ownerName,
+                uploaded: true,
+              );
+              break;
+            case 'video':
+              await _upsertVideo(
+                filePath: localPath,
+                userEmail: ownerEmail,
+                companyCode: companyId,
+                deviceId: deviceId,
+                ownerName: ownerName,
+                uploaded: true,
+              );
+              break;
+            case 'audio':
+              await _upsertAudio(
+                filePath: localPath,
+                userEmail: ownerEmail,
+                companyCode: companyId,
+                deviceId: deviceId,
+                ownerName: ownerName,
+                uploaded: true,
+              );
+              break;
+          }
+        } catch (e) {
+          debugPrint('⚠️ Restore médium ${doc.id}: $e');
+        }
+      }
+
+      // Zapíšeme kľúč → pri ďalšom spustení sa restore preskočí.
+      // Pri odinštalovaní sa SecureStorage vymaže → kľúč zmizne
+      // → pri novej inštalácii sa restore spustí znova. Presne to chceme.
+      await markInitialSyncAsDone(currentEmail);
+      debugPrint('✅ Restore dokončený pre $currentEmail.');
+    } catch (e) {
+      // Kľúč NEZAPÍŠEME – pri ďalšom spustení sa restore pokúsi znova
+      debugPrint('❌ Kritická chyba restore: $e');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 6. LIVE SYNC – BEŽNÝ CHOD APLIKÁCIE (volaj raz po prihlásení)
+  //
+  //  KDE SA VOLÁ: main.dart → _handleInitialSync(), po dokončení restore.
+  //  ČO ROBÍ:
+  //    • Assets & Inventory – zmeny vidí každý z firmy okamžite
+  //    • Médiá:
+  //        – Technik  → len vlastné (Firestore filter na e-mail)
+  //        – Admin    → všetky médiá firmy (žiadny filter)
+  // ---------------------------------------------------------------------------
+
+  Future<void> startLiveSync() async {
+    final companyId = await _storage.read(key: 'company_code') ?? '';
+    final currentEmail = await _storage.read(key: 'user_email') ?? '';
+    final userRole = await _storage.read(key: 'user_role') ?? 'user';
+    final isAdmin = userRole == 'admin';
+
+    if (companyId.isEmpty) {
+      debugPrint('⚠️ Live Sync: company_code nie je nastavený, preskakujem.');
+      return;
+    }
+
+    debugPrint('📡 Live Sync štart: firma=$companyId, admin=$isAdmin');
+
+    // ── A. LIVE ASSETS ───────────────────────────────────────────────────────
+
+    FirebaseFirestore.instance
+        .collection('assets')
+        .where('companyCode', isEqualTo: companyId)
+        .snapshots()
+        .listen((snapshot) async {
+      for (final doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          final existing = await (db.select(db.assets)
+            ..where((t) =>
+            t.firebaseId.equals(doc.id) |
+            t.sn.equals(data['sn'] ?? '')))
+              .getSingleOrNull();
+
+          await db.into(db.assets).insertOnConflictUpdate(AssetsCompanion(
+            id: existing != null ? Value(existing.id) : const Value.absent(),
+            firebaseId: Value(doc.id),
+            name: Value(data['name'] ?? ''),
+            sn: Value(data['sn'] ?? ''),
+            model: Value(data['model'] ?? ''),
+            status: Value(data['status'] ?? ''),
+            techSpecs: Value(data['techSpecs'] is Map
+                ? jsonEncode(data['techSpecs'])
+                : (data['techSpecs'] ?? '{}')),
+            history: Value(data['history'] is List
+                ? jsonEncode(data['history'])
+                : (data['history'] ?? '[]')),
+            userEmail: Value(data['userEmail'] ?? ''),
+            companyCode: Value(companyId),
+            isUploaded: const Value(true),
+          ));
+        } catch (e) {
+          debugPrint('⚠️ Live Asset ${doc.id}: $e');
+        }
+      }
+    });
+
+    // ── B. LIVE INVENTORY ────────────────────────────────────────────────────
+
+    FirebaseFirestore.instance
+        .collection('inventory')
+        .where('companyCode', isEqualTo: companyId)
+        .snapshots()
+        .listen((snapshot) async {
+      for (final doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          final existing = await (db.select(db.inventory)
+            ..where((t) =>
+            t.firebaseId.equals(doc.id) |
+            t.ean.equals(data['ean'] ?? '')))
+              .getSingleOrNull();
+
+          await db.into(db.inventory).insertOnConflictUpdate(InventoryCompanion(
+            id: existing != null ? Value(existing.id) : const Value.absent(),
+            firebaseId: Value(doc.id),
+            name: Value(data['name'] ?? ''),
+            sku: Value(data['sku'] ?? ''),
+            ean: Value(data['ean'] ?? ''),
+            unit: Value(data['unit'] ?? 'ks'),
+            qty: Value((data['qty'] ?? 0.0).toDouble()),
+            userEmail: Value(data['userEmail'] ?? ''),
+            companyCode: Value(companyId),
+            isUploaded: const Value(true),
+          ));
+        } catch (e) {
+          debugPrint('⚠️ Live Inventory ${doc.id}: $e');
+        }
+      }
+    });
+
+    // ── C. LIVE POHYBY SKLADU ────────────────────────────────────────────────
+
+    FirebaseFirestore.instance
+        .collection('stock_movements')
+        .where('companyCode', isEqualTo: companyId)
+        .snapshots()
+        .listen((snapshot) async {
+      for (final doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          final existing = await (db.select(db.stockMovements)
+            ..where((t) => t.firebaseId.equals(doc.id)))
+              .getSingleOrNull();
+          if (existing != null) continue;
+
+          await db.into(db.stockMovements).insertOnConflictUpdate(
+            StockMovementsCompanion.insert(
+              firebaseId: Value(doc.id),
+              inventoryId: data['inventoryId'] ?? 0,
+              itemName: data['itemName'] ?? '',
+              changeQty: (data['changeQty'] ?? 0.0).toDouble(),
+              type: data['type'] ?? 'income',
+              extraData: Value(data['extraData'] is Map
+                  ? jsonEncode(data['extraData'])
+                  : (data['extraData'] ?? '{}')),
+              userEmail: data['userEmail'] ?? '',
+              companyCode: companyId,
+              createdAt: Value(data['createdAt'] != null
+                  ? DateTime.parse(data['createdAt'])
+                  : DateTime.now()),
+              isUploaded: const Value(true),
+            ),
+          );
+        } catch (e) {
+          debugPrint('⚠️ Live Movement ${doc.id}: $e');
+        }
+      }
+    });
+
+    // ── D. LIVE MÉDIÁ ────────────────────────────────────────────────────────
+    //  Technik: Firestore filter na jeho e-mail (server-side, efektívne)
+    //  Admin:   žiadny filter → dostane všetky médiá celej firmy
+
+    Query<Map<String, dynamic>> mediaQuery = FirebaseFirestore.instance
+        .collection('media_reports')
+        .where('companyCode', isEqualTo: companyId);
+
+    if (!isAdmin) {
+      // Techniku filtrujeme priamo na Firestore – šetríme bandwidth
+      mediaQuery = mediaQuery.where('userEmail', isEqualTo: currentEmail);
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+
+    mediaQuery.snapshots().listen((snapshot) async {
+      for (final doc in snapshot.docs) {
+        try {
+          final report = doc.data();
+          final ownerEmail = (report['userEmail'] as String?) ?? '';
+          final url = (report['url'] as String?) ?? '';
+          if (url.isEmpty) continue;
+
+          final storagePath = (report['storagePath'] as String?) ?? '';
+          final type = (report['type'] as String?) ?? 'image';
+          final deviceId = (report['deviceId'] as String?) ?? 'live';
+          final ownerName = (report['ownerName'] as String?) ??
+              (report['companyName'] as String?) ??
+              'Live';
 
           String fileName = storagePath.split('/').last;
           if (fileName.isEmpty) fileName = '${doc.id}.enc';
-          String localPath = '${directory.path}/$fileName';
+          final localPath = '${directory.path}/$fileName';
 
-          // Sťahujeme len ak súbor fyzicky nemáme
           if (!await File(localPath).exists()) {
-            final httpClient = HttpClient();
-            final request = await httpClient.getUrl(Uri.parse(url));
-            final response = await request.close();
-            final bytes = await consolidateHttpClientResponseBytes(response);
-
-            final encryptedBytes = await CryptoService.encryptBytes(bytes);
-            await File(localPath).writeAsBytes(encryptedBytes);
+            await _downloadAndEncryptMedia(url, localPath);
           }
 
-          if (type == 'image') {
-            await db.insertPhoto(
-              filePath: localPath,
-              userEmail: ownerEmail,
-              companyCode: companyId,
-              ownerName: report['ownerName'] ?? report['companyName'] ?? 'Obnovené',
-              uploaded: true,
-              deviceId: deviceId,
-            );
-          } else if (type == 'video') {
-            await db.insertVideo(
-              filePath: localPath,
-              userEmail: ownerEmail,
-              companyCode: companyId,
-              ownerName: report['ownerName'] ?? report['companyName'] ?? 'Obnovené',
-              uploaded: true,
-              deviceId: deviceId,
-            );
+          switch (type) {
+            case 'image':
+              await _upsertPhoto(
+                filePath: localPath,
+                userEmail: ownerEmail,
+                companyCode: companyId,
+                deviceId: deviceId,
+                ownerName: ownerName,
+                uploaded: true,
+              );
+              break;
+            case 'video':
+              await _upsertVideo(
+                filePath: localPath,
+                userEmail: ownerEmail,
+                companyCode: companyId,
+                deviceId: deviceId,
+                ownerName: ownerName,
+                uploaded: true,
+              );
+              break;
+            case 'audio':
+              await _upsertAudio(
+                filePath: localPath,
+                userEmail: ownerEmail,
+                companyCode: companyId,
+                deviceId: deviceId,
+                ownerName: ownerName,
+                uploaded: true,
+              );
+              break;
           }
         } catch (e) {
-          debugPrint("⚠️ Chyba pri médiu ${doc.id}: $e");
+          debugPrint('⚠️ Live médium ${doc.id}: $e');
         }
       }
-
-      // --- B. SKLAD (Inventory) ---
-      final inventoryDocs = await firestore.collection('inventory')
-          .where('companyId', isEqualTo: companyId)
-          .get();
-
-      for (var doc in inventoryDocs.docs) {
-        try {
-          final data = doc.data();
-          String ownerEmail = data['ownerEmail'] ?? currentEmail;
-          if (!isAdmin && ownerEmail != currentEmail) continue;
-
-          await db.upsertInventoryItem(InventoryCompanion.insert(
-            firebaseId: Value(doc.id),
-            name: data['name'] ?? '',
-            sku: data['sku'] ?? '',
-            ean: data['ean'] ?? '',
-            unit: data['unit'] ?? 'ks',
-            qty: Value((data['qty'] ?? 0.0).toDouble()),
-            userEmail: ownerEmail,
-            companyCode: companyId,
-            isUploaded: const Value(true),
-          ));
-        } catch (e) {
-          debugPrint("⏭️ Preskakujem Inventory duplikát.");
-        }
-      }
-
-      // --- C. MAJETOK (Assets) ---
-      final assetDocs = await firestore.collection('assets')
-          .where('companyId', isEqualTo: companyId)
-          .get();
-
-      for (var doc in assetDocs.docs) {
-        try {
-          final data = doc.data();
-          String ownerEmail = data['ownerEmail'] ?? currentEmail;
-          if (!isAdmin && ownerEmail != currentEmail) continue;
-
-          await db.upsertAsset(AssetsCompanion.insert(
-            firebaseId: Value(doc.id),
-            name: data['name'] ?? 'Neznámy majetok',
-            sn: data['sn'] ?? '',
-            model: data['model'] ?? '',
-            status: data['status'] ?? 'V prevádzke',
-            techSpecs: data['techSpecs'] is Map ? jsonEncode(data['techSpecs']) : (data['techSpecs'] ?? '{}'),
-            history: data['history'] is List ? jsonEncode(data['history']) : (data['history'] ?? '[]'),
-            userEmail: ownerEmail,
-            companyCode: companyId,
-            isUploaded: const Value(true),
-          ));
-        } catch (e) {
-          debugPrint("⏭️ Preskakujem Asset duplikát.");
-        }
-      }
-
-
-      await markInitialSyncAsDone(currentEmail);
-      debugPrint("✅ Úvodná obnova navždy dokončená pre $currentEmail.");
-    } catch (e) {
-      debugPrint("❌ Kritická chyba pri synchronizácii: $e");
-    }
+    });
   }
 }
