@@ -12,7 +12,7 @@ import 'package:location/location.dart';
 import 'package:provider/provider.dart';
 import 'package:native_exif/native_exif.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:drift/drift.dart' as drift; // Potrebné pre drift.Value
+import 'package:drift/drift.dart' as drift;
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -31,7 +31,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
 
-  // Lokálna cache pre údaje o používateľovi
   String _cachedEmail = 'unknown_user';
   String _cachedCompany = 'unknown_company';
   String _cachedOwnerName = 'Technik';
@@ -54,11 +53,13 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
     _initCamera();
   }
 
-  // ZJEDNOTENÉ: Načítavame 'company_id', aby to sedelo s Galériou
   Future<void> _loadOfflineCredentials() async {
     try {
       final email = await _storage.read(key: 'user_email');
-      final company = await _storage.read(key: 'company_id'); // Opravený kľúč
+      // OPRAVA: 'company_code' – rovnaký kľúč ako v GalleryPage a SyncService
+      // Predtým tu bol 'company_id' čo spôsobovalo, že fotky sa neukladali
+      // pod správnym companyCode a galéria ich nedokázala načítať.
+      final company = await _storage.read(key: 'company_code');
       final name = await _storage.read(key: 'user_name');
 
       if (mounted) {
@@ -67,9 +68,12 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
           _cachedCompany = company ?? 'unknown_company';
           _cachedOwnerName = name ?? 'Technik';
         });
+        debugPrint(
+            '📷 Camera credentials: email=$_cachedEmail, '
+                'company=$_cachedCompany, name=$_cachedOwnerName');
       }
     } catch (e) {
-      debugPrint("❌ Chyba načítania offline údajov: $e");
+      debugPrint('❌ Chyba načítania offline údajov: $e');
     }
   }
 
@@ -105,7 +109,9 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
         camera,
         ResolutionPreset.high,
         enableAudio: true,
-        imageFormatGroup: Platform.isAndroid ? ImageFormatGroup.jpeg : ImageFormatGroup.bgra8888,
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.jpeg
+            : ImageFormatGroup.bgra8888,
       );
 
       await _controller!.initialize();
@@ -117,12 +123,14 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
       if (mounted) setState(() => _isReady = true);
     } catch (e) {
-      debugPrint("❌ Camera init error: $e");
+      debugPrint('❌ Camera init error: $e');
     }
   }
 
   Future<void> _takePhoto() async {
-    if (_controller == null || !_controller!.value.isInitialized || _isRecording) return;
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        _isRecording) return;
 
     setState(() => _isCapturing = true);
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -133,20 +141,20 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       final XFile photo = await _controller!.takePicture();
       await _stripExif(photo.path);
 
-      // Šifrovanie
       final bytes = await File(photo.path).readAsBytes();
       final encryptedBytes = await CryptoService.encryptBytes(bytes);
 
-      final imageId = "img_${DateTime.now().millisecondsSinceEpoch}";
+      final imageId = 'img_${DateTime.now().millisecondsSinceEpoch}';
       final file = await ImageStorage.createEncryptedFile(imageId);
       await file.writeAsBytes(encryptedBytes, flush: true);
 
-      // Poloha
       double? lat;
       double? lon;
       try {
-        Location location = Location();
-        final locData = await location.getLocation().timeout(const Duration(seconds: 3));
+        final location = Location();
+        final locData = await location
+            .getLocation()
+            .timeout(const Duration(seconds: 3));
         lat = locData.latitude;
         lon = locData.longitude;
       } catch (_) {}
@@ -154,12 +162,11 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       if (!mounted) return;
       final db = context.read<AppDatabase>();
 
-      // ZÁPIS DO DB (Stĺpec companyCode v DB dostane hodnotu _cachedCompany, čo je naše company_id)
       await db.insertPhoto(
         filePath: file.path,
         deviceId: '90',
         userEmail: _cachedEmail,
-        companyCode: _cachedCompany,
+        companyCode: _cachedCompany, // hodnota z 'company_code' kľúča
         ownerName: _cachedOwnerName,
         uploaded: false,
         latitude: lat,
@@ -167,14 +174,17 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       );
 
       await File(photo.path).delete();
-      debugPrint("✅ Foto uložené: ${file.path}");
+      debugPrint('✅ Foto uložené: ${file.path} '
+          '(email=$_cachedEmail, company=$_cachedCompany)');
     } catch (e) {
-      debugPrint("❌ Photo capture error: $e");
+      debugPrint('❌ Photo capture error: $e');
     }
   }
 
   Future<void> _startVideo() async {
-    if (_controller == null || !_controller!.value.isInitialized || _isRecording) return;
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        _isRecording) return;
     try {
       await _controller!.startVideoRecording();
       setState(() {
@@ -182,10 +192,12 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
         _videoDuration = Duration.zero;
       });
       _videoTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (mounted) setState(() => _videoDuration += const Duration(seconds: 1));
+        if (mounted) {
+          setState(() => _videoDuration += const Duration(seconds: 1));
+        }
       });
     } catch (e) {
-      debugPrint("❌ Video start error: $e");
+      debugPrint('❌ Video start error: $e');
     }
   }
 
@@ -201,30 +213,31 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       final bytes = await File(video.path).readAsBytes();
       final encryptedBytes = await CryptoService.encryptBytes(bytes);
 
-      final videoId = "vid_${DateTime.now().millisecondsSinceEpoch}";
+      final videoId = 'vid_${DateTime.now().millisecondsSinceEpoch}';
       final file = await ImageStorage.createEncryptedFile(videoId);
       await file.writeAsBytes(encryptedBytes, flush: true);
 
       if (!mounted) return;
       final db = context.read<AppDatabase>();
 
-      // ZÁPIS VIDEA DO DB
       await db.insertVideo(
         filePath: file.path,
         deviceId: '90',
         userEmail: _cachedEmail,
-        companyCode: _cachedCompany,
+        companyCode: _cachedCompany, // hodnota z 'company_code' kľúča
         ownerName: _cachedOwnerName,
         uploaded: false,
         duration: duration,
       );
 
       await File(video.path).delete();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🎥 Video zašifrované a uložené')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('🎥 Video zašifrované a uložené')),
+        );
+      }
     } catch (e) {
-      debugPrint("❌ Video stop error: $e");
+      debugPrint('❌ Video stop error: $e');
     }
   }
 
@@ -239,7 +252,8 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   void _toggleFlash() async {
     if (_controller == null) return;
     setState(() => _isFlashOn = !_isFlashOn);
-    await _controller!.setFlashMode(_isFlashOn ? FlashMode.torch : FlashMode.off);
+    await _controller!
+        .setFlashMode(_isFlashOn ? FlashMode.torch : FlashMode.off);
   }
 
   String _formatDuration(Duration d) {
@@ -251,7 +265,10 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     if (!_isReady || _controller == null) {
-      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator(color: Colors.white)));
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
     }
 
     return Scaffold(
@@ -260,55 +277,108 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
         fit: StackFit.expand,
         children: [
           Center(child: CameraPreview(_controller!)),
-          if (_isCapturing) Container(color: Colors.black.withOpacity(0.5)),
+          if (_isCapturing) Container(color: Colors.black.withValues(alpha: 0.5)),
 
           // Horná lišta
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 50, 16, 20),
-              decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black54, Colors.transparent])),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black54, Colors.transparent],
+                ),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(icon: const Icon(Icons.close, color: Colors.white, size: 28), onPressed: () => Navigator.pop(context)),
+                  IconButton(
+                    icon: const Icon(Icons.close,
+                        color: Colors.white, size: 28),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                   if (_isRecording)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.8), borderRadius: BorderRadius.circular(20)),
-                      child: Text(_formatDuration(_videoDuration), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _formatDuration(_videoDuration),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  IconButton(icon: Icon(_isFlashOn ? Icons.flash_on : Icons.flash_off, color: _isFlashOn ? Colors.yellow : Colors.white, size: 28), onPressed: _toggleFlash),
+                  IconButton(
+                    icon: Icon(
+                      _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                      color: _isFlashOn ? Colors.yellow : Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: _toggleFlash,
+                  ),
                 ],
               ),
             ),
           ),
 
-          // Spodný panel (Zoom + Módy + Spúšť)
+          // Spodný panel
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Container(
               padding: const EdgeInsets.only(bottom: 40, top: 20),
-              decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black, Colors.transparent], stops: [0.4, 1.0])),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black, Colors.transparent],
+                  stops: [0.4, 1.0],
+                ),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Zoom
+                  // Zoom slider
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Row(
                       children: [
-                        const Text('1x', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                        Expanded(child: Slider(
-                          value: _currentZoom, min: _minZoom, max: _maxZoom,
-                          activeColor: Colors.white, inactiveColor: Colors.white24,
-                          onChanged: (val) { setState(() => _currentZoom = val); _controller!.setZoomLevel(val); },
-                        )),
-                        Text('${_maxZoom.toStringAsFixed(0)}x', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                        const Text('1x',
+                            style: TextStyle(
+                                color: Colors.white70, fontSize: 12)),
+                        Expanded(
+                          child: Slider(
+                            value: _currentZoom,
+                            min: _minZoom,
+                            max: _maxZoom,
+                            activeColor: Colors.white,
+                            inactiveColor: Colors.white24,
+                            onChanged: (val) {
+                              setState(() => _currentZoom = val);
+                              _controller!.setZoomLevel(val);
+                            },
+                          ),
+                        ),
+                        Text(
+                          '${_maxZoom.toStringAsFixed(0)}x',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
+
+                  // Prepínač FOTO / VIDEO
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -318,16 +388,31 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
                     ],
                   ),
                   const SizedBox(height: 20),
+
+                  // Spúšť
                   GestureDetector(
-                    onTap: () => _isVideoMode ? (_isRecording ? _stopVideo() : _startVideo()) : _takePhoto(),
+                    onTap: () => _isVideoMode
+                        ? (_isRecording ? _stopVideo() : _startVideo())
+                        : _takePhoto(),
                     child: Container(
-                      height: 80, width: 80,
-                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
-                      child: Center(child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: _isRecording ? 30 : 65, width: _isRecording ? 30 : 65,
-                        decoration: BoxDecoration(color: _isVideoMode ? Colors.red : Colors.white, borderRadius: BorderRadius.circular(_isRecording ? 4 : 50)),
-                      )),
+                      height: 80,
+                      width: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                      ),
+                      child: Center(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: _isRecording ? 30 : 65,
+                          width: _isRecording ? 30 : 65,
+                          decoration: BoxDecoration(
+                            color: _isVideoMode ? Colors.red : Colors.white,
+                            borderRadius: BorderRadius.circular(
+                                _isRecording ? 4 : 50),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -341,8 +426,20 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
   Widget _buildModeText(String text, bool isActive) {
     return GestureDetector(
-      onTap: () { if (!_isRecording) setState(() => _isVideoMode = (text == 'VIDEO')); },
-      child: Text(text, style: TextStyle(color: isActive ? Colors.yellowAccent : Colors.white54, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+      onTap: () {
+        if (!_isRecording) {
+          setState(() => _isVideoMode = (text == 'VIDEO'));
+        }
+      },
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isActive ? Colors.yellowAccent : Colors.white54,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+        ),
+      ),
     );
   }
 }
