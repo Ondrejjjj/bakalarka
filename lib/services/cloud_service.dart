@@ -15,74 +15,94 @@ class CloudService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
-      // 1. Získanie info o používateľovi (aby sme vedeli, do ktorej firmy súbor patrí)
-      DocumentSnapshot userDoc = await _db.collection('users').doc(user.uid).get();
+      // 1. Získanie info o používateľovi
+      DocumentSnapshot userDoc =
+      await _db.collection('users').doc(user.uid).get();
       if (!userDoc.exists) return false;
 
       final userData = userDoc.data() as Map<String, dynamic>;
-      String companyId = userData['companyId'] ?? 'unknown';
-      String companyName = userData['companyName'] ?? 'Neznáma firma';
-      // Získame aj meno používateľa pre SyncService
-      String ownerName = userData['name'] ?? user.email?.split('@').first ?? 'Používateľ';
 
-      // 2. Cesta k súboru
-      String fileName = '${DateTime.now().millisecondsSinceEpoch}_${user.uid}';
-      // Oprava prípony pre audio (m4a je štandard pre Flutter Sound/Record)
-      String extension = type == 'image' ? '.jpg' : (type == 'video' ? '.mp4' : '.m4a');
-      String fullPath = 'companies/$companyId/media/$fileName$extension';
+      // users dokument má pole 'companyId' – čítame ho a ukladáme ako 'companyCode'
+      // aby SyncService a Firestore rules vedeli dokument nájsť
+      final String companyCode =
+          (userData['companyCode'] as String?) ??
+              (userData['companyId'] as String?) ??
+              'unknown';
+      final String companyName =
+          (userData['companyName'] as String?) ?? 'Neznáma firma';
+      final String ownerName =
+          (userData['name'] as String?) ??
+              user.email?.split('@').first ??
+              'Používateľ';
+
+      // 2. Cesta k súboru na Firebase Storage
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${user.uid}';
+      final String extension =
+      type == 'image' ? '.jpg' : (type == 'video' ? '.mp4' : '.m4a');
+      final String fullPath =
+          'companies/$companyCode/media/$fileName$extension';
 
       // 3. Nahrávanie na Storage
-      Reference ref = _storage.ref().child(fullPath);
+      final Reference ref = _storage.ref().child(fullPath);
+      final SettableMetadata metadata = SettableMetadata(
+        contentType: '$type/${extension.replaceFirst('.', '')}',
+      );
 
-      // Pridáme metadata k súboru (dobré pre prehľad v konzole)
-      SettableMetadata metadata = SettableMetadata(contentType: '$type/${extension.replaceFirst('.', '')}');
+      debugPrint('⏳ Nahrávam $type na Storage: $fullPath');
+      final UploadTask uploadTask = ref.putFile(localFile, metadata);
+      final TaskSnapshot snapshot = await uploadTask;
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
 
-      debugPrint("⏳ Nahrávam $type na Storage: $fullPath");
-      UploadTask uploadTask = ref.putFile(localFile, metadata);
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      // 4. Zápis do Firestore (Tieto polia musí SyncService vedieť prečítať!)
+      // 4. Zápis do Firestore
+      // DÔLEŽITÉ: názvy polí musia byť zhodné s tým čo číta SyncService:
+      //   'userEmail'   – SyncService číta report['userEmail']
+      //   'companyCode' – SyncService a Firestore rules čítajú 'companyCode'
       await _db.collection('media_reports').add({
-        'url': downloadUrl,
-        'storagePath': fullPath,
-        'ownerId': user.uid,
-        'ownerEmail': user.email,
-        'ownerName': ownerName, // Pridané pre SyncService
-        'companyId': companyId,
-        'companyName': companyName,
-        'type': type,
-        'createdAt': FieldValue.serverTimestamp(),
+        'url':              downloadUrl,
+        'storagePath':      fullPath,
+        'ownerId':          user.uid,
+        'userEmail':        user.email,   // ← oprava: bolo 'ownerEmail'
+        'ownerName':        ownerName,
+        'companyCode':      companyCode,  // ← oprava: bolo 'companyId'
+        'companyName':      companyName,
+        'type':             type,
+        'createdAt':        FieldValue.serverTimestamp(),
         'isDeletedByAdmin': false,
-        'deviceId': 'mobile_app', // Užitočné pri debugovaní
+        'deviceId':         'mobile_app',
       });
 
-      debugPrint("✅ Synchronizácia úspešná.");
+      debugPrint('✅ Synchronizácia úspešná: $fullPath');
       return true;
-
     } catch (e) {
-      debugPrint("❌ Chyba pri cloude (Upload): $e");
+      debugPrint('❌ Chyba pri cloude (Upload): $e');
       return false;
     }
   }
 
-  /// Získanie zoznamu reportov (Pre potreby zobrazenia v UI)
+  /// Získanie zoznamu médií pre prihláseného používateľa
   Future<List<Map<String, dynamic>>> getUserMediaReports() async {
     final user = _auth.currentUser;
     if (user == null) return [];
 
     try {
-      // Najprv zistíme companyId prihláseného usera
-      DocumentSnapshot userDoc = await _db.collection('users').doc(user.uid).get();
-      String companyId = userDoc.get('companyId');
+      final DocumentSnapshot userDoc =
+      await _db.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) return [];
 
-      debugPrint("⏳ Sťahujem reporty pre firmu: $companyId");
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final String companyCode =
+          (userData['companyCode'] as String?) ??
+              (userData['companyId'] as String?) ??
+              '';
 
-      // Dotaz: Moje reporty v rámci mojej aktuálnej firmy
-      QuerySnapshot snapshot = await _db
+      debugPrint('⏳ Sťahujem reporty pre firmu: $companyCode');
+
+      // Filtrujeme podľa companyCode a userEmail
+      final QuerySnapshot snapshot = await _db
           .collection('media_reports')
-          .where('companyId', isEqualTo: companyId) // Bezpečnostný filter
-          .where('ownerId', isEqualTo: user.uid)
+          .where('companyCode', isEqualTo: companyCode)
+          .where('userEmail', isEqualTo: user.email)
           .orderBy('createdAt', descending: true)
           .get();
 
@@ -91,9 +111,8 @@ class CloudService {
         data['docId'] = doc.id;
         return data;
       }).toList();
-
     } catch (e) {
-      debugPrint("❌ Chyba pri sťahovaní zoznamu: $e");
+      debugPrint('❌ Chyba pri sťahovaní zoznamu: $e');
       return [];
     }
   }
