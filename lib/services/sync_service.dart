@@ -184,6 +184,14 @@ class SyncService {
   //  BEŽNÝ CHOD RIADI startLiveSync() – nie táto metóda.
   // ---------------------------------------------------------------------------
 
+  Future<int?> _findInventoryIdByName(String name, String companyCode) async {
+    if (name.isEmpty) return null;
+    final item = await (db.select(db.inventory)
+      ..where((t) => t.name.equals(name) & t.companyCode.equals(companyCode)))
+        .getSingleOrNull();
+    return item?.id;
+  }
+
   Future<void> restoreAllUserData() async {
     final currentEmail = await _storage.read(key: 'user_email') ?? '';
 
@@ -279,7 +287,7 @@ class SyncService {
       // ── C. POHYBY SKLADU ──────────────────────────────────────────────────
 
       final moveDocs = await firestore
-          .collection('stock_movements')
+          .collection('movements')
           .where('companyCode', isEqualTo: companyId)
           .get();
 
@@ -294,7 +302,8 @@ class SyncService {
           await db.into(db.stockMovements).insertOnConflictUpdate(
             StockMovementsCompanion.insert(
               firebaseId: Value(doc.id),
-              inventoryId: data['inventoryId'] ?? 0,
+              inventoryId: data['inventoryId'] ?? await _findInventoryIdByName(
+                  data['itemName'] ?? '', companyId) ?? 0,
               itemName: data['itemName'] ?? '',
               changeQty: (data['changeQty'] ?? 0.0).toDouble(),
               type: data['type'] ?? 'income',
@@ -443,8 +452,7 @@ class SyncService {
           final data = doc.data();
           final existing = await (db.select(db.assets)
             ..where((t) =>
-            t.firebaseId.equals(doc.id) |
-            t.sn.equals(data['sn'] ?? '')))
+            t.firebaseId.equals(doc.id) | t.sn.equals(data['sn'] ?? '')))
               .getSingleOrNull();
 
           await db.into(db.assets).insertOnConflictUpdate(AssetsCompanion(
@@ -507,7 +515,7 @@ class SyncService {
     // ── C. LIVE POHYBY SKLADU ────────────────────────────────────────────────
 
     FirebaseFirestore.instance
-        .collection('stock_movements')
+        .collection('movements')
         .where('companyCode', isEqualTo: companyId)
         .snapshots()
         .listen((snapshot) async {
@@ -546,6 +554,10 @@ class SyncService {
     // ── D. LIVE MÉDIÁ ────────────────────────────────────────────────────────
     //  Technik: Firestore filter na jeho e-mail (server-side, efektívne)
     //  Admin:   žiadny filter → dostane všetky médiá celej firmy
+    //
+    //  DÔLEŽITÉ: Vlastné médiá (ownerEmail == currentEmail) preskakujeme –
+    //  sú už uložené lokálne od momentu keď sme ich nahrali.
+    //  Bez tohto by sa každá nahrá fotka stiahla znova a zobrazila dvakrát.
 
     Query<Map<String, dynamic>> mediaQuery = FirebaseFirestore.instance
         .collection('media_reports')
@@ -565,6 +577,11 @@ class SyncService {
           final ownerEmail = (report['userEmail'] as String?) ?? '';
           final url = (report['url'] as String?) ?? '';
           if (url.isEmpty) continue;
+
+          // OPRAVA DUPLIKÁTOV: Vlastné médiá preskakujeme – už ich máme
+          // lokálne od odfotenia. Sťahujeme len cudzie médiá (zamestnanci
+          // pre admina). Bez tohto sa každá fotka zobrazí dvakrát.
+          if (ownerEmail == currentEmail) continue;
 
           final storagePath = (report['storagePath'] as String?) ?? '';
           final type = (report['type'] as String?) ?? 'image';

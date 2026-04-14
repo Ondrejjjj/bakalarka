@@ -8,11 +8,13 @@ import 'package:bakalarka/services/sync_service.dart'; // PRIDANÉ: Import tvojh
 class InventoryPage extends StatefulWidget {
   final String userEmail;
   final String companyCode;
+  final int initialTab;
 
   const InventoryPage({
     super.key,
     required this.userEmail,
     required this.companyCode,
+    this.initialTab = 0,
   });
 
   @override
@@ -29,12 +31,17 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    // SPRÁVNE: TabController vytvorený raz s initialIndex
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab,
+    );
+    // Listener len pre search
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.toLowerCase());
     });
 
-    // PRIDANÉ: Automatické spustenie obnovy dát po načítaní stránky
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshDataFromCloud();
     });

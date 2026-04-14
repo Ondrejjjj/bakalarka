@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bakalarka/database.dart';
+import 'package:bakalarka/pages/login_page.dart';
 import 'theme.dart';
 import 'generated/l10n.dart';
 
@@ -107,6 +109,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // ── Vyhodenie technika z firmy ──────────────────────────────────────────
+  // FIX #3: Okrem vymazania companyCode nastavíme aj 'banned: true'
+  // AuthService.signIn() kontroluje toto pole a odmietne prihlásenie.
 
   Future<void> _removeEmployee(QueryDocumentSnapshot employee) async {
     final email = employee['email'] as String? ?? 'Neznámy';
@@ -124,7 +128,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   text: email,
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               const TextSpan(
-                  text: ' z firmy?\n\nTechnik stratí prístup k firemným dátam.'),
+                  text:
+                  ' z firmy?\n\nTechnik stratí prístup k firemným dátam a nebude sa môcť prihlásiť.'),
             ],
           ),
         ),
@@ -145,12 +150,11 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!confirm) return;
 
     try {
-      // Vymažeme companyCode a zmeníme rolu – technik prestane patriť k firme.
-      // Dokument technika je v kolekcii 'users' s jeho UID ako ID dokumentu.
       await employee.reference.update({
         'companyCode': FieldValue.delete(),
         'companyId':   FieldValue.delete(),
         'role':        'unassigned',
+        'banned':      true, // ← toto zabráni prihláseniu v AuthService.signIn()
       });
 
       if (mounted) {
@@ -162,13 +166,15 @@ class _SettingsPageState extends State<SettingsPage> {
       debugPrint('Chyba pri odstraňovaní technika: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chyba – technika sa nepodarilo odstrániť.')),
+          const SnackBar(
+              content: Text('Chyba – technika sa nepodarilo odstrániť.')),
         );
       }
     }
   }
 
   // ── Odhlásenie ──────────────────────────────────────────────────────────
+  // FIX #1: Rovnaká logika ako v main.dart – signOut + navigácia na LoginPage
 
   Future<void> _handleSignOut() async {
     final confirm = await showDialog<bool>(
@@ -193,10 +199,13 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!confirm || !mounted) return;
 
     try {
-      await _auth.signOut();
+      // Rovnaká logika ako v main.dart _showUserBottomSheet
+      await FirebaseAuth.instance.signOut();
       if (mounted) {
-        Navigator.of(context)
-            .pushNamedAndRemoveUntil('/login', (route) => false);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+              (route) => false,
+        );
       }
     } catch (e) {
       debugPrint('Chyba pri odhlasovaní: $e');
@@ -252,15 +261,14 @@ class _SettingsPageState extends State<SettingsPage> {
                                 Text('Skopírované do schránky')));
                       }
                     }),
-                    _actionIcon(
-                        Icons.share, S.of(context).zdielatT, () {
+                    _actionIcon(Icons.share, S.of(context).zdielatT, () {
                       if (_currentCode != null) {
                         Share.share(
                             'Ahoj, prihlás sa do našej appky Trezor pomocou kódu: $_currentCode');
                       }
                     }),
-                    _actionIcon(
-                        Icons.refresh, S.of(context).zmenitT, _regenerateCode),
+                    _actionIcon(Icons.refresh, S.of(context).zmenitT,
+                        _regenerateCode),
                   ],
                 ),
               ]),
@@ -297,13 +305,16 @@ class _SettingsPageState extends State<SettingsPage> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: snapshot.data!.docs.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) =>
+                    const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final employee =
                       snapshot.data!.docs[index];
                       final email =
                           (employee['email'] as String?) ??
                               'Neznámy email';
+                      final isBanned =
+                          (employee.data() as Map<String, dynamic>)['banned'] == true;
 
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
@@ -320,23 +331,32 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                         title: Text(email),
-                        subtitle: const Text('Technik'),
+                        subtitle: Text(isBanned
+                            ? 'Odstránený'
+                            : 'Technik'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.check_circle,
-                                color: Colors.green, size: 18),
-                            const SizedBox(width: 4),
-                            // ── Tlačidlo vyhodenia ──
-                            IconButton(
-                              icon: const Icon(
-                                  Icons.person_remove_outlined,
-                                  color: Colors.red,
-                                  size: 22),
-                              tooltip: 'Odstrániť z firmy',
-                              onPressed: () =>
-                                  _removeEmployee(employee),
+                            Icon(
+                              isBanned
+                                  ? Icons.block
+                                  : Icons.check_circle,
+                              color: isBanned
+                                  ? Colors.red
+                                  : Colors.green,
+                              size: 18,
                             ),
+                            const SizedBox(width: 4),
+                            if (!isBanned)
+                              IconButton(
+                                icon: const Icon(
+                                    Icons.person_remove_outlined,
+                                    color: Colors.red,
+                                    size: 22),
+                                tooltip: 'Odstrániť z firmy',
+                                onPressed: () =>
+                                    _removeEmployee(employee),
+                              ),
                           ],
                         ),
                       );
@@ -465,8 +485,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required VoidCallback onTap,
   }) =>
       ListTile(
-        leading:
-        Icon(icon, color: Theme.of(context).colorScheme.primary),
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
         title: Text(title),
         trailing: const Icon(Icons.chevron_right, size: 20),
         shape:

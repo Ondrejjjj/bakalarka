@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -74,12 +75,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _handleInitialSync() async {
-    // Krátky delay, aby sa stihli inicializovať všetky systémové služby
     await Future.delayed(const Duration(seconds: 2));
 
     final currentUser = fb.FirebaseAuth.instance.currentUser;
 
-    // Ak nikto nie je prihlásený, končíme (Sync potrebuje identitu používateľa)
     if (currentUser?.email == null) {
       debugPrint('ℹ️ Žiadny prihlásený používateľ. Synchronizácia sa nespúšťa.');
       return;
@@ -90,28 +89,23 @@ class _MyAppState extends State<MyApp> {
     final userEmail = currentUser!.email!;
 
     try {
-      // 1. KROK: JEDNORAZOVÁ OBNOVA (RESTORE)
-      // Spustí sa len raz pri úplne prvej inštalácii alebo po prehlásení
       if (await syncService.isInitialSyncRequired(userEmail)) {
         debugPrint('🚀 Prvé spustenie pre $userEmail, spúšťam kompletný restore...');
         await syncService.restoreAllUserData();
-        // markInitialSyncAsDone je už vo vnútri restoreAllUserData, ale pre istotu:
         await syncService.markInitialSyncAsDone(userEmail);
         debugPrint('✅ Prvotná synchronizácia pre $userEmail dokončená.');
       } else {
         debugPrint('🏠 Dáta pre $userEmail sú už v lokálnej databáze. Preskakujem restore.');
       }
 
-      // 2. KROK: SPUSTENIE ŽIVÉHO PRENOSU (LIVE SYNC)
-      // Toto sa musí spustiť VŽDY pri zapnutí apky, aby Admin videl zmeny od technikov v reálnom čase
-      debugPrint('📡 Aktivujem Live Sync (počúvanie zmien na pozadí)...');
+      debugPrint('📡 Aktivujem Live Sync...');
       await syncService.startLiveSync();
       debugPrint('✅ Live Sync je aktívny.');
-
     } catch (e) {
       debugPrint('❌ Chyba počas inicializácie synchronizácie: $e');
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
@@ -192,17 +186,22 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // ── Navigácia ──────────────────────────────────────────────────────────
 
-  Future<void> _openInventoryPage(BuildContext context) async {
+  Future<void> _openInventoryPage(BuildContext context,
+      {int initialTab = 0}) async {
     final db = context.read<AppDatabase>();
     final fbUser = fb.FirebaseAuth.instance.currentUser;
     final localUser = fbUser != null ? await db.getUser(fbUser.uid) : null;
     final email = fbUser?.email ?? _userEmail;
     final company = localUser?.companyCode ?? _companyCode;
     if (!mounted) return;
-    Navigator.push(context,
+    Navigator.push(
+        context,
         MaterialPageRoute(
-            builder: (_) =>
-                InventoryPage(userEmail: email, companyCode: company)));
+            builder: (_) => InventoryPage(
+              userEmail: email,
+              companyCode: company,
+              initialTab: initialTab, // ← FIX #2
+            )));
   }
 
   Future<void> _openAssetsPage(BuildContext context, {int index = 0}) async {
@@ -212,7 +211,8 @@ class _MyHomePageState extends State<MyHomePage> {
     final email = fbUser?.email ?? _userEmail;
     final company = localUser?.companyCode ?? _companyCode;
     if (!mounted) return;
-    Navigator.push(context,
+    Navigator.push(
+        context,
         MaterialPageRoute(
             builder: (_) => AssetsManagementPage(
               initialIndex: index,
@@ -270,6 +270,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ]),
             ),
             const Divider(height: 32, thickness: 0.5),
+            // FIX #1: Rovnaká logika odhlásenia ako v settings_page
             ListTile(
               leading: Icon(Icons.logout_rounded,
                   color: Theme.of(context).colorScheme.error),
@@ -319,28 +320,26 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Stack(
         children: [
-          // Hlavný scrolovací obsah (ak by si tam niečo v budúcnosti pridal)
           ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 200), // Spodný padding 200, aby obsah nezmizol pod kartami
-            children: const [
-              // Tu môžeš pridať ďalšie veci, ak bude treba
-            ],
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 200),
+            children: const [],
           ),
-
-          // Fixne umiestnené prehľady a toolbar na spodku
           Align(
             alignment: Alignment.bottomCenter,
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Zabezpečí, že stĺpec zaberie len toľko miesta, koľko potrebuje
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Prehľady ───────────────────────────────────────────
+                // ── Prehľady ──────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Prehľady',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context)
                                   .colorScheme
@@ -354,7 +353,8 @@ class _MyHomePageState extends State<MyHomePage> {
                               label: 'Stav skladu',
                               subtitle: 'Zobraziť zásoby',
                               color: Colors.green,
-                              onTap: () => _openInventoryPage(context),
+                              onTap: () =>
+                                  _openInventoryPage(context, initialTab: 0),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -364,7 +364,8 @@ class _MyHomePageState extends State<MyHomePage> {
                               label: 'História majetku',
                               subtitle: 'Servisné záznamy',
                               color: Colors.blueGrey,
-                              onTap: () => _openAssetsPage(context, index: 1),
+                              onTap: () =>
+                                  _openAssetsPage(context, index: 1),
                             ),
                           ),
                         ],
@@ -372,9 +373,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 20), // Medzera medzi kartami a toolbarom
-                const _BottomToolbar(),     // Tvoj panel s Kamerou, Audiom a Galériou
+                const SizedBox(height: 20),
+                const _BottomToolbar(),
               ],
             ),
           ),
@@ -462,7 +462,8 @@ class SettingsDrawer extends StatelessWidget {
     final company = localUser?.companyCode ?? 'GENERAL';
     if (context.mounted) {
       Navigator.pop(context);
-      Navigator.push(context,
+      Navigator.push(
+          context,
           MaterialPageRoute(
               builder: (_) => AssetsManagementPage(
                 initialIndex: index,
@@ -473,7 +474,9 @@ class SettingsDrawer extends StatelessWidget {
     }
   }
 
-  Future<void> _navigateToInventory(BuildContext context) async {
+  // FIX #2: Pridaný parameter initialTab
+  Future<void> _navigateToInventory(BuildContext context,
+      {int initialTab = 0}) async {
     final database = context.read<AppDatabase>();
     final fbUser = fb.FirebaseAuth.instance.currentUser;
     if (fbUser == null) return;
@@ -482,10 +485,14 @@ class SettingsDrawer extends StatelessWidget {
     final company = localUser?.companyCode ?? 'GENERAL';
     if (context.mounted) {
       Navigator.pop(context);
-      Navigator.push(context,
+      Navigator.push(
+          context,
           MaterialPageRoute(
-              builder: (_) =>
-                  InventoryPage(userEmail: email, companyCode: company)));
+              builder: (_) => InventoryPage(
+                userEmail: email,
+                companyCode: company,
+                initialTab: initialTab, // ← FIX #2
+              )));
     }
   }
 
@@ -514,23 +521,31 @@ class SettingsDrawer extends StatelessWidget {
             padding: EdgeInsets.zero,
             children: [
               _drawerSectionTitle(context, S.of(context).evidenciaText),
-              _drawerItem(icon: Icons.inventory_2_outlined,
+              _drawerItem(
+                  icon: Icons.inventory_2_outlined,
                   label: S.of(context).zariadeniaText,
                   onTap: () => _navigateToAssets(context, 0)),
-              _drawerItem(icon: Icons.history_outlined,
+              _drawerItem(
+                  icon: Icons.history_outlined,
                   label: S.of(context).historiaKText,
                   onTap: () => _navigateToAssets(context, 1)),
               const Divider(indent: 16, endIndent: 16),
               _drawerSectionTitle(context, S.of(context).skladText),
-              _drawerItem(icon: Icons.warehouse_outlined,
+              _drawerItem(
+                  icon: Icons.warehouse_outlined,
                   label: S.of(context).stavZText,
-                  onTap: () => _navigateToInventory(context)),
-              _drawerItem(icon: Icons.swap_vert_rounded,
+                  onTap: () =>
+                      _navigateToInventory(context, initialTab: 0)),
+              // FIX #2: Pohyby idú priamo na tab index 1
+              _drawerItem(
+                  icon: Icons.swap_vert_rounded,
                   label: S.of(context).pohybyText,
-                  onTap: () => _navigateToInventory(context)),
+                  onTap: () =>
+                      _navigateToInventory(context, initialTab: 1)),
               const Divider(indent: 16, endIndent: 16),
               _drawerSectionTitle(context, S.of(context).systemText),
-              _drawerItem(icon: Icons.settings_outlined,
+              _drawerItem(
+                  icon: Icons.settings_outlined,
                   label: S.of(context).nastaveniaH,
                   onTap: () {
                     Navigator.pop(context);
@@ -596,8 +611,7 @@ class _BottomToolbar extends StatelessWidget {
                 color: colorScheme.surface.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(40),
                 border: Border.all(
-                    color:
-                    colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 _ToolbarItem(
@@ -659,8 +673,7 @@ class _ToolbarItem extends StatelessWidget {
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color:
-                  Theme.of(context).colorScheme.onSurfaceVariant)),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ]),
       ),
     );
