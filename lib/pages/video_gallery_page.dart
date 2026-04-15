@@ -22,7 +22,6 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
   bool _selectionMode = false;
   bool _isSyncing = false;
 
-  // Identity pre Live Sync filtrovanie
   String? _currentUserEmail;
   String? _currentUserRole;
   String? _currentCompanyCode;
@@ -38,13 +37,11 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
   }
 
   Future<void> _loadUserIdentity() async {
-    // ZJEDNOTENIE KĽÚČA: Používame company_code pre konzistenciu s AuthService
     final email = await _storage.read(key: 'user_email');
     final role = await _storage.read(key: 'user_role');
     final company = await _storage.read(key: 'company_code');
 
     if (mounted) {
-      debugPrint("📹 Video Gallery Identity: $email, $role, $company");
       setState(() {
         _currentUserEmail = email;
         _currentUserRole = role;
@@ -54,7 +51,6 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
   }
 
   void _toggleSelection(Video video) {
-    // Ak je video už na cloude, nenecháme ho znova vyberať pre upload
     if (video.uploaded && !_selectionMode) return;
 
     setState(() {
@@ -76,7 +72,6 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
     for (var video in _selectedVideos) {
       final file = File(video.filePath);
       if (await file.exists()) {
-        // syncMedia automaticky nahrá súbor a zmení stav v SQLite na 'uploaded = true'
         bool ok = await syncService.syncMedia(file, 'video');
         if (ok) successCount++;
       }
@@ -84,7 +79,9 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Úspešne nahraných $successCount videí.')),
+          SnackBar(
+            content: Text(S.of(context).videaNahrate(successCount)),
+          ),
       );
       setState(() {
         _isSyncing = false;
@@ -189,7 +186,7 @@ class _VideoGalleryPageState extends State<VideoGalleryPage> {
         children: [
           Icon(Icons.video_library_outlined, size: 64, color: theme.colorScheme.outlineVariant),
           const SizedBox(height: 16),
-          const Text('V trezore zatiaľ nie sú žiadne videá.'),
+          Text(S.of(context).ziadneVidea),
         ],
       ),
     );
@@ -250,7 +247,7 @@ class _VideoCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(video.ownerName ?? 'Neznámy',
+                          Text(video.ownerName ?? S.of(context).neznamy,
                               style: const TextStyle(fontWeight: FontWeight.bold),
                               overflow: TextOverflow.ellipsis),
                           Text("${video.createdAt.day}.${video.createdAt.month}.${video.createdAt.year}",
@@ -292,11 +289,11 @@ class _VideoCard extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Zmazať video?'),
-        content: const Text('Tento súbor bude natrvalo odstránený.'),
+        title: Text(S.of(context).zmazatVideo),
+        content:Text(S.of(context).suborNatrvaloOdstraneny),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zrušiť')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Zmazať', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.of(context).zrusitB)),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text(S.of(context).zmazat, style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -356,7 +353,6 @@ class _EncryptedVideoPlayerState extends State<EncryptedVideoPlayer> {
           }
         });
     } catch (e) {
-      debugPrint("Chyba pri dešifrovaní videa: $e");
       if (mounted) setState(() => _isDecrypting = false);
     }
   }
@@ -364,9 +360,8 @@ class _EncryptedVideoPlayerState extends State<EncryptedVideoPlayer> {
   @override
   void dispose() {
     _controller?.dispose();
-    // BEZPEČNOSŤ: Vymažeme dešifrovaný súbor hneď po zatvorení prehrávača
     if (_tempFile != null && _tempFile!.existsSync()) {
-      try { _tempFile!.deleteSync(); } catch (e) { debugPrint("Chyba pri mazaní temp: $e"); }
+      try { _tempFile!.deleteSync(); } catch (e) { }
     }
     super.dispose();
   }
@@ -395,7 +390,7 @@ class _EncryptedVideoPlayerState extends State<EncryptedVideoPlayer> {
             ],
           ),
         )
-            : const Text("Nepodarilo sa prehrať video", style: TextStyle(color: Colors.white)),
+            : Text(S.of(context).neporadiloPrehratVideo, style: TextStyle(color: Colors.white)),
       ),
     );
   }

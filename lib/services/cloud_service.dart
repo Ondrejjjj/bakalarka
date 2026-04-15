@@ -22,8 +22,6 @@ class CloudService {
 
       final userData = userDoc.data() as Map<String, dynamic>;
 
-      // users dokument má pole 'companyId' – čítame ho a ukladáme ako 'companyCode'
-      // aby SyncService a Firestore rules vedeli dokument nájsť
       final String companyCode =
           (userData['companyCode'] as String?) ??
               (userData['companyId'] as String?) ??
@@ -49,22 +47,18 @@ class CloudService {
         contentType: '$type/${extension.replaceFirst('.', '')}',
       );
 
-      debugPrint('⏳ Nahrávam $type na Storage: $fullPath');
       final UploadTask uploadTask = ref.putFile(localFile, metadata);
       final TaskSnapshot snapshot = await uploadTask;
       final String downloadUrl = await snapshot.ref.getDownloadURL();
 
       // 4. Zápis do Firestore
-      // DÔLEŽITÉ: názvy polí musia byť zhodné s tým čo číta SyncService:
-      //   'userEmail'   – SyncService číta report['userEmail']
-      //   'companyCode' – SyncService a Firestore rules čítajú 'companyCode'
       await _db.collection('media_reports').add({
         'url':              downloadUrl,
         'storagePath':      fullPath,
         'ownerId':          user.uid,
-        'userEmail':        user.email,   // ← oprava: bolo 'ownerEmail'
+        'userEmail':        user.email,
         'ownerName':        ownerName,
-        'companyCode':      companyCode,  // ← oprava: bolo 'companyId'
+        'companyCode':      companyCode,
         'companyName':      companyName,
         'type':             type,
         'createdAt':        FieldValue.serverTimestamp(),
@@ -72,10 +66,10 @@ class CloudService {
         'deviceId':         'mobile_app',
       });
 
-      debugPrint('✅ Synchronizácia úspešná: $fullPath');
+
       return true;
     } catch (e) {
-      debugPrint('❌ Chyba pri cloude (Upload): $e');
+
       return false;
     }
   }
@@ -96,9 +90,6 @@ class CloudService {
               (userData['companyId'] as String?) ??
               '';
 
-      debugPrint('⏳ Sťahujem reporty pre firmu: $companyCode');
-
-      // Filtrujeme podľa companyCode a userEmail
       final QuerySnapshot snapshot = await _db
           .collection('media_reports')
           .where('companyCode', isEqualTo: companyCode)
@@ -112,7 +103,6 @@ class CloudService {
         return data;
       }).toList();
     } catch (e) {
-      debugPrint('❌ Chyba pri sťahovaní zoznamu: $e');
       return [];
     }
   }

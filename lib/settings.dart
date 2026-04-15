@@ -75,9 +75,9 @@ class _SettingsPageState extends State<SettingsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Pregenerovať kód?'),
-        content: const Text(
-            'Starý kód prestane okamžite fungovať pre nových technikov.'),
+        title: Text(S.of(context).pregeneratKod),
+        content: Text(
+            S.of(context).staryKodPrestan),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -85,7 +85,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Áno, zmeniť'),
+            child: Text(S.of(context).anoZmenit),
           ),
         ],
       ),
@@ -98,19 +98,17 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _currentCode = newCode);
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Kód bol zmenený')));
+            .showSnackBar(SnackBar(content: Text(S.of(context).kodBylZmeneny)));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Chyba pri zmene kódu')));
+            .showSnackBar(SnackBar(content: Text(S.of(context).chybaZmenyKodu)));
       }
     }
   }
 
   // ── Vyhodenie technika z firmy ──────────────────────────────────────────
-  // FIX #3: Okrem vymazania companyCode nastavíme aj 'banned: true'
-  // AuthService.signIn() kontroluje toto pole a odmietne prihlásenie.
 
   Future<void> _removeEmployee(QueryDocumentSnapshot employee) async {
     final email = employee['email'] as String? ?? 'Neznámy';
@@ -118,30 +116,30 @@ class _SettingsPageState extends State<SettingsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Odstrániť technika?'),
+        title: Text(S.of(context).odstranitTechnika),
         content: RichText(
           text: TextSpan(
             style: Theme.of(context).textTheme.bodyMedium,
             children: [
-              const TextSpan(text: 'Naozaj chcete odstrániť '),
+              TextSpan(text: S.of(context).naozajOdstranit),
               TextSpan(
                   text: email,
                   style: const TextStyle(fontWeight: FontWeight.bold)),
-              const TextSpan(
+              TextSpan(
                   text:
-                  ' z firmy?\n\nTechnik stratí prístup k firemným dátam a nebude sa môcť prihlásiť.'),
+                  S.of(context).zFirmyText),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Zrušiť'),
+            child: Text(S.of(context).zrusitB),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Odstrániť'),
+            child: Text(S.of(context).odstranit),
           ),
         ],
       ),
@@ -154,7 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
         'companyCode': FieldValue.delete(),
         'companyId':   FieldValue.delete(),
         'role':        'unassigned',
-        'banned':      true, // ← toto zabráni prihláseniu v AuthService.signIn()
+        'banned':      true,
       });
 
       if (mounted) {
@@ -166,22 +164,19 @@ class _SettingsPageState extends State<SettingsPage> {
       debugPrint('Chyba pri odstraňovaní technika: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Chyba – technika sa nepodarilo odstrániť.')),
+          SnackBar(
+              content: Text(S.of(context).chybaTechnika)),
         );
       }
     }
   }
 
-  // ── Odhlásenie ──────────────────────────────────────────────────────────
-  // FIX #1: Rovnaká logika ako v main.dart – signOut + navigácia na LoginPage
 
   Future<void> _handleSignOut() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: Text(S.of(context).odhlasV),
-        content: const Text('Naozaj sa chcete odhlásiť?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -199,7 +194,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!confirm || !mounted) return;
 
     try {
-      // Rovnaká logika ako v main.dart _showUserBottomSheet
+
       await FirebaseAuth.instance.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -211,7 +206,7 @@ class _SettingsPageState extends State<SettingsPage> {
       debugPrint('Chyba pri odhlasovaní: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chyba pri odhlasovaní. Skúste znova.')),
+          SnackBar(content: Text(S.of(context).chybaOdhlasenia)),
         );
       }
     }
@@ -256,9 +251,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         Clipboard.setData(
                             ClipboardData(text: _currentCode!));
                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                                 content:
-                                Text('Skopírované do schránky')));
+                                Text(S.of(context).skopirovaneDo)));
                       }
                     }),
                     _actionIcon(Icons.share, S.of(context).zdielatT, () {
@@ -290,10 +285,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
                   if (!snapshot.hasData ||
                       snapshot.data!.docs.isEmpty) {
-                    return const Padding(
+                    return Padding(
                       padding: EdgeInsets.symmetric(vertical: 16),
                       child: Text(
-                        'Zatiaľ nemáte žiadnych technikov.',
+                        S.of(context).ziadniTechnici,
                         style: TextStyle(
                             fontStyle: FontStyle.italic,
                             color: Colors.grey),
@@ -332,8 +327,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         title: Text(email),
                         subtitle: Text(isBanned
-                            ? 'Odstránený'
-                            : 'Technik'),
+                            ? S.of(context).odstranenyT
+                            : S.of(context).technikT),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -353,7 +348,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     Icons.person_remove_outlined,
                                     color: Colors.red,
                                     size: 22),
-                                tooltip: 'Odstrániť z firmy',
+                                tooltip: S.of(context).odstranitZFirmy,
                                 onPressed: () =>
                                     _removeEmployee(employee),
                               ),

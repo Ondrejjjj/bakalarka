@@ -6,7 +6,7 @@ import 'package:flutter_sound/flutter_sound.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // PRIDANÉ
 
-// Importy tvojich vlastných služieb
+
 import 'package:bakalarka/database.dart';
 import 'package:bakalarka/security/crypto_service.dart';
 import 'package:bakalarka/storage/image_storage.dart';
@@ -39,16 +39,15 @@ class _MicrophonePageState extends State<MicrophonePage> {
   void initState() {
     super.initState();
     _initRecorder();
-    _loadOfflineCredentials(); // Načítame údaje hneď pri štarte
+    _loadOfflineCredentials();
   }
 
   Future<void> _initRecorder() async {
     await _recorder.openRecorder();
   }
 
-  // Načítanie údajov zo Secure Storage (funguje aj offline)
+  // Načítanie údajov zo Secure Storage (aj offline)
   Future<void> _loadOfflineCredentials() async {
-    try {
       final email = await _storage.read(key: 'user_email');
       final company = await _storage.read(key: 'company_code');
 
@@ -58,12 +57,9 @@ class _MicrophonePageState extends State<MicrophonePage> {
           _cachedCompany = company ?? 'offline_company';
         });
       }
-    } catch (e) {
-      debugPrint("Chyba načítania offline údajov pre audio: $e");
-    }
   }
 
-  // --- ZMENA V METÓDE _toggleRecording ---
+
   Future<void> _toggleRecording() async {
     if (_isRecording) {
       await _recorder.stopRecorder();
@@ -89,12 +85,9 @@ class _MicrophonePageState extends State<MicrophonePage> {
         // 4. Zápis do SQLCipher databázy (DYNAMICKÉ ÚDAJE)
         final db = context.read<AppDatabase>();
 
-        // OPRAVENÁ ČASŤ:
         await db.insertAudio(
           filePath: secureFile.path,
-          // deviceId už nie je 90, ale ID nahrávky alebo ID stroja, ak ho máš
           deviceId: audioId,
-          // ownerName načítame z e-mailu (odstránime časť za zavináčom pre krajšie meno)
           ownerName: _cachedEmail.split('@')[0],
           userEmail: _cachedEmail,
           companyCode: _cachedCompany,
@@ -115,15 +108,14 @@ class _MicrophonePageState extends State<MicrophonePage> {
           );
         }
       } catch (e) {
-        debugPrint('Chyba pri zabezpečení audia: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Chyba pri ukladaní nahrávky')),
+            SnackBar(content: Text(S.of(context).chybaUkladaniaAudio)),
           );
         }
       }
     } else {
-      // --- ŠTART NAHRÁVANIA (Ostáva rovnaký) ---
+      // --- ŠTART NAHRÁVANIA
       final dir = await getTemporaryDirectory();
       _tempPath = '${dir.path}/temp_rec_${DateTime.now().millisecondsSinceEpoch}.aac';
 
@@ -230,7 +222,7 @@ class _MicrophonePageState extends State<MicrophonePage> {
 
             /// Popis
             Text(
-              _isRecording ? 'Nahrávam...' : 'Stlač pre nahrávanie',
+              _isRecording ? S.of(context).nahravamV : S.of(context).nahravamV,
               style: theme.textTheme.bodyLarge,
             ),
           ],

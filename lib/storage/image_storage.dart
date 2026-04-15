@@ -49,9 +49,9 @@ class ImageStorage {
   Future<void> saveSecurePhoto({
     required Uint8List originalBytes,
     required String photoId,
-    required String userEmail,    // PRIDANÉ
-    required String companyCode,  // PRIDANÉ
-    String? ownerName,            // Odporúčam pridať pre zobrazenie mena adminovi
+    required String userEmail,
+    required String companyCode,
+    String? ownerName,
     double? latitude,
     double? longitude,
   }) async {
@@ -69,7 +69,7 @@ class ImageStorage {
     // 4. Uložíme záznam do Drift databázy so všetkými novými stĺpcami
     await db.insertPhoto(
       filePath: file.path,
-      deviceId: realId, // Tu môžeš neskôr doplniť reálne ID zariadenia
+      deviceId: realId,
       userEmail: userEmail,
       companyCode: companyCode,
       ownerName: ownerName,

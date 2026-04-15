@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:bakalarka/generated/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -21,12 +22,10 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
   String? _currentlyPlayingPath;
   bool _isPlaying = false;
 
-  // Logika výberu a synchronizácie
   final Set<Audio> _selectedAudios = {};
   bool _selectionMode = false;
   bool _isSyncing = false;
 
-  // Identity pre Live Sync filtrovanie
   String? _currentUserEmail;
   String? _currentUserRole;
   String? _currentCompanyCode;
@@ -40,7 +39,6 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
     super.initState();
     _loadUserIdentity();
 
-    // Sledovanie konca prehrávania
     _audioPlayer.onPlayerComplete.listen((event) {
       if (mounted) {
         setState(() {
@@ -51,14 +49,12 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
     });
   }
 
-  // Zosúladenie identity so zvyškom aplikácie
   Future<void> _loadUserIdentity() async {
     final email = await _storage.read(key: 'user_email');
     final role = await _storage.read(key: 'user_role');
-    final company = await _storage.read(key: 'company_code'); // OPRAVA KĽÚČA
+    final company = await _storage.read(key: 'company_code');
 
     if (mounted) {
-      debugPrint("🎙️ Audio Gallery Identity: $email, $role, $company");
       setState(() {
         _currentUserEmail = email;
         _currentUserRole = role;
@@ -74,7 +70,6 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
   }
 
   void _toggleSelection(Audio audio) {
-    // Už nahrané súbory nedovoľujeme znova vyberať pre upload
     if (audio.uploaded && !_selectionMode) return;
 
     setState(() {
@@ -96,7 +91,6 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
     for (var audio in _selectedAudios) {
       final file = File(audio.filePath);
       if (await file.exists()) {
-        // syncMedia nahrá nahrávku a v SQLite ju označí ako 'uploaded'
         bool ok = await syncService.syncMedia(file, 'audio');
         if (ok) successCount++;
       }
@@ -104,7 +98,9 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Úspešne nahraných $successCount nahrávok.')),
+        SnackBar(
+          content: Text(S.of(context).nahravkyNahrate(successCount)),
+        ),
       );
       setState(() {
         _isSyncing = false;
@@ -121,7 +117,6 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
     }
 
     try {
-      // Ak už hrá toto isté audio, tak ho zastavíme (Toggle)
       if (_isPlaying && _currentlyPlayingPath == audio.filePath) {
         await _audioPlayer.stop();
         setState(() => _isPlaying = false);
@@ -131,11 +126,9 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
       final file = File(audio.filePath);
       if (!await file.exists()) throw Exception("Súbor nahrávky neexistuje");
 
-      // Dešifrovanie priamo do RAM pre maximálnu bezpečnosť
       final encryptedBytes = await file.readAsBytes();
       final decryptedBytes = await CryptoService.decryptBytes(encryptedBytes);
 
-      // Prehráme priamo z bytov (BytesSource)
       await _audioPlayer.play(BytesSource(Uint8List.fromList(decryptedBytes)));
 
       setState(() {
@@ -143,10 +136,9 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
         _isPlaying = true;
       });
     } catch (e) {
-      debugPrint("❌ Chyba pri prehrávaní audia: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nepodarilo sa dešifrovať alebo prehrať nahrávku.')),
+          SnackBar(content: Text(S.of(context).neporadiloPrehratNahravku)),
         );
       }
     }
@@ -191,7 +183,6 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
 
         Expanded(
           child: StreamBuilder<List<Audio>>(
-            // LIVE SYNC: Admin vidí nahrávky od všetkých, technik len svoje
             stream: _currentUserRole == 'admin'
                 ? db.watchCompanyAudios(_currentCompanyCode!)
                 : db.watchUserAudios(_currentUserEmail!),
@@ -202,7 +193,7 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
 
               final audios = snapshot.data ?? [];
               if (audios.isEmpty) {
-                return const Center(child: Text('Trezor nahrávok je prázdny.'));
+                return Center(child: Text(S.of(context).trezorNahravokPrazdny));
               }
 
               return ListView.builder(
@@ -259,7 +250,7 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
                         title: Text(
                             _currentUserRole == 'admin'
                                 ? (audio.ownerName ?? 'Technik: ${audio.ownerName}')
-                                : 'Hlasová nahrávka',
+                                : S.of(context).hlasovaNahravka,
                             style: const TextStyle(fontWeight: FontWeight.bold)
                         ),
                         subtitle: Text(_formatDate(audio.createdAt)),
@@ -301,11 +292,11 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Zmazať nahrávku?'),
-        content: const Text('Súbor bude natrvalo odstránený.'),
+        title: Text(S.of(context).zmazatNahravku),
+        content: Text(S.of(context).suborNatrvaloOdstraneny2),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zrušiť')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Zmazať', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.of(context).zrusitB)),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text(S.of(context).zmazat, style: TextStyle(color: Colors.red))),
         ],
       ),
     );

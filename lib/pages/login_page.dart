@@ -1,3 +1,4 @@
+import 'package:bakalarka/generated/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
@@ -52,14 +53,14 @@ class _LoginPageState extends State<LoginPage> {
     return AuthService(database);
   }
 
-  // PRIDANÉ: Pomocná metóda na spustenie synchronizácie
+
   Future<void> _startSyncProcess() async {
     final database = Provider.of<AppDatabase>(context, listen: false);
     final syncService = SyncService(database);
 
-    // 1. Najprv urobíme jednorazovú obnovu (ak je potrebná)
+
     await syncService.restoreAllUserData();
-    // 2. Potom aktivujeme živé sledovanie zmien (Sklad, Majetok atď.)
+
     await syncService.startLiveSync();
   }
 
@@ -149,10 +150,10 @@ class _LoginPageState extends State<LoginPage> {
           _goToHome();
         }
       } else {
-        _showSnack("Najprv sa musíte prihlásiť manuálne.");
+        _showSnack(S.of(context).najprvManualne);
       }
     } catch (e) {
-      _showSnack("Biometria zlyhala.");
+      _showSnack(S.of(context).biometriaZlyhala);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -163,15 +164,15 @@ class _LoginPageState extends State<LoginPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text("Biometria dostupná"),
-        content: const Text("Vaše údaje boli uložené. Nabudúce sa môžete prihlásiť odtlačkom prsta."),
+        title: Text(S.of(context).biometriaTitle),
+        content: Text(S.of(context).biometriaContent),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _goToHome();
             },
-            child: const Text("Rozumiem"),
+            child: Text(S.of(context).rozumiem),
           ),
         ],
       ),
@@ -194,8 +195,8 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
                 Text(
                   _isRegistering
-                      ? (_isTechnician ? "Registrácia technika" : "Založiť firmu")
-                      : "Vitajte v Trezore",
+                      ? (_isTechnician ? S.of(context).registrTV : S.of(context).zalozFV)
+                      : S.of(context).nadpisV,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 24),
@@ -208,7 +209,7 @@ class _LoginPageState extends State<LoginPage> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: _inputDecoration("Email", Icons.email_outlined),
-                  validator: (value) => (value == null || !value.contains('@')) ? "Zadajte platný email" : null,
+                  validator: (value) => (value == null || !value.contains('@')) ? S.of(context).zadajteEmail : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -217,9 +218,9 @@ class _LoginPageState extends State<LoginPage> {
                 if (_isRegistering) ...[
                   const SizedBox(height: 16),
                   if (_isTechnician)
-                    _buildNormalField(_inviteCodeController, "Kód od admina", Icons.vpn_key_rounded)
+                    _buildNormalField(_inviteCodeController, S.of(context).kodOdAdmina, Icons.vpn_key_rounded)
                   else ...[
-                    _buildNormalField(_companyNameController, "Názov firmy", Icons.business_rounded),
+                    _buildNormalField(_companyNameController, S.of(context).nazovFV, Icons.business_rounded),
                     const SizedBox(height: 16),
                     _buildNormalField(_icoController, "IČO", Icons.numbers_rounded),
                   ],
@@ -238,7 +239,7 @@ class _LoginPageState extends State<LoginPage> {
                           minimumSize: const Size(double.infinity, 56),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: Text(_isRegistering ? "Registrovať" : "Prihlásiť sa"),
+                        child: Text(_isRegistering ? S.of(context).registrV : S.of(context).prihlasV),
                       ),
                     ),
                     if (!_isRegistering && _canCheckBiometrics) ...[
@@ -263,7 +264,7 @@ class _LoginPageState extends State<LoginPage> {
                       _formKey.currentState?.reset();
                     });
                   },
-                  child: Text(_isRegistering ? "Už máte účet? Prihláste sa" : "Nový v systéme? Zaregistrujte sa"),
+                  child: Text(_isRegistering ? S.of(context).uzmateUV : S.of(context).RegistraciaV),
                 ),
               ],
             ),
@@ -285,10 +286,10 @@ class _LoginPageState extends State<LoginPage> {
       child: Row(
         children: [
           Expanded(
-            child: _toggleButton("Som Technik", _isTechnician, () => setState(() => _isTechnician = true)),
+            child: _toggleButton(S.of(context).somTV, _isTechnician, () => setState(() => _isTechnician = true)),
           ),
           Expanded(
-            child: _toggleButton("Som Admin", !_isTechnician, () => setState(() => _isTechnician = false)),
+            child: _toggleButton(S.of(context).somAV, !_isTechnician, () => setState(() => _isTechnician = false)),
           ),
         ],
       ),
@@ -331,13 +332,13 @@ class _LoginPageState extends State<LoginPage> {
               _hasSpecialChar = value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
             });
           },
-          decoration: _inputDecoration("Heslo", Icons.lock_outline).copyWith(
+          decoration: _inputDecoration(S.of(context).hesloV, Icons.lock_outline).copyWith(
             suffixIcon: IconButton(
               icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
-          validator: (value) => (value == null || value.isEmpty) ? "Zadajte heslo" : null,
+          validator: (value) => (value == null || value.isEmpty) ? S.of(context).zadajteHeslo : null,
         ),
         if (_isRegistering) ...[
           const SizedBox(height: 12),
@@ -378,7 +379,7 @@ class _LoginPageState extends State<LoginPage> {
     return TextFormField(
       controller: controller,
       decoration: _inputDecoration(label, icon),
-      validator: (value) => (value == null || value.isEmpty) ? "Povinné pole" : null,
+      validator: (value) => (value == null || value.isEmpty) ? S.of(context).povinnePole : null,
     );
   }
 

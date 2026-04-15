@@ -20,15 +20,12 @@ class SyncService {
 
   // ---------------------------------------------------------------------------
   // 1. STAV SYNCHRONIZÁCIE
-  //    Kľúč 'sync_done_<email>' sa zapíše do SecureStorage po úspešnom restore.
-  //    Keď používateľ odinštaluje app, SecureStorage sa vymaže → kľúč zmizne
-  //    → pri novej inštalácii sa restore spustí znova. Presne to chceme.
   // ---------------------------------------------------------------------------
 
   Future<bool> isInitialSyncRequired(String email) async {
     if (email.isEmpty) return false;
     final status = await _storage.read(key: 'sync_done_$email');
-    return status == null; // null = kľúč neexistuje = restore ešte neprebehol
+    return status == null;
   }
 
   Future<void> markInitialSyncAsDone(String email) async {
@@ -127,13 +124,11 @@ class SyncService {
       final encryptedBytes = await CryptoService.encryptBytes(bytes);
       await File(localPath).writeAsBytes(encryptedBytes);
     } catch (e) {
-      debugPrint('❌ Chyba sťahovania média: $e');
+
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 4. UPLOAD: NAHRÁVANIE NA FIREBASE
-  // ---------------------------------------------------------------------------
+
 
   Future<bool> syncMedia(File encryptedFile, String type) async {
     File? tempFile;
@@ -158,7 +153,7 @@ class SyncService {
       }
       return false;
     } catch (e) {
-      debugPrint('❌ Chyba v syncMedia: $e');
+
       return false;
     } finally {
       if (tempFile != null && await tempFile.exists()) {
@@ -169,20 +164,6 @@ class SyncService {
 
   // ---------------------------------------------------------------------------
   // 5. RESTORE – JEDNORAZOVÁ OBNOVA PRI NOVEJ INŠTALÁCII / PREINŠTALOVANÍ
-  //
-  //  KDE SA VOLÁ: main.dart → _handleInitialSync(), hneď po prihlásení.
-  //  KEDY PREBEHNE: len raz za inštaláciu (kľúč v SecureStorage to stráži).
-  //               Ak používateľ odinštaluje app, SecureStorage sa vymaže,
-  //               takže pri novej inštalácii prebehne znova – presne to chceme.
-  //
-  //  ČO OBNOVÍ:
-  //    • Assets & Inventory – CELÁ firma (každý vidí firemný majetok/sklad)
-  //    • Médiá:
-  //        – Technik  → LEN vlastné (filtruje sa podľa e-mailu)
-  //        – Admin    → VŠETKY médiá celej firmy (žiadny filter)
-  //
-  //  BEŽNÝ CHOD RIADI startLiveSync() – nie táto metóda.
-  // ---------------------------------------------------------------------------
 
   Future<int?> _findInventoryIdByName(String name, String companyCode) async {
     if (name.isEmpty) return null;
@@ -195,10 +176,7 @@ class SyncService {
   Future<void> restoreAllUserData() async {
     final currentEmail = await _storage.read(key: 'user_email') ?? '';
 
-    // Ak kľúč existuje → restore na tomto zariadení už prebehol, preskočíme.
-    // Toto zároveň zabezpečuje, že pri živej session sa nikdy nespustí znova.
     if (!(await isInitialSyncRequired(currentEmail))) {
-      debugPrint('🏠 Restore pre $currentEmail už prebehol na tomto zariadení.');
       return;
     }
 
@@ -208,10 +186,6 @@ class SyncService {
       final userRole = await _storage.read(key: 'user_role') ?? 'user';
       final isAdmin = userRole == 'admin';
       final directory = await getApplicationDocumentsDirectory();
-
-      debugPrint(
-          '🚀 Restore – nová/čistá inštalácia pre: $currentEmail '
-              '(admin: $isAdmin, firma: $companyId)');
 
       // ── A. ASSETS – celá firma (admin aj technik vidia firemný majetok) ───
 
@@ -247,7 +221,7 @@ class SyncService {
             isUploaded: const Value(true),
           ));
         } catch (e) {
-          debugPrint('⚠️ Restore Asset ${doc.id}: $e');
+
         }
       }
 
@@ -280,7 +254,6 @@ class SyncService {
             isUploaded: const Value(true),
           ));
         } catch (e) {
-          debugPrint('⚠️ Restore Inventory ${doc.id}: $e');
         }
       }
 
@@ -319,25 +292,18 @@ class SyncService {
             ),
           );
         } catch (e) {
-          debugPrint('⚠️ Restore Movement ${doc.id}: $e');
+
         }
       }
 
       // ── D. MÉDIÁ ──────────────────────────────────────────────────────────
-      //  Technik: obnoví LEN vlastné fotky/videá/audia.
-      //  Admin:   obnoví VŠETKY médiá celej firmy (aj od zamestnancov).
-      //
-      //  Prečo? Admin ich potrebuje vidieť aj po reinštalácii. Technik vidí
-      //  len svoju prácu – cudzie médiá sú mimo jeho dosahu.
+
 
       final mediaDocs = await firestore
           .collection('media_reports')
           .where('companyCode', isEqualTo: companyId)
           .get();
 
-      debugPrint(
-          '📷 Restore médií: ${mediaDocs.docs.length} záznamov '
-              '(admin=$isAdmin)');
 
       for (final doc in mediaDocs.docs) {
         try {
@@ -401,30 +367,19 @@ class SyncService {
               break;
           }
         } catch (e) {
-          debugPrint('⚠️ Restore médium ${doc.id}: $e');
+
         }
       }
 
-      // Zapíšeme kľúč → pri ďalšom spustení sa restore preskočí.
-      // Pri odinštalovaní sa SecureStorage vymaže → kľúč zmizne
-      // → pri novej inštalácii sa restore spustí znova. Presne to chceme.
       await markInitialSyncAsDone(currentEmail);
-      debugPrint('✅ Restore dokončený pre $currentEmail.');
+
     } catch (e) {
-      // Kľúč NEZAPÍŠEME – pri ďalšom spustení sa restore pokúsi znova
-      debugPrint('❌ Kritická chyba restore: $e');
+
     }
   }
 
   // ---------------------------------------------------------------------------
   // 6. LIVE SYNC – BEŽNÝ CHOD APLIKÁCIE (volaj raz po prihlásení)
-  //
-  //  KDE SA VOLÁ: main.dart → _handleInitialSync(), po dokončení restore.
-  //  ČO ROBÍ:
-  //    • Assets & Inventory – zmeny vidí každý z firmy okamžite
-  //    • Médiá:
-  //        – Technik  → len vlastné (Firestore filter na e-mail)
-  //        – Admin    → všetky médiá firmy (žiadny filter)
   // ---------------------------------------------------------------------------
 
   Future<void> startLiveSync() async {
@@ -434,11 +389,9 @@ class SyncService {
     final isAdmin = userRole == 'admin';
 
     if (companyId.isEmpty) {
-      debugPrint('⚠️ Live Sync: company_code nie je nastavený, preskakujem.');
       return;
     }
 
-    debugPrint('📡 Live Sync štart: firma=$companyId, admin=$isAdmin');
 
     // ── A. LIVE ASSETS ───────────────────────────────────────────────────────
 
@@ -473,7 +426,6 @@ class SyncService {
             isUploaded: const Value(true),
           ));
         } catch (e) {
-          debugPrint('⚠️ Live Asset ${doc.id}: $e');
         }
       }
     });
@@ -507,7 +459,6 @@ class SyncService {
             isUploaded: const Value(true),
           ));
         } catch (e) {
-          debugPrint('⚠️ Live Inventory ${doc.id}: $e');
         }
       }
     });
@@ -546,18 +497,12 @@ class SyncService {
             ),
           );
         } catch (e) {
-          debugPrint('⚠️ Live Movement ${doc.id}: $e');
+
         }
       }
     });
 
     // ── D. LIVE MÉDIÁ ────────────────────────────────────────────────────────
-    //  Technik: Firestore filter na jeho e-mail (server-side, efektívne)
-    //  Admin:   žiadny filter → dostane všetky médiá celej firmy
-    //
-    //  DÔLEŽITÉ: Vlastné médiá (ownerEmail == currentEmail) preskakujeme –
-    //  sú už uložené lokálne od momentu keď sme ich nahrali.
-    //  Bez tohto by sa každá nahrá fotka stiahla znova a zobrazila dvakrát.
 
     Query<Map<String, dynamic>> mediaQuery = FirebaseFirestore.instance
         .collection('media_reports')
@@ -578,9 +523,6 @@ class SyncService {
           final url = (report['url'] as String?) ?? '';
           if (url.isEmpty) continue;
 
-          // OPRAVA DUPLIKÁTOV: Vlastné médiá preskakujeme – už ich máme
-          // lokálne od odfotenia. Sťahujeme len cudzie médiá (zamestnanci
-          // pre admina). Bez tohto sa každá fotka zobrazí dvakrát.
           if (ownerEmail == currentEmail) continue;
 
           final storagePath = (report['storagePath'] as String?) ?? '';
@@ -631,7 +573,6 @@ class SyncService {
               break;
           }
         } catch (e) {
-          debugPrint('⚠️ Live médium ${doc.id}: $e');
         }
       }
     });

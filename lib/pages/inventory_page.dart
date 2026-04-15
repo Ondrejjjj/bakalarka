@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:bakalarka/generated/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:provider/provider.dart';
@@ -26,12 +27,12 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _itemSearchController = TextEditingController();
   String _searchQuery = '';
-  bool _isSyncing = false; // PRIDANÉ: Sledovanie stavu synchronizácie
+  bool _isSyncing = false;
 
   @override
   void initState() {
     super.initState();
-    // SPRÁVNE: TabController vytvorený raz s initialIndex
+
     _tabController = TabController(
       length: 2,
       vsync: this,
@@ -55,7 +56,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
     super.dispose();
   }
 
-  // --- PRIDANÉ: Metóda na sťahovanie dát z cloudu ---
+
   Future<void> _refreshDataFromCloud() async {
     if (_isSyncing) return;
 
@@ -63,9 +64,9 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
     try {
       final db = Provider.of<AppDatabase>(context, listen: false);
       final syncService = SyncService(db);
-      await syncService.restoreAllUserData(); // Zavolá tvoju metódu v SyncService
+      await syncService.restoreAllUserData();
     } catch (e) {
-      debugPrint("❌ Chyba pri synchronizácii: $e");
+
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }
@@ -114,7 +115,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
     db.syncMovementToFirebase(movementData, updatedItem);
   }
 
-  // --- UI Dialóg pre pohyb --- (Ponechaný bez zmien, funkčný)
+
   void _showStockMovementSheet(BuildContext context, {InventoryData? preselectedItem, required String userEmail, required String companyCode}) {
     final db = Provider.of<AppDatabase>(context, listen: false);
     bool isIncome = preselectedItem == null ? true : false;
@@ -140,13 +141,13 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
               children: [
                 Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
                 const SizedBox(height: 20),
-                Text('Skladový pohyb', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                Text(S.of(context).skladovyPohyb, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(
                       child: ChoiceChip(
-                        label: const Center(child: Text('Výdaj')),
+                        label:Center(child: Text(S.of(context).vydaj)),
                         selected: !isIncome,
                         onSelected: (val) => setModalState(() => isIncome = !val),
                         selectedColor: Colors.red.withOpacity(0.2),
@@ -155,7 +156,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                     const SizedBox(width: 12),
                     Expanded(
                       child: ChoiceChip(
-                        label: const Center(child: Text('Príjem')),
+                        label:Center(child: Text(S.of(context).prijem)),
                         selected: isIncome,
                         onSelected: (val) => setModalState(() => isIncome = val),
                         selectedColor: Colors.green.withOpacity(0.2),
@@ -191,8 +192,8 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                         return TextField(
                           controller: controller,
                           focusNode: focusNode,
-                          decoration: const InputDecoration(
-                            labelText: 'Názov položky (vyber alebo napíš novú)',
+                          decoration: InputDecoration(
+                            labelText: S.of(context).nazovPolozky,
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.search),
                           ),
@@ -215,17 +216,17 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                 TextField(
                   controller: qtyController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Množstvo', border: OutlineInputBorder(), suffixIcon: Icon(Icons.numbers)),
+                  decoration: InputDecoration(labelText: S.of(context).mnozstvo, border: OutlineInputBorder(), suffixIcon: Icon(Icons.numbers)),
                 ),
                 const Divider(height: 40),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Doplnkové údaje', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(S.of(context).doplnkoveUdaje, style: TextStyle(fontWeight: FontWeight.bold)),
                     TextButton.icon(
                       onPressed: () => setModalState(() => dynamicFields.add({'key': TextEditingController(), 'value': TextEditingController()})),
                       icon: const Icon(Icons.add_circle_outline),
-                      label: const Text('Pridať'),
+                      label: Text(S.of(context).pridatB),
                     ),
                   ],
                 ),
@@ -233,9 +234,9 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     children: [
-                      Expanded(child: TextField(controller: field['key'], decoration: const InputDecoration(hintText: 'Názov'))),
+                      Expanded(child: TextField(controller: field['key'], decoration: InputDecoration(hintText: S.of(context).nazovHint))),
                       const SizedBox(width: 8),
-                      Expanded(child: TextField(controller: field['value'], decoration: const InputDecoration(hintText: 'Hodnota'))),
+                      Expanded(child: TextField(controller: field['value'], decoration: InputDecoration(hintText: S.of(context).hodnotaHint))),
                       IconButton(icon: const Icon(Icons.remove_circle_outline, color: Colors.red), onPressed: () => setModalState(() => dynamicFields.remove(field))),
                     ],
                   ),
@@ -297,7 +298,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                       if (context.mounted) Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: isIncome ? Colors.green : Colors.red, foregroundColor: Colors.white),
-                    child: Text(isIncome ? 'POTVRDIŤ PRÍJEM' : 'POTVRDIŤ VÝDAJ'),
+                    child: Text(isIncome ? S.of(context).potvrditPrijem : S.of(context).potvrditVydaj),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -316,16 +317,16 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Skladové hospodárstvo'),
+        title: Text(S.of(context).skladH),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Stav zásob'),
-            Tab(icon: Icon(Icons.history), text: 'Pohyby'),
+          tabs: [
+            Tab(icon: Icon(Icons.inventory_2_outlined), text: S.of(context).statusZ),
+            Tab(icon: Icon(Icons.history), text: S.of(context).pohybyT),
           ],
         ),
       ),
-      body: Column( // PRIDANÉ: Column, aby sme hore mohli ukázať ProgressBar
+      body: Column(
         children: [
           if (_isSyncing) const LinearProgressIndicator(minHeight: 2),
           Expanded(
@@ -341,7 +342,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showStockMovementSheet(context, userEmail: currentEmail, companyCode: currentCompany),
-        label: const Text('Nový pohyb'),
+        label: Text(S.of(context).novyP),
         icon: const Icon(Icons.swap_vert),
       ),
     );
@@ -350,17 +351,16 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
   Widget _buildStockList(String companyCode, String userEmail) {
     final db = Provider.of<AppDatabase>(context);
 
-    // PRIDANÉ: RefreshIndicator pre manuálnu obnovu potiahnutím dole
     return RefreshIndicator(
       onRefresh: _refreshDataFromCloud,
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Hľadať v sklade...',
+                hintText: S.of(context).Hladanie,
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
@@ -376,9 +376,8 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  // Aby Pull-to-refresh fungoval aj na prázdnej obrazovke, musí tam byť scrollable widget
                   return ListView(
-                    children: const [SizedBox(height: 200), Center(child: Text('Sklad je prázdny.'))],
+                    children: [SizedBox(height: 200), Center(child: Text(S.of(context).skladJePrazdny))],
                   );
                 }
 
@@ -390,7 +389,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  physics: const AlwaysScrollableScrollPhysics(), // Dôležité pre RefreshIndicator
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final item = filtered[index];
@@ -440,7 +439,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
       stream: db.watchMovementHistory(companyCode),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text('Žiadna história pohybov.'));
+        if (!snapshot.hasData || snapshot.data!.isEmpty) return Center(child: Text(S.of(context).ziadnaHistoria));
 
         final movements = snapshot.data!;
 
@@ -472,7 +471,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(color: isIncome ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2)),
                 ),
-                child: ExpansionTile( // Zmenené na ExpansionTile pre "rozkliknutie"
+                child: ExpansionTile(
                   leading: Icon(
                     isIncome ? Icons.add_circle : Icons.remove_circle,
                     color: isIncome ? Colors.green : Colors.red,
@@ -499,9 +498,8 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text("Doplnkové údaje:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                            Text(S.of(context).doplnkoveUdaje, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
                             const SizedBox(height: 4),
-                            // Vygenerovanie zoznamu kľúč-hodnota
                             ...extra.entries.map((e) => Padding(
                               padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Row(
@@ -515,9 +513,9 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                         ),
                       )
                     ] else ...[
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(bottom: 12),
-                        child: Text("Žiadne doplnkové údaje", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        child: Text(S.of(context).ziadneDoplnkove, style: TextStyle(fontSize: 12, color: Colors.grey)),
                       )
                     ]
                   ],

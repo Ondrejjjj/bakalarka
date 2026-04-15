@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:bakalarka/generated/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -27,9 +28,9 @@ class _GalleryPageState extends State<GalleryPage> {
   String? _currentUserRole;
   String? _currentCompanyId;
 
-  // Cache pre dešifrované obrázky – zabraňuje blikaniu pri rebuildoch
+
   final Map<String, Uint8List> _cache = {};
-  // Sledovanie prebiehajúcich dešifrovaní
+
   final Set<String> _loading = {};
 
   List<_PhotoItem> _currentItems = [];
@@ -52,13 +53,11 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 
   Future<void> _loadUserIdentity() async {
-    // ZJEDNOTENIE: Používame 'company_code' pre konzistenciu s AuthService a SyncService
     final email = await _storage.read(key: 'user_email');
     final role = await _storage.read(key: 'user_role');
     final company = await _storage.read(key: 'company_code');
 
     if (mounted) {
-      debugPrint("📸 Gallery Identity: Email: $email, Rola: $role, Firma (ID): $company");
       setState(() {
         _currentUserEmail = email;
         _currentUserRole = role;
@@ -71,14 +70,10 @@ class _GalleryPageState extends State<GalleryPage> {
   void _subscribeToPhotos() {
     _streamSub?.cancel();
 
-    // Ak nemáme dáta o firme alebo používateľovi, čakáme na initState
     if (_currentUserEmail == null || _currentCompanyId == null) {
-      debugPrint("⚠️ Gallery: Čakám na načítanie identity...");
       return;
     }
 
-    // Stream podľa roly: Admin vidí celú firmu, Technik len svoje nahlásené veci
-    // Drift databáza automaticky vyvolá event, keď SyncService pridá novú fotku do SQLite
     final Stream<List<Photo>> photoStream = (_currentUserRole == 'admin')
         ? db.watchCompanyPhotos(_currentCompanyId!)
         : db.watchUserPhotos(_currentUserEmail!);
@@ -87,7 +82,6 @@ class _GalleryPageState extends State<GalleryPage> {
       final List<_PhotoItem> items = [];
       for (final row in rows) {
         final file = File(row.filePath);
-        // Pri Live Sync kontrolujeme, či už súbor fyzicky existuje na disku
         if (await file.exists()) {
           items.add(_PhotoItem(
             file: file,
@@ -108,7 +102,6 @@ class _GalleryPageState extends State<GalleryPage> {
     _streamSub = itemStream.listen((items) {
       if (!mounted) return;
 
-      // Spustíme dešifrovanie pre nové súbory, ktoré ešte nie sú v cache
       for (final item in items) {
         final path = item.file.path;
         if (!_cache.containsKey(path) && !_loading.contains(path)) {
@@ -137,7 +130,6 @@ class _GalleryPageState extends State<GalleryPage> {
       if (mounted) {
         setState(() => _loading.remove(file.path));
       }
-      debugPrint('❌ Chyba dešifrovania: $e');
     }
   }
 
@@ -165,15 +157,15 @@ class _GalleryPageState extends State<GalleryPage> {
     int successCount = 0;
 
     for (final path in _selectedPaths) {
-      // syncMedia nahrá súbor a aktualizuje SQLite príznak 'uploaded'
-      // Drift stream v _subscribeToPhotos to zachytí a ikona sa sama zmení
       final ok = await syncService.syncMedia(File(path), 'image');
       if (ok) successCount++;
     }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Úspešne spracovaných $successCount fotiek.')),
+          SnackBar(
+            content: Text(S.of(context).fotkySpracovane(successCount)),
+          )
       );
       setState(() {
         _isSyncing = false;
@@ -187,13 +179,13 @@ class _GalleryPageState extends State<GalleryPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Vymazať výber?'),
-        content: Text('Naozaj chcete vymazať ${_selectedPaths.length} položiek?'),
+        title: Text(S.of(context).vymazatVyber),
+        content: Text(S.of(context).vymazatPolozkyPotvrdenie(_selectedPaths.length)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zrušiť')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.of(context).zrusitB)),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Vymazať', style: TextStyle(color: Colors.red)),
+            child: Text(S.of(context).vymazatB, style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -224,7 +216,7 @@ class _GalleryPageState extends State<GalleryPage> {
 
         Expanded(
           child: _currentItems.isEmpty
-              ? const Center(child: Text('Trezor fotiek je prázdny'))
+              ? Center(child: Text(S.of(context).trezorFotiekPrazdny))
               : GridView.builder(
             padding: const EdgeInsets.all(8),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -300,9 +292,9 @@ class _GalleryPageState extends State<GalleryPage> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
         child: SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(value: false, label: Text('Všetky'), icon: Icon(Icons.photo_library)),
-            ButtonSegment(value: true, label: Text('Obľúbené'), icon: Icon(Icons.favorite)),
+          segments: [
+            ButtonSegment(value: false, label: Text(S.of(context).vsetkyT), icon: Icon(Icons.photo_library)),
+            ButtonSegment(value: true, label: Text(S.of(context).oblubeneV), icon: Icon(Icons.favorite)),
           ],
           selected: {_showOnlyFavorites},
           onSelectionChanged: (value) {

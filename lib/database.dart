@@ -67,7 +67,7 @@ class Assets extends Table {
   DateTimeColumn get lastModified => dateTime().withDefault(currentDateAndTime)();
 }
 
-// *** NOVÁ TABUĽKA PRE EVIDENCIU SKLADU (INVENTORY) ***
+
 class Inventory extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get firebaseId => text().nullable()(); // ID z Firestore
@@ -90,8 +90,8 @@ class StockMovements extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get firebaseId => text().nullable()();
   IntColumn get inventoryId => integer().references(Inventory, #id)(); // Väzba na položku
-  TextColumn get itemName => text()(); // Meno v čase pohybu (pre históriu)
-  RealColumn get changeQty => real()(); // Napr. +5.0 alebo -2.0
+  TextColumn get itemName => text()();
+  RealColumn get changeQty => real()();
   TextColumn get type => text()(); // "income" alebo "outcome"
 
   // Dynamické dáta uložené ako JSON (Zákazka, poznámka, dodávateľ...)
@@ -151,7 +151,7 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 9; // Zvýšené na 9 (Pridaný sklad a pohyby)
 
-  // ---------------- SKLAD (INVENTORY) - NOVÉ ----------------
+
 
   // Sledovanie zásob pre konkrétnu firmu
   Stream<List<InventoryData>> watchCompanyInventory(String companyCode) {

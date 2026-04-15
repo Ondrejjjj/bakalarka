@@ -20,7 +20,6 @@ class _MediaVaultPageState extends State<MediaVaultPage> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      // 1. Pozadie necháme na celú obrazovku, aby gradient prechádzal aj pod stavovú lištu
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -32,26 +31,23 @@ class _MediaVaultPageState extends State<MediaVaultPage> {
             ],
           ),
         ),
-        // 2. TUTO JE ZMENA: SafeArea obalí vnútro, aby text nešiel pod hodiny/kameru
         child: SafeArea(
-          bottom: false, // Spodok necháme "pretiecť", aby galéria išla až po okraj
+          bottom: false,
           child: NestedScrollView(
             headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
               return <Widget>[
                 SliverAppBar(
-                  // Trochu som zmenšil výšku, keďže SafeArea už pridala priestor
                   expandedHeight: 140.0,
                   floating: true,
                   snap: true,
                   backgroundColor: Colors.transparent,
                   elevation: 0,
                   flexibleSpace: FlexibleSpaceBar(
-                    // Odstránil som SizedBox(height: 60), SafeArea to vyrieši za nás
                     background: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Môj Trezor',
+                          S.of(context).mojTrezor,
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                             color: colorScheme.onSurface,

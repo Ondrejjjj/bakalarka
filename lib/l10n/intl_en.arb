@@ -7,7 +7,7 @@
   "cameraIcon": "Camera",
   "galleryIcon": "Gallery",
   "audioIcon": "Audio",
-  "homeText" : "Home Screen",
+  "homeText": "Home Screen",
   "panelText": "Asset and Warehouse Management",
   "evidenciaText": "Evidence",
   "zariadeniaText": "Devices",
@@ -83,5 +83,263 @@
   "uzmateUV": "Already have an account? Log In",
   "registrTV": "Technician Registration",
   "zalozFV": "Set up Company",
-  "nazovFV": "Company Name"
+  "nazovFV": "Company Name",
+
+  "pregeneratKod": "Regenerate Code?",
+  "staryKodPrestan": "The old code will immediately stop working for new technicians.",
+  "anoZmenit": "Yes, change",
+  "kodBylZmeneny": "Code has been changed",
+  "chybaZmenyKodu": "Error changing code",
+  "odstranitTechnika": "Remove Technician?",
+  "naozajOdstranit": "Are you sure you want to remove ",
+  "zFirmyText": " from the company?\n\nThe technician will lose access to company data and will not be able to log in.",
+  "odstranit": "Remove",
+  "skopirovaneDo": "Copied to clipboard",
+  "ziadniTechnici": "No technicians yet.",
+  "odstranenyT": "Removed",
+  "technikT": "Technician",
+  "odstranitZFirmy": "Remove from company",
+  "chybaTechnika": "Error – technician could not be removed.",
+  "naozajO": "Are you sure you want to log out?",
+  "chybaOdhlasenia": "Error logging out. Please try again.",
+
+  "chybaUkladaniaAudio": "Error saving recording",
+
+  "prihlasenyPouzivatel": "Logged in user",
+  "neznamyEmail": "Unknown email",
+  "prehladyT": "Overview",
+  "stavSkladuT": "Stock Status",
+  "zobrazitZasoby": "View stock",
+  "historiaMajjetku": "Asset History",
+  "servisneZaznamy": "Service Records",
+  "trezorSystem": "Trezor System",
+  "appTitle": "Trezor",
+
+  "priloztePrst": "Place your finger to verify",
+
+  "uspesneNahranychVidei": "Successfully uploaded {count} videos.",
+  "@uspesneNahranychVidei": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "ziadneVidea": "No videos in the vault yet.",
+  "neznamy": "Unknown",
+  "zmazatVideo": "Delete video?",
+  "suborNatrvaloOdstraneny": "This file will be permanently deleted.",
+  "zmazat": "Delete",
+  "neporadiloPrehratVideo": "Could not play video.",
+  "vybraneCount": "{count} selected",
+  "@vybraneCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "mojTrezor": "My Vault",
+
+  "vitajteVTrezore": "Welcome to Trezor",
+  "zadajteEmail": "Enter a valid email",
+  "zadajteHeslo": "Enter password",
+  "povinnePole": "Required field",
+  "somTechnik": "I am a Technician",
+  "somAdmin": "I am an Admin",
+  "nazovFirmy": "Company Name",
+  "ico": "Company ID",
+  "biometriaTitle": "Biometrics Available",
+  "biometriaContent": "Your credentials have been saved. Next time you can log in with your fingerprint.",
+  "rozumiem": "Got it",
+  "najprvManualne": "You must log in manually first.",
+  "biometriaZlyhala": "Biometrics failed.",
+
+  "skladovyPohyb": "Stock Movement",
+  "vydaj": "Issue",
+  "prijem": "Receipt",
+  "nazovPolozky": "Item name (select or enter new)",
+  "mnozstvo": "Quantity",
+  "doplnkoveUdaje": "Additional Data",
+  "nazovHint": "Name",
+  "hodnotaHint": "Value",
+  "potvrditPrijem": "CONFIRM RECEIPT",
+  "potvrditVydaj": "CONFIRM ISSUE",
+  "skladJePrazdny": "Warehouse is empty.",
+  "hladatVSklade": "Search warehouse...",
+  "stavZasob": "Stock Status",
+  "pohybyTab": "Movements",
+  "novyPohyb": "New Movement",
+  "ziadnaHistoria": "No movement history.",
+  "doplnkoveUdajeLabel": "Additional data:",
+  "ziadneDoplnkove": "No additional data",
+  "skladoveHospodarstvo": "Warehouse Management",
+
+  "trezorFotiekPrazdny": "Photo vault is empty",
+  "uspesneSpraovanychFotiek": "Successfully processed {count} photos.",
+  "@uspesneSpraovanychFotiek": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "vymazatVyber": "Delete selection?",
+  "naozajVymazat": "Are you sure you want to delete {count} items?",
+  "@naozajVymazat": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "vymazat": "Delete",
+
+  "neznamyMajitel": "Unknown owner",
+  "poloha": "Location: {lat}, {lng}",
+  "@poloha": {
+    "placeholders": {
+      "lat": { "type": "String" },
+      "lng": { "type": "String" }
+    }
+  },
+  "ziadneGps": "No GPS data available for this photo.",
+
+  "trezorNahravokPrazdny": "Recording vault is empty.",
+  "uspesneNahranychNahravok": "Successfully uploaded {count} recordings.",
+  "@uspesneNahranychNahravok": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "neporadiloPrehratNahravku": "Could not decrypt or play the recording.",
+  "zmazatNahravku": "Delete recording?",
+  "suborNatrvaloOdstraneny2": "The file will be permanently deleted.",
+  "hlasovaNahravka": "Voice Recording",
+
+  "evidenciaMajjetku": "Asset Management",
+  "bezPripojenia": "Offline – changes will be saved locally",
+  "zorаditZA": "Sort Z–A",
+  "zoraditAZ": "Sort A–Z",
+  "zariadeniaTab": "Devices",
+  "historiaTab": "History",
+  "pridatZariadenie": "Add Device",
+  "hladatZariadenie": "Search by name, S/N, model...",
+  "vsetkyFilter": "All",
+  "ziadneVysledky": "No results for the selected filter.",
+  "ziadnyMajjetok": "No assets in the company.",
+  "vymazatZariadenie": "Delete device?",
+  "naozajVymazatZariadenie": "Are you sure you want to delete \"{name}\"?\nThis action cannot be undone.",
+  "@naozajVymazatZariadenie": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "zariadenieBylVymazane": "\"{name}\" has been deleted.",
+  "@zariadenieBylVymazane": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "ziadneTechnickeParam": "No technical parameters",
+  "servisUprava": "Service / Edit",
+  "technickeParametre": "Technical Parameters",
+  "noveZariadenieFull": "New Device",
+  "zakladneUdaje": "Basic Information",
+  "nazovZariadenia": "Device Name *",
+  "serioveCislo": "Serial Number *",
+  "odkazUrl": "Link / URL",
+  "pociatocnyStav": "Initial Status",
+  "technickeParametreSection": "Technical Parameters",
+  "ziadneParametreKlikni": "No parameters – click Add",
+  "ulozitZariadenie": "SAVE DEVICE",
+  "nazovASerioveCisloPovinne": "Name and serial number are required.",
+  "servisZmenaStavu": "Status Change",
+  "poznamkaKServisu": "Service Note",
+  "doplnitParametre": "Add Parameters",
+  "novePole": "New Field",
+  "ulozitZmeny": "SAVE CHANGES",
+  "historiaPrazdna": "History is empty.",
+  "ziadneTechParam2": "No technical parameters",
+
+  "ulozitReport": "Save Report",
+  "zakladneUdajeReport": "Basic Information",
+  "nazovCisloRevizie": "Name / Revision Number",
+  "popisStavu": "Condition Description",
+  "prilozeneMedia": "Attached Media ({count})",
+  "@prilozeneMedia": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pripojitZTrezoru": "Attach from Vault",
+  "fotky": "Photos",
+  "videa": "Videos",
+  "hotovo": "Done",
+  "trezorPrazdny": "Vault is empty",
+  "dokumentaciaPreTitle": "Documentation for: {title}",
+  "@dokumentaciaPreTitle": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "zatialZiadneSúbory": "No files yet",
+  "reviziaPred": "Revision Before",
+  "reviziaOo": "Revision After",
+  "opravaPred": "Repair Before",
+  "opravapo": "Repair After",
+
+  "videoZasifrovaneUlozene": "Video encrypted and saved",
+
+  "statusInOperation": "In Operation",
+  "statusRequiresService": "Requires Service",
+  "statusFaulty": "Faulty",
+  "statusOutOufOrder": "Out of Order",
+  "statusDiscarded": "Discarded",
+
+  "nahravam": "recording",
+  "stlacPreNah": "Press for recording",
+  "potvrdenieVymazania": "Do you really want to delete \"{name}\"?\nThis action is irreversible.",
+  "@potvrdenieVymazania": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
+  "zariadenieVymazane": "\"{name}\" has been deleted.",
+  "@zariadenieVymazane": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fotkySpracovane": "{count, plural, one{Successfully processed {count} photo.} other{Successfully processed {count} photos.}}",
+  "@fotkySpracovane": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vymazatPolozkyPotvrdenie": "{count, plural, one{Do you really want to delete one item?} other{Do you really want to delete {count} items?}}",
+  "@vymazatPolozkyPotvrdenie": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "videaNahrate": "{count, plural, one{Successfully uploaded {count} video.} other{Successfully uploaded {count} videos.}}",
+  "@videaNahrate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "nahravkyNahrate": "{count, plural, one{Successfully uploaded {count} recording.} other{Successfully uploaded {count} recordings.}}",
+  "@nahravkyNahrate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:bakalarka/database.dart';
+import 'package:bakalarka/generated/l10n.dart';
 import 'package:camera/camera.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -56,9 +58,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   Future<void> _loadOfflineCredentials() async {
     try {
       final email = await _storage.read(key: 'user_email');
-      // OPRAVA: 'company_code' – rovnaký kľúč ako v GalleryPage a SyncService
-      // Predtým tu bol 'company_id' čo spôsobovalo, že fotky sa neukladali
-      // pod správnym companyCode a galéria ich nedokázala načítať.
       final company = await _storage.read(key: 'company_code');
       final name = await _storage.read(key: 'user_name');
 
@@ -68,12 +67,8 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
           _cachedCompany = company ?? 'unknown_company';
           _cachedOwnerName = name ?? 'Technik';
         });
-        debugPrint(
-            '📷 Camera credentials: email=$_cachedEmail, '
-                'company=$_cachedCompany, name=$_cachedOwnerName');
       }
     } catch (e) {
-      debugPrint('❌ Chyba načítania offline údajov: $e');
     }
   }
 
@@ -123,8 +118,19 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
       if (mounted) setState(() => _isReady = true);
     } catch (e) {
-      debugPrint('❌ Camera init error: $e');
     }
+  }
+
+  Future<String> getDeviceId() async {
+    var deviceInfo = DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      var androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id; // Unikátne ID pre Android (napr. SSAID)
+    } else if (Platform.isIOS) {
+      var iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? 'unknown_ios'; // ID pre iOS
+    }
+    return 'unknown_device';
   }
 
   Future<void> _takePhoto() async {
@@ -162,11 +168,13 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       if (!mounted) return;
       final db = context.read<AppDatabase>();
 
+      String realId = await getDeviceId();
+
       await db.insertPhoto(
         filePath: file.path,
-        deviceId: '90',
+        deviceId: realId,
         userEmail: _cachedEmail,
-        companyCode: _cachedCompany, // hodnota z 'company_code' kľúča
+        companyCode: _cachedCompany,
         ownerName: _cachedOwnerName,
         uploaded: false,
         latitude: lat,
@@ -174,10 +182,8 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       );
 
       await File(photo.path).delete();
-      debugPrint('✅ Foto uložené: ${file.path} '
-          '(email=$_cachedEmail, company=$_cachedCompany)');
     } catch (e) {
-      debugPrint('❌ Photo capture error: $e');
+
     }
   }
 
@@ -197,7 +203,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
         }
       });
     } catch (e) {
-      debugPrint('❌ Video start error: $e');
     }
   }
 
@@ -219,12 +224,13 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
 
       if (!mounted) return;
       final db = context.read<AppDatabase>();
+      String realId = await getDeviceId();
 
       await db.insertVideo(
         filePath: file.path,
-        deviceId: '90',
+        deviceId: realId,
         userEmail: _cachedEmail,
-        companyCode: _cachedCompany, // hodnota z 'company_code' kľúča
+        companyCode: _cachedCompany,
         ownerName: _cachedOwnerName,
         uploaded: false,
         duration: duration,
@@ -233,11 +239,10 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       await File(video.path).delete();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('🎥 Video zašifrované a uložené')),
+          SnackBar(content: Text(S.of(context).videoZasifrovaneUlozene)),
         );
       }
     } catch (e) {
-      debugPrint('❌ Video stop error: $e');
     }
   }
 
@@ -279,7 +284,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
           Center(child: CameraPreview(_controller!)),
           if (_isCapturing) Container(color: Colors.black.withValues(alpha: 0.5)),
 
-          // Horná lišta
           Positioned(
             top: 0,
             left: 0,
@@ -378,7 +382,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 10),
 
-                  // Prepínač FOTO / VIDEO
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

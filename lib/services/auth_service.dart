@@ -41,13 +41,9 @@ class AuthService {
         ));
       }
     } catch (e) {
-      // Tichá chyba – neprerušíme flow
+
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // 1. REGISTRÁCIA ADMINA
-  // ---------------------------------------------------------------------------
 
   Future<String?> registerAdminAndCompany({
     required String email,
@@ -89,9 +85,7 @@ class AuthService {
     return null;
   }
 
-  // ---------------------------------------------------------------------------
   // 2. PRIHLÁSENIE – s kontrolou banned stavu
-  // ---------------------------------------------------------------------------
 
   Future<fb.UserCredential> signIn(String email, String password) async {
     try {
@@ -99,7 +93,7 @@ class AuthService {
           email: email, password: password);
 
       if (res.user != null) {
-        // FIX #3: Skontroluj či používateľ nie je banned (odstránený z firmy)
+
         final userDoc =
         await _db.collection('users').doc(res.user!.uid).get();
 
@@ -113,7 +107,6 @@ class AuthService {
           }
         }
 
-        // Aktualizujeme SecureStorage, aby LiveSync vedel čo robiť
         await syncUserToSecureStorage(res.user!.uid);
       }
       return res;
@@ -122,9 +115,9 @@ class AuthService {
     }
   }
 
-  // ---------------------------------------------------------------------------
+
   // 3. REGISTRÁCIA TECHNIKA
-  // ---------------------------------------------------------------------------
+
 
   Future<void> registerTechnician({
     required String email,
@@ -178,9 +171,6 @@ class AuthService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // OSTATNÉ POMOCNÉ METÓDY
-  // ---------------------------------------------------------------------------
 
   Future<void> signOut() async {
     await _auth.signOut();

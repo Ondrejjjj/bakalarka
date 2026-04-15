@@ -31,18 +31,14 @@ void main() async {
   try {
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
-    debugPrint('✅ Firebase inicializovaný');
   } catch (e) {
-    debugPrint('❌ Chyba Firebase: $e');
   }
 
   try {
     if (Platform.isAndroid) {
       open.overrideFor(OperatingSystem.android, openCipherOnAndroid);
-      debugPrint('✅ SQLCipher override úspešný');
     }
   } catch (e) {
-    debugPrint('❌ Chyba pri override: $e');
   }
 
   final database = AppDatabase();
@@ -80,7 +76,7 @@ class _MyAppState extends State<MyApp> {
     final currentUser = fb.FirebaseAuth.instance.currentUser;
 
     if (currentUser?.email == null) {
-      debugPrint('ℹ️ Žiadny prihlásený používateľ. Synchronizácia sa nespúšťa.');
+      debugPrint('Žiadny prihlásený používateľ. Synchronizácia sa nespúšťa.');
       return;
     }
 
@@ -90,19 +86,19 @@ class _MyAppState extends State<MyApp> {
 
     try {
       if (await syncService.isInitialSyncRequired(userEmail)) {
-        debugPrint('🚀 Prvé spustenie pre $userEmail, spúšťam kompletný restore...');
+
         await syncService.restoreAllUserData();
         await syncService.markInitialSyncAsDone(userEmail);
-        debugPrint('✅ Prvotná synchronizácia pre $userEmail dokončená.');
+
       } else {
-        debugPrint('🏠 Dáta pre $userEmail sú už v lokálnej databáze. Preskakujem restore.');
+
       }
 
-      debugPrint('📡 Aktivujem Live Sync...');
+
       await syncService.startLiveSync();
-      debugPrint('✅ Live Sync je aktívny.');
+
     } catch (e) {
-      debugPrint('❌ Chyba počas inicializácie synchronizácie: $e');
+
     }
   }
 
@@ -200,7 +196,7 @@ class _MyHomePageState extends State<MyHomePage> {
             builder: (_) => InventoryPage(
               userEmail: email,
               companyCode: company,
-              initialTab: initialTab, // ← FIX #2
+              initialTab: initialTab,
             )));
   }
 
@@ -252,12 +248,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: Icon(Icons.person,
                       size: 35, color: colorScheme.onPrimaryContainer),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Prihlásený používateľ',
+                      Text(S.of(context).prihlasenyPouzivatel,
                           style: textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: colorScheme.onSurface)),
@@ -270,7 +266,6 @@ class _MyHomePageState extends State<MyHomePage> {
               ]),
             ),
             const Divider(height: 32, thickness: 0.5),
-            // FIX #1: Rovnaká logika odhlásenia ako v settings_page
             ListTile(
               leading: Icon(Icons.logout_rounded,
                   color: Theme.of(context).colorScheme.error),
@@ -304,7 +299,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       drawer: const SettingsDrawer(),
       appBar: AppBar(
-        title: const Text('Trezor Bakalárka'),
+        title: Text(S.of(context).trezorSystem),
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu),
@@ -331,11 +326,11 @@ class _MyHomePageState extends State<MyHomePage> {
               children: [
                 // ── Prehľady ──────────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Prehľady',
+                      Text(S.of(context).prehladyT,
                           style: Theme.of(context)
                               .textTheme
                               .titleMedium
@@ -344,25 +339,25 @@ class _MyHomePageState extends State<MyHomePage> {
                               color: Theme.of(context)
                                   .colorScheme
                                   .onSurfaceVariant)),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
                             child: _QuickActionTile(
                               icon: Icons.warehouse_outlined,
-                              label: 'Stav skladu',
-                              subtitle: 'Zobraziť zásoby',
+                              label: S.of(context).stavSkladuT,
+                              subtitle: S.of(context).zobrazitZasoby,
                               color: Colors.green,
                               onTap: () =>
                                   _openInventoryPage(context, initialTab: 0),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: 12),
                           Expanded(
                             child: _QuickActionTile(
                               icon: Icons.history_outlined,
-                              label: 'História majetku',
-                              subtitle: 'Servisné záznamy',
+                              label: S.of(context).historiaMajjetku,
+                              subtitle: S.of(context).servisneZaznamy,
                               color: Colors.blueGrey,
                               onTap: () =>
                                   _openAssetsPage(context, index: 1),
@@ -474,7 +469,7 @@ class SettingsDrawer extends StatelessWidget {
     }
   }
 
-  // FIX #2: Pridaný parameter initialTab
+
   Future<void> _navigateToInventory(BuildContext context,
       {int initialTab = 0}) async {
     final database = context.read<AppDatabase>();
@@ -510,7 +505,7 @@ class SettingsDrawer extends StatelessWidget {
             child: Icon(Icons.business_center,
                 color: colorScheme.onPrimary, size: 30),
           ),
-          accountName: const Text('Trezor System',
+          accountName: Text(S.of(context).trezorSystem,
               style: TextStyle(
                   fontWeight: FontWeight.bold, color: Colors.black87)),
           accountEmail: Text(S.of(context).panelText,
@@ -536,7 +531,6 @@ class SettingsDrawer extends StatelessWidget {
                   label: S.of(context).stavZText,
                   onTap: () =>
                       _navigateToInventory(context, initialTab: 0)),
-              // FIX #2: Pohyby idú priamo na tab index 1
               _drawerItem(
                   icon: Icons.swap_vert_rounded,
                   label: S.of(context).pohybyText,

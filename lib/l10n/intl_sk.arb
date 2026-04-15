@@ -83,5 +83,246 @@
   "uzmateUV": "Už máte účet? Prihlásiť sa",
   "registrTV": "Registrácia technika",
   "zalozFV": "Založiť firmu",
-  "nazovFV": "Názov firmy"
+  "nazovFV": "Názov firmy",
+
+  "pregeneratKod": "Pregenerovať kód?",
+  "staryKodPrestan": "Starý kód prestane okamžite fungovať pre nových technikov.",
+  "anoZmenit": "Áno, zmeniť",
+  "kodBylZmeneny": "Kód bol zmenený",
+  "chybaZmenyKodu": "Chyba pri zmene kódu",
+  "odstranitTechnika": "Odstrániť technika?",
+  "naozajOdstranit": "Naozaj chcete odstrániť ",
+  "zFirmyText": " z firmy?\n\nTechnik stratí prístup k firemným dátam a nebude sa môcť prihlásiť.",
+  "odstranit": "Odstrániť",
+  "skopirovaneDo": "Skopírované do schránky",
+  "ziadniTechnici": "Zatiaľ nemáte žiadnych technikov.",
+  "odstranenyT": "Odstránený",
+  "technikT": "Technik",
+  "odstranitZFirmy": "Odstrániť z firmy",
+  "chybaTechnika": "Chyba – technika sa nepodarilo odstrániť.",
+  "naozajOdhlasit": "Naozaj sa chcete odhlásiť?",
+  "chybaOdhlasenia": "Chyba pri odhlasovaní. Skúste znova.",
+  "naozajO": "Naozaj sa chcete odhlásiť?",
+
+  "chybaUkladaniaAudio": "Chyba pri ukladaní nahrávky",
+
+  "prihlasenyPouzivatel": "Prihlásený používateľ",
+  "neznamyEmail": "Neznámy email",
+  "prehladyT": "Prehľady",
+  "stavSkladuT": "Stav skladu",
+  "zobrazitZasoby": "Zobraziť zásoby",
+  "historiaMajjetku": "História majetku",
+  "servisneZaznamy": "Servisné záznamy",
+  "trezorSystem": "Trezor System",
+  "appTitle": "Trezor Bakalárka",
+
+  "priloztePrst": "Priložte prst pre overenie",
+
+  "uspesneNahranychVidei": "Úspešne nahraných {count} videí.",
+  "ziadneVidea": "V trezore zatiaľ nie sú žiadne videá.",
+  "neznamy": "Neznámy",
+  "zmazatVideo": "Zmazať video?",
+  "suborNatrvaloOdstraneny": "Tento súbor bude natrvalo odstránený.",
+  "zmazat": "Zmazať",
+  "neporadiloPrehratVideo": "Nepodarilo sa prehrať video.",
+  "vybraneCount": "{count} vybrané",
+
+  "mojTrezor": "Môj Trezor",
+
+  "vitajteVTrezore": "Vitajte v Trezore",
+  "zadajteEmail": "Zadajte platný email",
+  "zadajteHeslo": "Zadajte heslo",
+  "povinnePole": "Povinné pole",
+  "somTechnik": "Som Technik",
+  "somAdmin": "Som Admin",
+  "nazovFirmy": "Názov firmy",
+  "ico": "IČO",
+  "biometriaTitle": "Biometria dostupná",
+  "biometriaContent": "Vaše údaje boli uložené. Nabudúce sa môžete prihlásiť odtlačkom prsta.",
+  "rozumiem": "Rozumiem",
+  "najprvManualne": "Najprv sa musíte prihlásiť manuálne.",
+  "biometriaZlyhala": "Biometria zlyhala.",
+
+  "skladovyPohyb": "Skladový pohyb",
+  "vydaj": "Výdaj",
+  "prijem": "Príjem",
+  "nazovPolozky": "Názov položky (vyber alebo napíš novú)",
+  "mnozstvo": "Množstvo",
+  "doplnkoveUdaje": "Doplnkové údaje",
+  "nazovHint": "Názov",
+  "hodnotaHint": "Hodnota",
+  "potvrditPrijem": "POTVRDIŤ PRÍJEM",
+  "potvrditVydaj": "POTVRDIŤ VÝDAJ",
+  "skladJePrazdny": "Sklad je prázdny.",
+  "hladatVSklade": "Hľadať v sklade...",
+  "stavZasob": "Stav zásob",
+  "pohybyTab": "Pohyby",
+  "novyPohyb": "Nový pohyb",
+  "ziadnaHistoria": "Žiadna história pohybov.",
+  "doplnkoveUdajeLabel": "Doplnkové údaje:",
+  "ziadneDoplnkove": "Žiadne doplnkové údaje",
+  "skladoveHospodarstvo": "Skladové hospodárstvo",
+
+  "trezorFotiekPrazdny": "Trezor fotiek je prázdny",
+  "uspesneSpraovanychFotiek": "Úspešne spracovaných {count} fotiek.",
+  "@uspesneSpraovanychFotiek": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "vymazatVyber": "Vymazať výber?",
+  "naozajVymazat": "Naozaj chcete vymazať {count} položiek?",
+  "@naozajVymazat": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "vymazat": "Vymazať",
+
+  "neznamyMajitel": "Neznámy majiteľ",
+  "poloha": "Poloha: {lat}, {lng}",
+  "@poloha": {
+    "placeholders": {
+      "lat": { "type": "String" },
+      "lng": { "type": "String" }
+    }
+  },
+  "ziadneGps": "K tejto fotke nie sú dostupné GPS údaje.",
+
+  "trezorNahravokPrazdny": "Trezor nahrávok je prázdny.",
+  "uspesneNahranychNahravok": "Úspešne nahraných {count} nahrávok.",
+  "@uspesneNahranychNahravok": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "neporadiloPrehratNahravku": "Nepodarilo sa dešifrovať alebo prehrať nahrávku.",
+  "zmazatNahravku": "Zmazať nahrávku?",
+  "suborNatrvaloOdstraneny2": "Súbor bude natrvalo odstránený.",
+  "hlasovaNahravka": "Hlasová nahrávka",
+
+  "evidenciaMajjetku": "Evidencia majetku",
+  "bezPripojenia": "Bez pripojenia – zmeny sa uložia lokálne",
+  "zorаditZA": "Zoradiť Z–A",
+  "zoraditAZ": "Zoradiť A–Z",
+  "zariadeniaTab": "Zariadenia",
+  "historiaTab": "História",
+  "pridatZariadenie": "Pridať zariadenie",
+  "hladatZariadenie": "Hľadať podľa názvu, S/N, modelu...",
+  "vsetkyFilter": "Všetky",
+  "ziadneVysledky": "Žiadne výsledky pre zadaný filter.",
+  "ziadnyMajjetok": "Žiadny majetok vo firme.",
+  "vymazatZariadenie": "Vymazať zariadenie?",
+  "naozajVymazatZariadenie": "Naozaj chcete vymazať \"{name}\"?\nTáto akcia je nevratná.",
+  "zariadenieBylVymazane": "\"{name}\" bol vymazaný.",
+  "ziadneTechnickeParam": "Žiadne technické parametre",
+  "servisUprava": "Servis / Úprava",
+  "technickeParametre": "Technické parametre",
+  "noveZariadenieFull": "Nové zariadenie",
+  "zakladneUdaje": "Základné údaje",
+  "nazovZariadenia": "Názov zariadenia *",
+  "serioveCislo": "Sériové číslo *",
+  "odkazUrl": "Odkaz / URL",
+  "pociatocnyStav": "Počiatočný stav",
+  "technickeParametreSection": "Technické parametre",
+  "ziadneParametreKlikni": "Žiadne parametre – kliknite Pridať",
+  "ulozitZariadenie": "ULOŽIŤ ZARIADENIE",
+  "nazovASerioveCisloPovinne": "Názov a sériové číslo sú povinné.",
+  "servisZmenaStavu": "Zmena stavu",
+  "poznamkaKServisu": "Poznámka k servisu",
+  "doplnitParametre": "Doplniť parametre",
+  "novePole": "Nové pole",
+  "ulozitZmeny": "ULOŽIŤ ZMENY",
+  "historiaPrazdna": "História je prázdna.",
+  "ziadneTechParam2": "Žiadne technické parametre",
+
+  "ulozitReport": "Uložiť report",
+  "zakladneUdajeReport": "Základné údaje",
+  "nazovCisloRevizie": "Názov / Číslo revízie",
+  "popisStavu": "Popis stavu",
+  "prilozeneMedia": "Priložené médiá ({count})",
+  "@prilozeneMedia": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "pripojitZTrezoru": "Pripojiť z trezoru",
+  "fotky": "Fotky",
+  "videa": "Videá",
+  "hotovo": "Hotovo",
+  "trezorPrazdny": "Trezor je prázdny",
+  "dokumentaciaPreTitle": "Dokumentácia pre: {title}",
+  "@dokumentaciaPreTitle": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "zatialZiadneSúbory": "Zatiaľ žiadne súbory",
+  "reviziaPred": "Revízia pred",
+  "reviziaOo": "Revízia po",
+  "opravaPred": "Oprava pred",
+  "opravapo": "Oprava po",
+
+  "videoZasifrovaneUlozene": "Video zašifrované a uložené",
+
+  "statusInOperation": "V prevádzke",
+  "statusRequiresService": "Vyžaduje servis",
+  "statusFaulty": "V poruche",
+  "statusOutOufOrder": "Odstavené",
+  "statusDiscarded": "Vyradené",
+  "nahravam": "nahrávam",
+  "stlacPreNah": "Stlač pre nahrávanie",
+
+  "potvrdenieVymazania": "Naozaj chcete vymazať \"{name}\"?\nTáto akcia je nevratná.",
+  "@potvrdenieVymazania": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
+  "zariadenieVymazane": "\"{name}\" bol vymazaný.",
+  "@zariadenieVymazane": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fotkySpracovane": "{count, plural, one{Úspešne spracovaná {count} fotka.} few{Úspešne spracované {count} fotky.} other{Úspešne spracovaných {count} fotiek.}}",
+  "@fotkySpracovane": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "vymazatPolozkyPotvrdenie": "{count, plural, one{Naozaj chcete vymazať jednu položku?} few{Naozaj chcete vymazať {count} položky?} other{Naozaj chcete vymazať {count} položiek?}}",
+  "@vymazatPolozkyPotvrdenie": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "videaNahrate": "{count, plural, one{Úspešne nahrané {count} video.} few{Úspešne nahrané {count} videá.} other{Úspešne nahraných {count} videí.}}",
+  "@videaNahrate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "nahravkyNahrate": "{count, plural, one{Úspešne nahraná {count} nahrávka.} few{Úspešne nahrané {count} nahrávky.} other{Úspešne nahraných {count} nahrávok.}}",
+  "@nahravkyNahrate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

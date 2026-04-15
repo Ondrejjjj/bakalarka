@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:bakalarka/database.dart';
+import 'package:bakalarka/generated/l10n.dart';
 import 'package:bakalarka/services/sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AssetsManagementPage extends StatefulWidget {
   final int initialIndex;
@@ -79,7 +81,6 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
     try {
       await SyncService(widget.database).restoreAllUserData();
     } catch (e) {
-      debugPrint('❌ Sync chyba: $e');
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }
@@ -133,7 +134,6 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
       }
       await widget.database.markAssetAsSynced(localId, fId);
     } catch (e) {
-      debugPrint('Firebase sync chyba: $e');
     }
   }
 
@@ -141,15 +141,15 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Vymazať zariadenie?'),
-        content: Text('Naozaj chcete vymazať "${asset.name}"?\nTáto akcia je nevratná.'),
+        title: Text(S.of(context).vymazatZariadenie),
+        content: Text(S.of(context).potvrdenieVymazania(asset.name)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Zrušiť')),
+              child: Text(S.of(context).zrusitB)),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Vymazať', style: TextStyle(color: Colors.red))),
+              child:Text(S.of(context).zmazat, style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -159,16 +159,40 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
       try {
         await FirebaseFirestore.instance.collection('assets').doc(asset.firebaseId).delete();
       } catch (e) {
-        debugPrint('Firebase mazanie chyba: $e');
       }
     }
     if (mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('"${asset.name}" bol vymazaný.')));
+          .showSnackBar(SnackBar(
+          content: Text(S.of(context).zariadenieVymazane(asset.name))));
     }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  String _getStatusText(String status) {
+    final s = S.of(context);
+
+    switch (status) {
+      case 'V prevádzke':
+        return s.statusInOperation;
+
+      case 'Vyžaduje servis':
+        return s.statusRequiresService;
+
+      case 'V poruche':
+        return s.statusFaulty;
+
+      case 'Odstavené':
+        return s.statusOutOufOrder;
+
+      case 'Vyradené':
+        return s.statusDiscarded;
+
+      default:
+        return status;
+    }
+  }
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -192,16 +216,12 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
     }
   }
 
-  // ── Dialógy ───────────────────────────────────────────────────────────────
-
-  /// Rozšírený dialóg pridania zariadenia – využíva všetky polia z DB
   void _showAddAssetDialog(BuildContext context) {
     final nameCtrl  = TextEditingController();
     final snCtrl    = TextEditingController();
     final modelCtrl = TextEditingController();
     final urlCtrl   = TextEditingController();
     String selectedStatus = 'V prevádzke';
-    // Počiatočné technické parametre – používateľ môže pridať ľubovoľne
     List<Map<String, TextEditingController>> specFields = [];
 
     showModalBottomSheet(
@@ -221,7 +241,6 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Ťahadlo
                   Center(
                     child: Container(
                       width: 40, height: 4,
@@ -237,29 +256,29 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                     Icon(Icons.add_box_outlined,
                         color: Theme.of(ctx).colorScheme.primary, size: 26),
                     const SizedBox(width: 10),
-                    const Text('Nové zariadenie',
+                    Text(S.of(context).noveZariadenieFull,
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   ]),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
 
                   // ── Základné údaje ──
-                  _sectionLabel('Základné údaje'),
-                  const SizedBox(height: 8),
-                  _field(nameCtrl,  'Názov zariadenia *', hint: 'napr. Kompresor Atlas'),
-                  const SizedBox(height: 10),
+                  _sectionLabel(S.of(context).zakladneUdaje),
+                  SizedBox(height: 8),
+                  _field(nameCtrl,  S.of(context).nazovZariadenia, hint: 'Kompresor Atlas'),
+                  SizedBox(height: 10),
                   Row(children: [
-                    Expanded(child: _field(snCtrl,    'Sériové číslo *', hint: 'napr. SN-001')),
+                    Expanded(child: _field(snCtrl,S.of(context).serioveCislo, hint: 'SN-001')),
                     const SizedBox(width: 10),
                     Expanded(child: _field(modelCtrl, 'Model',           hint: 'napr. GA 15')),
                   ]),
-                  const SizedBox(height: 10),
-                  _field(urlCtrl, 'Odkaz / URL', hint: 'napr. manuál, e-shop…',
+                  SizedBox(height: 10),
+                  _field(urlCtrl, S.of(context).odkazUrl, hint: 'manual, e-shop…',
                       icon: Icons.link, keyboardType: TextInputType.url),
 
                   const SizedBox(height: 16),
 
                   // ── Počiatočný stav ──
-                  _sectionLabel('Počiatočný stav'),
+                  _sectionLabel(S.of(context).pociatocnyStav),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: selectedStatus,
@@ -289,21 +308,21 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _sectionLabel('Technické parametre'),
+                      _sectionLabel(S.of(context).technickeParametreSection),
                       TextButton.icon(
                         onPressed: () => setModal(() => specFields.add({
                           'key': TextEditingController(),
                           'value': TextEditingController(),
                         })),
                         icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Pridať'),
+                        label: Text(S.of(context).pridatB),
                       ),
                     ],
                   ),
                   if (specFields.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text('Žiadne parametre – kliknite Pridať',
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Text(S.of(context).ziadneParametreKlikni,
                           style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                     )
                   else
@@ -337,7 +356,7 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                     height: 50,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.save_outlined),
-                      label: const Text('ULOŽIŤ ZARIADENIE'),
+                      label: Text(S.of(context).ulozitZariadenie),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(ctx).colorScheme.primary,
                         foregroundColor: Colors.white,
@@ -348,14 +367,13 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                         if (nameCtrl.text.trim().isEmpty ||
                             snCtrl.text.trim().isEmpty) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                                 content: Text(
-                                    'Názov a sériové číslo sú povinné.')),
+                                    S.of(context).nazovASerioveCisloPovinne)),
                           );
                           return;
                         }
 
-                        // Zozbieraj technické parametre
                         final Map<String, dynamic> specs = {};
                         for (final f in specFields) {
                           if (f['key']!.text.trim().isNotEmpty) {
@@ -443,7 +461,7 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                 ]),
                 const SizedBox(height: 20),
 
-                _sectionLabel('Zmena stavu'),
+                _sectionLabel(S.of(context).servisZmenaStavu),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: currentStatus,
@@ -471,31 +489,31 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                   onChanged: (v) => setModal(() => currentStatus = v!),
                 ),
 
-                const SizedBox(height: 16),
-                _sectionLabel('Poznámka k servisu'),
+                SizedBox(height: 16),
+                _sectionLabel(S.of(context).poznamkaKServisu),
                 const SizedBox(height: 8),
                 TextField(
                   controller: noteCtrl,
                   maxLines: 2,
                   decoration: InputDecoration(
-                    hintText: 'Napr. Vymenené tesnenie...',
+                    hintText: 'Vymenené tesnenie...',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
 
-                const Divider(height: 32),
+                Divider(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _sectionLabel('Doplniť parametre'),
+                    _sectionLabel(S.of(context).doplnitParametre),
                     TextButton.icon(
                       onPressed: () => setModal(() => newSpecFields.add({
                         'key': TextEditingController(),
                         'value': TextEditingController(),
                       })),
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Nové pole'),
+                      label: Text(S.of(context).novePole),
                     ),
                   ],
                 ),
@@ -529,7 +547,7 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                   height: 50,
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.save_outlined),
-                    label: const Text('ULOŽIŤ ZMENY'),
+                    label: Text(S.of(context).ulozitZmeny),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(ctx).colorScheme.primary,
                       foregroundColor: Colors.white,
@@ -597,13 +615,11 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
             Text(asset.name,
                 style: const TextStyle(
                     fontSize: 18, fontWeight: FontWeight.bold)),
-            // URL ak existuje
             if ((asset.url ?? '').isNotEmpty) ...[
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: () {
-                  // url_launcher – ak ho máš v projekte
-                  // launchUrl(Uri.parse(asset.url!));
+                  launchUrl(Uri.parse(asset.url!));
                 },
                 child: Text(
                   asset.url!,
@@ -618,10 +634,10 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
             ],
             const Divider(height: 20),
             if (specs.isEmpty)
-              const Center(
+              Center(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text('Žiadne technické parametre'),
+                    child: Text(S.of(context).ziadneTechParam2),
                   ))
             else
               Flexible(
@@ -662,13 +678,13 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Evidencia majetku'),
+        title: Text(S.of(context).evidenciaMajjetku),
         actions: [
           if (!_isOnline)
             Padding(
-              padding: const EdgeInsets.only(right: 4),
+              padding: EdgeInsets.only(right: 4),
               child: Tooltip(
-                message: 'Bez pripojenia – zmeny sa uložia lokálne',
+                message: S.of(context).bezPripojenia,
                 child: Icon(Icons.cloud_off, color: Colors.orange[300], size: 20),
               ),
             ),
@@ -682,9 +698,9 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.precision_manufacturing_outlined), text: 'Zariadenia'),
-            Tab(icon: Icon(Icons.history), text: 'História'),
+          tabs: [
+            Tab(icon: Icon(Icons.precision_manufacturing_outlined), text: S.of(context).zariadeniaTab),
+            Tab(icon: Icon(Icons.history), text: S.of(context).historiaTab),
           ],
         ),
       ),
@@ -701,7 +717,7 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddAssetDialog(context),
-        label: const Text('Pridať zariadenie'),
+        label: Text(S.of(context).pridatZariadenie),
         icon: const Icon(Icons.add),
       ),
     );
@@ -710,13 +726,12 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
   Widget _buildAssetsList() {
     return Column(
       children: [
-        // Vyhľadávanie
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          padding: EdgeInsets.fromLTRB(12, 10, 12, 4),
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Hľadať podľa názvu, S/N, modelu...',
+              hintText: S.of(context).hladatZariadenie,
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
@@ -740,7 +755,7 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
               Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: FilterChip(
-                  label: const Text('Všetky'),
+                  label: Text(S.of(context).vsetkyFilter),
                   selected: _activeStatusFilter == null,
                   onSelected: (_) => setState(() => _activeStatusFilter = null),
                 ),
@@ -753,7 +768,7 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                   child: FilterChip(
                     avatar: Icon(_getStatusIcon(s),
                         size: 16, color: active ? c : Colors.grey),
-                    label: Text(s),
+                    label: Text(_getStatusText(s)),
                     selected: active,
                     selectedColor: c.withOpacity(0.15),
                     checkmarkColor: c,
@@ -788,12 +803,12 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                         child: Column(children: [
                           Icon(Icons.search_off,
                               size: 48, color: Colors.grey[400]),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8),
                           Text(
                             _searchQuery.isNotEmpty ||
                                 _activeStatusFilter != null
-                                ? 'Žiadne výsledky pre zadaný filter.'
-                                : 'Žiadny majetok vo firme.',
+                                ? S.of(context).ziadneVysledky
+                                : S.of(context).ziadnyMajjetok,
                             style: TextStyle(color: Colors.grey[500]),
                           ),
                         ]),
@@ -833,7 +848,7 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
             style: const TextStyle(fontWeight: FontWeight.bold),
             overflow: TextOverflow.ellipsis),
         subtitle: Wrap(spacing: 8, children: [
-          Text(asset.status,
+            Text(_getStatusText(asset.status),
               style: TextStyle(
                   fontSize: 11,
                   color: statusColor,
@@ -859,13 +874,12 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
               children: [
                 const Divider(),
 
-                // Akcie
                 Row(children: [
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () => _showEditAssetDialog(asset),
                       icon: const Icon(Icons.build, size: 16),
-                      label: const Text('Servis / Úprava'),
+                      label: Text(S.of(context).servisUprava),
                       style: FilledButton.styleFrom(
                           backgroundColor: Colors.blueGrey),
                     ),
@@ -873,18 +887,17 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                   const SizedBox(width: 8),
                   IconButton.filledTonal(
                     onPressed: () => _showTechDetailsSheet(asset),
-                    icon: const Icon(Icons.list_alt),
-                    tooltip: 'Technické parametre',
+                    icon: Icon(Icons.list_alt),
+                    tooltip: S.of(context).technickeParametre,
                   ),
                   IconButton.filledTonal(
                     onPressed: () => _deleteAsset(asset),
                     icon: const Icon(Icons.delete_outline),
                     style: IconButton.styleFrom(foregroundColor: Colors.red),
-                    tooltip: 'Vymazať zariadenie',
+                    tooltip: S.of(context).vymazatZariadenie,
                   ),
                 ]),
 
-                // Posledný servisný záznam
                 Builder(builder: (_) {
                   final history = jsonDecode(asset.history) as List<dynamic>;
                   if (history.isEmpty) return const SizedBox();
@@ -952,9 +965,9 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
           if (all.isEmpty) {
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
+              children: [
                 SizedBox(height: 100),
-                Center(child: Text('História je prázdna.')),
+                Center(child: Text(S.of(context).historiaPrazdna)),
               ],
             );
           }
@@ -970,7 +983,6 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Časová os
                     SizedBox(
                       width: 24,
                       child: Column(
@@ -1004,7 +1016,6 @@ class _AssetsManagementPageState extends State<AssetsManagementPage>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Dátum – explicitná farba aby nebolo biele na bielom
                             Text(
                               item['date'],
                               style: TextStyle(
