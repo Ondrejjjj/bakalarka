@@ -76,7 +76,6 @@ class _MyAppState extends State<MyApp> {
     final currentUser = fb.FirebaseAuth.instance.currentUser;
 
     if (currentUser?.email == null) {
-      debugPrint('Žiadny prihlásený používateľ. Synchronizácia sa nespúšťa.');
       return;
     }
 

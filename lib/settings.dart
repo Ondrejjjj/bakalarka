@@ -64,7 +64,6 @@ class _SettingsPageState extends State<SettingsPage> {
           });
         }
       } catch (e) {
-        debugPrint('Chyba pri načítaní dát z cloudu: $e');
       }
     }
   }
@@ -157,11 +156,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$email bol odstránený z firmy.')),
+          SnackBar(
+            content: Text(S.of(context).pouzivatelOdstraneny(email)),
+          ),
         );
       }
     } catch (e) {
-      debugPrint('Chyba pri odstraňovaní technika: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -203,7 +203,6 @@ class _SettingsPageState extends State<SettingsPage> {
         );
       }
     } catch (e) {
-      debugPrint('Chyba pri odhlasovaní: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(S.of(context).chybaOdhlasenia)),
@@ -259,7 +258,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     _actionIcon(Icons.share, S.of(context).zdielatT, () {
                       if (_currentCode != null) {
                         Share.share(
-                            'Ahoj, prihlás sa do našej appky Trezor pomocou kódu: $_currentCode');
+                          S.of(context).prihlasovaciKod(_currentCode!),
+                        );
                       }
                     }),
                     _actionIcon(Icons.refresh, S.of(context).zmenitT,

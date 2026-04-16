@@ -45,7 +45,6 @@ class ImageStorage {
     return 'unknown_device';
   }
 
-  // --- UPRAVENÁ METÓDA NA UKLADANIE ---
   Future<void> saveSecurePhoto({
     required Uint8List originalBytes,
     required String photoId,
@@ -66,7 +65,7 @@ class ImageStorage {
 
     String realId = await getDeviceId();
 
-    // 4. Uložíme záznam do Drift databázy so všetkými novými stĺpcami
+    // 4. Uložíme záznam do Drift databázy
     await db.insertPhoto(
       filePath: file.path,
       deviceId: realId,

@@ -18,9 +18,7 @@ class SyncService {
 
   SyncService(this.db);
 
-  // ---------------------------------------------------------------------------
   // 1. STAV SYNCHRONIZÁCIE
-  // ---------------------------------------------------------------------------
 
   Future<bool> isInitialSyncRequired(String email) async {
     if (email.isEmpty) return false;
@@ -33,9 +31,7 @@ class SyncService {
     await _storage.write(key: 'sync_done_$email', value: 'true');
   }
 
-  // ---------------------------------------------------------------------------
   // 2. POMOCNÉ METÓDY – BEZPEČNÉ VKLADANIE (bez duplikátov)
-  // ---------------------------------------------------------------------------
 
   Future<void> _upsertPhoto({
     required String filePath,
@@ -124,7 +120,6 @@ class SyncService {
       final encryptedBytes = await CryptoService.encryptBytes(bytes);
       await File(localPath).writeAsBytes(encryptedBytes);
     } catch (e) {
-
     }
   }
 
@@ -162,7 +157,6 @@ class SyncService {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // 5. RESTORE – JEDNORAZOVÁ OBNOVA PRI NOVEJ INŠTALÁCII / PREINŠTALOVANÍ
 
   Future<int?> _findInventoryIdByName(String name, String companyCode) async {
@@ -258,7 +252,6 @@ class SyncService {
       }
 
       // ── C. POHYBY SKLADU ──────────────────────────────────────────────────
-
       final moveDocs = await firestore
           .collection('movements')
           .where('companyCode', isEqualTo: companyId)
@@ -292,7 +285,6 @@ class SyncService {
             ),
           );
         } catch (e) {
-
         }
       }
 
@@ -323,17 +315,15 @@ class SyncService {
               (report['companyName'] as String?) ??
               'Obnovené';
 
-          // Zostrojíme lokálnu cestu rovnako ako pri prvom snímaní
           String fileName = storagePath.split('/').last;
           if (fileName.isEmpty) fileName = '${doc.id}.enc';
           final localPath = '${directory.path}/$fileName';
 
-          // Stiahneme a zašifrujeme len ak súbor fyzicky chýba
           if (!await File(localPath).exists()) {
             await _downloadAndEncryptMedia(url, localPath);
           }
 
-          // Vložíme záznam do SQLite bez rizika duplikátu
+          // Vložím záznam do SQLite bez rizika duplikátu
           switch (type) {
             case 'image':
               await _upsertPhoto(
@@ -378,9 +368,8 @@ class SyncService {
     }
   }
 
-  // ---------------------------------------------------------------------------
   // 6. LIVE SYNC – BEŽNÝ CHOD APLIKÁCIE (volaj raz po prihlásení)
-  // ---------------------------------------------------------------------------
+
 
   Future<void> startLiveSync() async {
     final companyId = await _storage.read(key: 'company_code') ?? '';
@@ -509,7 +498,6 @@ class SyncService {
         .where('companyCode', isEqualTo: companyId);
 
     if (!isAdmin) {
-      // Techniku filtrujeme priamo na Firestore – šetríme bandwidth
       mediaQuery = mediaQuery.where('userEmail', isEqualTo: currentEmail);
     }
 

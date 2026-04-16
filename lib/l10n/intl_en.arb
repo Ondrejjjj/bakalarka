@@ -341,5 +341,36 @@
         "type": "int"
       }
     }
-  }
+  },
+  "prihlasovaciKod": "Hi, log in to our Trezor app using the code: {code}",
+  "@prihlasovaciKod": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "pouzivatelOdstraneny": "{email} has been removed from the company.",
+  "@pouzivatelOdstraneny": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "syncUspesna": "{count, plural, one{Synchronization of one item successful} other{Synchronization of {count} items successful}}",
+  "@syncUspesna": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chybaSync": "Error during synchronization",
+  "odosielam": "Sending...",
+  "odoslatDoCloudu": "Upload to cloud",
+  "dovodBiometrie": "Please authenticate to continue",
+  "ucetOdstranenyInfo": "Your account has been removed from the company. Please contact the administrator.",
+  "chybaNeplatnyKod": "This invitation code is invalid.",
+  "chybaSuborNeexistuje": "Recording file not found."
 }

@@ -124,7 +124,7 @@ class _AudioGalleryPageState extends State<AudioGalleryPage> {
       }
 
       final file = File(audio.filePath);
-      if (!await file.exists()) throw Exception("Súbor nahrávky neexistuje");
+      if (!await file.exists()) throw Exception(S.of(context).chybaSuborNeexistuje);
 
       final encryptedBytes = await file.readAsBytes();
       final decryptedBytes = await CryptoService.decryptBytes(encryptedBytes);

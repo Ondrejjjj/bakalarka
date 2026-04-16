@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:ui'; // Potrebné pre PlatformDispatcher
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -23,7 +23,6 @@ class AppTheme {
       backgroundColor: Colors.transparent,
     ),
 
-    // --- OPRAVA TU: CardTheme -> CardThemeData ---
     cardTheme: CardThemeData(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -50,20 +49,16 @@ class AppTheme {
       centerTitle: false,
       scrolledUnderElevation: 2,
     ),
-    // V tmavom režime chceme, aby povrchy neboli úplne čierne, ale jemne šedé/fialové
     scaffoldBackgroundColor: const Color(0xFF141218),
   );
 }
 
-// ThemeProvider ostáva rovnaký, je napísaný správne a efektívne.
+
 class ThemeProvider extends ChangeNotifier {
-  // Pridáme stavy: Light, Dark, alebo System
   ThemeMode _themeMode = ThemeMode.system;
 
   ThemeMode get themeMode => _themeMode;
 
-  // Pomocná funkcia, ktorá nám povie, či je aktuálne aktívny tmavý režim
-  // (buď je vynútený, alebo je nastavený systémový a systém je v Dark móde)
   bool get isDarkMode {
     if (_themeMode == ThemeMode.system) {
       return PlatformDispatcher.instance.platformBrightness == Brightness.dark;
@@ -75,8 +70,6 @@ class ThemeProvider extends ChangeNotifier {
     _themeMode = mode;
     notifyListeners();
   }
-
-  // Prepínanie cyklicky: System -> Light -> Dark
   void toggleTheme() {
     if (_themeMode == ThemeMode.system) {
       _themeMode = ThemeMode.light;

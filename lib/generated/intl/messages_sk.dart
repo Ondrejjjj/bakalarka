@@ -38,25 +38,33 @@ class MessageLookup extends MessageLookupByLibrary {
   static String m6(name) =>
       "Naozaj chcete vymazať \"${name}\"?\nTáto akcia je nevratná.";
 
-  static String m7(count) => "Priložené médiá (${count})";
+  static String m7(email) => "${email} bol odstránený z firmy.";
 
-  static String m8(count) => "Úspešne nahraných ${count} nahrávok.";
+  static String m8(code) =>
+      "Ahoj, prihlás sa do našej appky Trezor pomocou kódu: ${code}";
 
-  static String m9(count) => "Úspešne nahraných ${count} videí.";
+  static String m9(count) => "Priložené médiá (${count})";
 
-  static String m10(count) => "Úspešne spracovaných ${count} fotiek.";
+  static String m10(count) =>
+      "${Intl.plural(count, one: 'Synchronizácia jednej položky úspešná', few: 'Synchronizácia ${count} položiek úspešná', other: 'Synchronizácia ${count} položiek úspešná')}";
 
-  static String m11(count) =>
+  static String m11(count) => "Úspešne nahraných ${count} nahrávok.";
+
+  static String m12(count) => "Úspešne nahraných ${count} videí.";
+
+  static String m13(count) => "Úspešne spracovaných ${count} fotiek.";
+
+  static String m14(count) =>
       "${Intl.plural(count, one: 'Úspešne nahrané ${count} video.', few: 'Úspešne nahrané ${count} videá.', other: 'Úspešne nahraných ${count} videí.')}";
 
-  static String m12(count) => "${count} vybrané";
+  static String m15(count) => "${count} vybrané";
 
-  static String m13(count) =>
+  static String m16(count) =>
       "${Intl.plural(count, one: 'Naozaj chcete vymazať jednu položku?', few: 'Naozaj chcete vymazať ${count} položky?', other: 'Naozaj chcete vymazať ${count} položiek?')}";
 
-  static String m14(name) => "\"${name}\" bol vymazaný.";
+  static String m17(name) => "\"${name}\" bol vymazaný.";
 
-  static String m15(name) => "\"${name}\" bol vymazaný.";
+  static String m18(name) => "\"${name}\" bol vymazaný.";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -82,8 +90,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "Biometria zlyhala.",
     ),
     "cameraIcon": MessageLookupByLibrary.simpleMessage("Kamera"),
+    "chybaNeplatnyKod": MessageLookupByLibrary.simpleMessage(
+      "Tento pozývací kód je neplatný.",
+    ),
     "chybaOdhlasenia": MessageLookupByLibrary.simpleMessage(
       "Chyba pri odhlasovaní. Skúste znova.",
+    ),
+    "chybaSuborNeexistuje": MessageLookupByLibrary.simpleMessage(
+      "Súbor nahrávky sa nenašiel.",
+    ),
+    "chybaSync": MessageLookupByLibrary.simpleMessage(
+      "Chyba pri synchronizácii",
     ),
     "chybaTechnika": MessageLookupByLibrary.simpleMessage(
       "Chyba – technika sa nepodarilo odstrániť.",
@@ -103,6 +120,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Doplnkové údaje:",
     ),
     "doplnkoveu": MessageLookupByLibrary.simpleMessage("doplnkové údaje"),
+    "dovodBiometrie": MessageLookupByLibrary.simpleMessage(
+      "Priložte prst pre overenie",
+    ),
     "evidenciaMajjetku": MessageLookupByLibrary.simpleMessage(
       "Evidencia majetku",
     ),
@@ -201,6 +221,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "oblubeneV": MessageLookupByLibrary.simpleMessage("Obľúbené"),
     "odhlasV": MessageLookupByLibrary.simpleMessage("Odhlásiť sa"),
     "odkazUrl": MessageLookupByLibrary.simpleMessage("Odkaz / URL"),
+    "odosielam": MessageLookupByLibrary.simpleMessage("Odosielam..."),
+    "odoslatDoCloudu": MessageLookupByLibrary.simpleMessage(
+      "Odoslať do cloudu",
+    ),
     "odstranenyT": MessageLookupByLibrary.simpleMessage("Odstránený"),
     "odstranit": MessageLookupByLibrary.simpleMessage("Odstrániť"),
     "odstranitTechnika": MessageLookupByLibrary.simpleMessage(
@@ -228,6 +252,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "potvrditPrijem": MessageLookupByLibrary.simpleMessage("POTVRDIŤ PRÍJEM"),
     "potvrditV": MessageLookupByLibrary.simpleMessage("Potvrdit výdaj"),
     "potvrditVydaj": MessageLookupByLibrary.simpleMessage("POTVRDIŤ VÝDAJ"),
+    "pouzivatelOdstraneny": m7,
     "povinnePole": MessageLookupByLibrary.simpleMessage("Povinné pole"),
     "poznamkaKServisu": MessageLookupByLibrary.simpleMessage(
       "Poznámka k servisu",
@@ -243,9 +268,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "prihlasenyPouzivatel": MessageLookupByLibrary.simpleMessage(
       "Prihlásený používateľ",
     ),
+    "prihlasovaciKod": m8,
     "prijem": MessageLookupByLibrary.simpleMessage("Príjem"),
     "prijemT": MessageLookupByLibrary.simpleMessage("Prijem"),
-    "prilozeneMedia": m7,
+    "prilozeneMedia": m9,
     "priloztePrst": MessageLookupByLibrary.simpleMessage(
       "Priložte prst pre overenie",
     ),
@@ -310,6 +336,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "suborNatrvaloOdstraneny2": MessageLookupByLibrary.simpleMessage(
       "Súbor bude natrvalo odstránený.",
     ),
+    "syncUspesna": m10,
     "systemText": MessageLookupByLibrary.simpleMessage("Systém"),
     "systemV": MessageLookupByLibrary.simpleMessage("Sýstém"),
     "technickeParametre": MessageLookupByLibrary.simpleMessage(
@@ -330,20 +357,23 @@ class MessageLookup extends MessageLookupByLibrary {
     "trezorPrazdny": MessageLookupByLibrary.simpleMessage("Trezor je prázdny"),
     "trezorSystem": MessageLookupByLibrary.simpleMessage("Trezor System"),
     "typP": MessageLookupByLibrary.simpleMessage("Typ"),
+    "ucetOdstranenyInfo": MessageLookupByLibrary.simpleMessage(
+      "Váš účet bol odstránený z firmy. Kontaktujte administrátora.",
+    ),
     "ulozitB": MessageLookupByLibrary.simpleMessage("Uložiť"),
     "ulozitReport": MessageLookupByLibrary.simpleMessage("Uložiť report"),
     "ulozitZariadenie": MessageLookupByLibrary.simpleMessage(
       "ULOŽIŤ ZARIADENIE",
     ),
     "ulozitZmeny": MessageLookupByLibrary.simpleMessage("ULOŽIŤ ZMENY"),
-    "uspesneNahranychNahravok": m8,
-    "uspesneNahranychVidei": m9,
-    "uspesneSpraovanychFotiek": m10,
+    "uspesneNahranychNahravok": m11,
+    "uspesneNahranychVidei": m12,
+    "uspesneSpraovanychFotiek": m13,
     "uzmateUV": MessageLookupByLibrary.simpleMessage(
       "Už máte účet? Prihlásiť sa",
     ),
     "videa": MessageLookupByLibrary.simpleMessage("Videá"),
-    "videaNahrate": m11,
+    "videaNahrate": m14,
     "video": MessageLookupByLibrary.simpleMessage("Video"),
     "videoZasifrovaneUlozene": MessageLookupByLibrary.simpleMessage(
       "Video zašifrované a uložené",
@@ -353,12 +383,12 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "vsetkyFilter": MessageLookupByLibrary.simpleMessage("Všetky"),
     "vsetkyT": MessageLookupByLibrary.simpleMessage("Všetky"),
-    "vybraneCount": m12,
+    "vybraneCount": m15,
     "vydaj": MessageLookupByLibrary.simpleMessage("Výdaj"),
     "vydajT": MessageLookupByLibrary.simpleMessage("Výdaj"),
     "vymazat": MessageLookupByLibrary.simpleMessage("Vymazať"),
     "vymazatB": MessageLookupByLibrary.simpleMessage("Vymazať"),
-    "vymazatPolozkyPotvrdenie": m13,
+    "vymazatPolozkyPotvrdenie": m16,
     "vymazatVyber": MessageLookupByLibrary.simpleMessage("Vymazať výber?"),
     "vymazatZariadenie": MessageLookupByLibrary.simpleMessage(
       "Vymazať zariadenie?",
@@ -379,8 +409,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zalozFV": MessageLookupByLibrary.simpleMessage("Založiť firmu"),
     "zariadeniaTab": MessageLookupByLibrary.simpleMessage("Zariadenia"),
     "zariadeniaText": MessageLookupByLibrary.simpleMessage("Zariadenia"),
-    "zariadenieBylVymazane": m14,
-    "zariadenieVymazane": m15,
+    "zariadenieBylVymazane": m17,
+    "zariadenieVymazane": m18,
     "zdielatT": MessageLookupByLibrary.simpleMessage("Zdielať"),
     "ziadnaHistoria": MessageLookupByLibrary.simpleMessage(
       "Žiadna história pohybov.",

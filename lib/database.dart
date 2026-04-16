@@ -177,13 +177,12 @@ class AppDatabase extends _$AppDatabase {
         InventoryCompanion(
           qty: Value(newQty),
           lastModified: Value(DateTime.now()),
-          isUploaded: const Value(false), // Musí sa znova synchnúť
+          isUploaded: const Value(false),
         ),
       );
     });
   }
 
-  // Sledovanie histórie pohybov
   Stream<List<StockMovement>> watchMovementHistory(String companyCode) {
     return (select(stockMovements)
       ..where((t) => t.companyCode.equals(companyCode))
@@ -196,7 +195,6 @@ class AppDatabase extends _$AppDatabase {
     final firestore = FirebaseFirestore.instance;
 
     try {
-      // 1. Pošleme pohyb do kolekcie 'movements'
       final moveRef = await firestore.collection('movements').add({
         'itemName': move.itemName,
         'changeQty': move.changeQty,
@@ -207,8 +205,6 @@ class AppDatabase extends _$AppDatabase {
         'createdAt': move.createdAt.toIso8601String(),
       });
 
-      // 2. Aktualizujeme stav položky na Firebase (aby ostatní videli nový stav zásob)
-      // Hľadáme podľa EAN/SKU v rámci firmy
       final itemQuery = await firestore.collection('inventory')
           .where('companyCode', isEqualTo: item.companyCode)
           .where('ean', isEqualTo: item.ean)
@@ -217,11 +213,10 @@ class AppDatabase extends _$AppDatabase {
 
       if (itemQuery.docs.isNotEmpty) {
         await itemQuery.docs.first.reference.update({
-          'qty': item.qty, // Nové vypočítané množstvo
+          'qty': item.qty,
           'lastModified': DateTime.now().toIso8601String(),
         });
       } else {
-        // Ak položka na Firebase ešte nie je, vytvoríme ju
         await firestore.collection('inventory').add({
           'name': item.name,
           'ean': item.ean,

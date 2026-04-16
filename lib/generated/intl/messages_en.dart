@@ -38,25 +38,33 @@ class MessageLookup extends MessageLookupByLibrary {
   static String m6(name) =>
       "Do you really want to delete \"${name}\"?\nThis action is irreversible.";
 
-  static String m7(count) => "Attached Media (${count})";
+  static String m7(email) => "${email} has been removed from the company.";
 
-  static String m8(count) => "Successfully uploaded ${count} recordings.";
+  static String m8(code) =>
+      "Hi, log in to our Trezor app using the code: ${code}";
 
-  static String m9(count) => "Successfully uploaded ${count} videos.";
+  static String m9(count) => "Attached Media (${count})";
 
-  static String m10(count) => "Successfully processed ${count} photos.";
+  static String m10(count) =>
+      "${Intl.plural(count, one: 'Synchronization of one item successful', other: 'Synchronization of ${count} items successful')}";
 
-  static String m11(count) =>
+  static String m11(count) => "Successfully uploaded ${count} recordings.";
+
+  static String m12(count) => "Successfully uploaded ${count} videos.";
+
+  static String m13(count) => "Successfully processed ${count} photos.";
+
+  static String m14(count) =>
       "${Intl.plural(count, one: 'Successfully uploaded ${count} video.', other: 'Successfully uploaded ${count} videos.')}";
 
-  static String m12(count) => "${count} selected";
+  static String m15(count) => "${count} selected";
 
-  static String m13(count) =>
+  static String m16(count) =>
       "${Intl.plural(count, one: 'Do you really want to delete one item?', other: 'Do you really want to delete ${count} items?')}";
 
-  static String m14(name) => "\"${name}\" has been deleted.";
+  static String m17(name) => "\"${name}\" has been deleted.";
 
-  static String m15(name) => "\"${name}\" has been deleted.";
+  static String m18(name) => "\"${name}\" has been deleted.";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -82,8 +90,17 @@ class MessageLookup extends MessageLookupByLibrary {
       "Biometrics failed.",
     ),
     "cameraIcon": MessageLookupByLibrary.simpleMessage("Camera"),
+    "chybaNeplatnyKod": MessageLookupByLibrary.simpleMessage(
+      "This invitation code is invalid.",
+    ),
     "chybaOdhlasenia": MessageLookupByLibrary.simpleMessage(
       "Error logging out. Please try again.",
+    ),
+    "chybaSuborNeexistuje": MessageLookupByLibrary.simpleMessage(
+      "Recording file not found.",
+    ),
+    "chybaSync": MessageLookupByLibrary.simpleMessage(
+      "Error during synchronization",
     ),
     "chybaTechnika": MessageLookupByLibrary.simpleMessage(
       "Error – technician could not be removed.",
@@ -101,6 +118,9 @@ class MessageLookup extends MessageLookupByLibrary {
       "Additional data:",
     ),
     "doplnkoveu": MessageLookupByLibrary.simpleMessage("Additional Info"),
+    "dovodBiometrie": MessageLookupByLibrary.simpleMessage(
+      "Please authenticate to continue",
+    ),
     "evidenciaMajjetku": MessageLookupByLibrary.simpleMessage(
       "Asset Management",
     ),
@@ -195,6 +215,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "oblubeneV": MessageLookupByLibrary.simpleMessage("Favorites"),
     "odhlasV": MessageLookupByLibrary.simpleMessage("Log Out"),
     "odkazUrl": MessageLookupByLibrary.simpleMessage("Link / URL"),
+    "odosielam": MessageLookupByLibrary.simpleMessage("Sending..."),
+    "odoslatDoCloudu": MessageLookupByLibrary.simpleMessage("Upload to cloud"),
     "odstranenyT": MessageLookupByLibrary.simpleMessage("Removed"),
     "odstranit": MessageLookupByLibrary.simpleMessage("Remove"),
     "odstranitTechnika": MessageLookupByLibrary.simpleMessage(
@@ -222,6 +244,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "potvrditPrijem": MessageLookupByLibrary.simpleMessage("CONFIRM RECEIPT"),
     "potvrditV": MessageLookupByLibrary.simpleMessage("Confirm Issue"),
     "potvrditVydaj": MessageLookupByLibrary.simpleMessage("CONFIRM ISSUE"),
+    "pouzivatelOdstraneny": m7,
     "povinnePole": MessageLookupByLibrary.simpleMessage("Required field"),
     "poznamkaKServisu": MessageLookupByLibrary.simpleMessage("Service Note"),
     "pregeneratKod": MessageLookupByLibrary.simpleMessage("Regenerate Code?"),
@@ -233,9 +256,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "prihlasenyPouzivatel": MessageLookupByLibrary.simpleMessage(
       "Logged in user",
     ),
+    "prihlasovaciKod": m8,
     "prijem": MessageLookupByLibrary.simpleMessage("Receipt"),
     "prijemT": MessageLookupByLibrary.simpleMessage("Receipt"),
-    "prilozeneMedia": m7,
+    "prilozeneMedia": m9,
     "priloztePrst": MessageLookupByLibrary.simpleMessage(
       "Place your finger to verify",
     ),
@@ -302,6 +326,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "suborNatrvaloOdstraneny2": MessageLookupByLibrary.simpleMessage(
       "The file will be permanently deleted.",
     ),
+    "syncUspesna": m10,
     "systemText": MessageLookupByLibrary.simpleMessage("System"),
     "systemV": MessageLookupByLibrary.simpleMessage("System"),
     "technickeParametre": MessageLookupByLibrary.simpleMessage(
@@ -322,18 +347,21 @@ class MessageLookup extends MessageLookupByLibrary {
     "trezorPrazdny": MessageLookupByLibrary.simpleMessage("Vault is empty"),
     "trezorSystem": MessageLookupByLibrary.simpleMessage("Trezor System"),
     "typP": MessageLookupByLibrary.simpleMessage("Type"),
+    "ucetOdstranenyInfo": MessageLookupByLibrary.simpleMessage(
+      "Your account has been removed from the company. Please contact the administrator.",
+    ),
     "ulozitB": MessageLookupByLibrary.simpleMessage("Save"),
     "ulozitReport": MessageLookupByLibrary.simpleMessage("Save Report"),
     "ulozitZariadenie": MessageLookupByLibrary.simpleMessage("SAVE DEVICE"),
     "ulozitZmeny": MessageLookupByLibrary.simpleMessage("SAVE CHANGES"),
-    "uspesneNahranychNahravok": m8,
-    "uspesneNahranychVidei": m9,
-    "uspesneSpraovanychFotiek": m10,
+    "uspesneNahranychNahravok": m11,
+    "uspesneNahranychVidei": m12,
+    "uspesneSpraovanychFotiek": m13,
     "uzmateUV": MessageLookupByLibrary.simpleMessage(
       "Already have an account? Log In",
     ),
     "videa": MessageLookupByLibrary.simpleMessage("Videos"),
-    "videaNahrate": m11,
+    "videaNahrate": m14,
     "video": MessageLookupByLibrary.simpleMessage("Video"),
     "videoZasifrovaneUlozene": MessageLookupByLibrary.simpleMessage(
       "Video encrypted and saved",
@@ -343,12 +371,12 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "vsetkyFilter": MessageLookupByLibrary.simpleMessage("All"),
     "vsetkyT": MessageLookupByLibrary.simpleMessage("All"),
-    "vybraneCount": m12,
+    "vybraneCount": m15,
     "vydaj": MessageLookupByLibrary.simpleMessage("Issue"),
     "vydajT": MessageLookupByLibrary.simpleMessage("Issue"),
     "vymazat": MessageLookupByLibrary.simpleMessage("Delete"),
     "vymazatB": MessageLookupByLibrary.simpleMessage("Delete"),
-    "vymazatPolozkyPotvrdenie": m13,
+    "vymazatPolozkyPotvrdenie": m16,
     "vymazatVyber": MessageLookupByLibrary.simpleMessage("Delete selection?"),
     "vymazatZariadenie": MessageLookupByLibrary.simpleMessage("Delete device?"),
     "vzhladT": MessageLookupByLibrary.simpleMessage("Appearance"),
@@ -365,8 +393,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "zalozFV": MessageLookupByLibrary.simpleMessage("Set up Company"),
     "zariadeniaTab": MessageLookupByLibrary.simpleMessage("Devices"),
     "zariadeniaText": MessageLookupByLibrary.simpleMessage("Devices"),
-    "zariadenieBylVymazane": m14,
-    "zariadenieVymazane": m15,
+    "zariadenieBylVymazane": m17,
+    "zariadenieVymazane": m18,
     "zdielatT": MessageLookupByLibrary.simpleMessage("Share"),
     "ziadnaHistoria": MessageLookupByLibrary.simpleMessage(
       "No movement history.",

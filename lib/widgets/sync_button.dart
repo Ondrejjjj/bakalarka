@@ -1,11 +1,12 @@
 // widgets/sync_button.dart
 import 'dart:io';
+import 'package:bakalarka/generated/l10n.dart';
 import 'package:flutter/material.dart';
 import '../services/sync_service.dart';
 
 class SyncButton extends StatefulWidget {
   final Set<File> selectedFiles;
-  final String mediaType; // 'image', 'video', 'audio'
+  final String mediaType;
   final SyncService syncService;
   final VoidCallback onSyncComplete;
 
@@ -33,11 +34,13 @@ class _SyncButtonState extends State<SyncButton> {
       }
       widget.onSyncComplete();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Synchronizácia ${widget.selectedFiles.length} položiek úspešná')),
+        SnackBar(
+          content: Text(S.of(context).syncUspesna(widget.selectedFiles.length)),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chyba pri synchronizácii')),
+        SnackBar(content: Text(S.of(context).chybaSync)),
       );
     } finally {
       setState(() => _isUploading = false);
@@ -54,7 +57,7 @@ class _SyncButtonState extends State<SyncButton> {
       icon: _isUploading
           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
           : const Icon(Icons.cloud_upload),
-      label: Text(_isUploading ? 'Odosielam...' : 'Odoslať do cloudu'),
+      label: Text(_isUploading ? S.of(context).odosielam : S.of(context).odoslatDoCloudu),
     );
   }
 }

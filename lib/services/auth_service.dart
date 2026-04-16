@@ -1,9 +1,12 @@
+import 'package:bakalarka/generated/l10n.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:math';
 import 'package:drift/drift.dart';
 import 'package:bakalarka/database.dart';
+import 'package:path/path.dart';
 
 class AuthService {
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
@@ -16,9 +19,7 @@ class AuthService {
 
   AuthService(this._localDb);
 
-  // ---------------------------------------------------------------------------
   // SYNCHRONIZÁCIA IDENTITY
-  // ---------------------------------------------------------------------------
 
   Future<void> syncUserToSecureStorage(String uid) async {
     try {
@@ -100,10 +101,9 @@ class AuthService {
         if (userDoc.exists) {
           final data = userDoc.data() as Map<String, dynamic>;
           if (data['banned'] == true) {
-            // Okamžite odhlásiť a zamietnuť prihlásenie
             await _auth.signOut();
             throw Exception(
-                'Váš účet bol odstránený z firmy. Kontaktujte administrátora.');
+                S.of(context as BuildContext).ucetOdstranenyInfo);
           }
         }
 
@@ -138,7 +138,7 @@ class AuthService {
 
         if (companyQuery.docs.isEmpty) {
           await res.user!.delete();
-          throw Exception('Tento pozývací kód je neplatný.');
+          throw Exception(S.of(context as BuildContext).chybaNeplatnyKod);
         }
 
         var companyDoc = companyQuery.docs.first;

@@ -324,5 +324,36 @@
         "type": "int"
       }
     }
-  }
+  },
+  "prihlasovaciKod": "Ahoj, prihlás sa do našej appky Trezor pomocou kódu: {code}",
+  "@prihlasovaciKod": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "pouzivatelOdstraneny": "{email} bol odstránený z firmy.",
+  "@pouzivatelOdstraneny": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "syncUspesna": "{count, plural, one{Synchronizácia jednej položky úspešná} few{Synchronizácia {count} položiek úspešná} other{Synchronizácia {count} položiek úspešná}}",
+  "@syncUspesna": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chybaSync": "Chyba pri synchronizácii",
+  "odosielam": "Odosielam...",
+  "odoslatDoCloudu": "Odoslať do cloudu",
+  "dovodBiometrie": "Priložte prst pre overenie",
+  "ucetOdstranenyInfo": "Váš účet bol odstránený z firmy. Kontaktujte administrátora.",
+  "chybaNeplatnyKod": "Tento pozývací kód je neplatný.",
+  "chybaSuborNeexistuje": "Súbor nahrávky sa nenašiel."
 }

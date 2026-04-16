@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // PRIDANÉ
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 
 import 'package:bakalarka/database.dart';

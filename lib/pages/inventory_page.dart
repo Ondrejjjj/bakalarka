@@ -460,7 +460,6 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                   extra = jsonDecode(move.extraData!);
                 }
               } catch (e) {
-                debugPrint("Chyba dekódovania extraData: $e");
               }
 
               return Card(

@@ -1850,6 +1850,103 @@ class S {
       args: [count],
     );
   }
+
+  /// `Hi, log in to our Trezor app using the code: {code}`
+  String prihlasovaciKod(String code) {
+    return Intl.message(
+      'Hi, log in to our Trezor app using the code: $code',
+      name: 'prihlasovaciKod',
+      desc: '',
+      args: [code],
+    );
+  }
+
+  /// `{email} has been removed from the company.`
+  String pouzivatelOdstraneny(String email) {
+    return Intl.message(
+      '$email has been removed from the company.',
+      name: 'pouzivatelOdstraneny',
+      desc: '',
+      args: [email],
+    );
+  }
+
+  /// `{count, plural, one{Synchronization of one item successful} other{Synchronization of {count} items successful}}`
+  String syncUspesna(int count) {
+    return Intl.plural(
+      count,
+      one: 'Synchronization of one item successful',
+      other: 'Synchronization of $count items successful',
+      name: 'syncUspesna',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `Error during synchronization`
+  String get chybaSync {
+    return Intl.message(
+      'Error during synchronization',
+      name: 'chybaSync',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sending...`
+  String get odosielam {
+    return Intl.message('Sending...', name: 'odosielam', desc: '', args: []);
+  }
+
+  /// `Upload to cloud`
+  String get odoslatDoCloudu {
+    return Intl.message(
+      'Upload to cloud',
+      name: 'odoslatDoCloudu',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Please authenticate to continue`
+  String get dovodBiometrie {
+    return Intl.message(
+      'Please authenticate to continue',
+      name: 'dovodBiometrie',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your account has been removed from the company. Please contact the administrator.`
+  String get ucetOdstranenyInfo {
+    return Intl.message(
+      'Your account has been removed from the company. Please contact the administrator.',
+      name: 'ucetOdstranenyInfo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This invitation code is invalid.`
+  String get chybaNeplatnyKod {
+    return Intl.message(
+      'This invitation code is invalid.',
+      name: 'chybaNeplatnyKod',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Recording file not found.`
+  String get chybaSuborNeexistuje {
+    return Intl.message(
+      'Recording file not found.',
+      name: 'chybaSuborNeexistuje',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {
